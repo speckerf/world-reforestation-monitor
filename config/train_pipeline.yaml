@@ -1,0 +1,15 @@
+models:
+  RandomForestRegressor:
+    n_estimators: [128, 256]
+    max_depth: FUNCTION:get_list_max_depth
+    min_samples_split: [2, 5]
+    min_samples_leaf: [1, 2]
+    max_samples: [0.5, 1.0]
+
+  ANN:
+    hidden_layer_sizes: [[10], [50], [5, 5], [10, 10]] 
+    activation: ['relu', 'tanh']
+    solver: ['lbfgs']
+    alpha: [0.01, 0.1, 1.0, 10.0, 100.0]
+    max_iter: [2000]
+    learning_rate: ['constant']

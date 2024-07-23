@@ -1,0 +1,95 @@
+PIPELINE_PARAMS:
+  # COUNTRY: 'Switzerland'
+  REGION: NULL #'ch_small' # needs to be defined in utils.py
+  COUNTRY: NULL # "Switzerland" # NULL #'Scotland' 
+  CONTINENT: 'EU'
+  SEASON: 'SUM'
+  YEAR: '2022'
+  OUTPUT_RESOLUTION: 20
+  MODEL_RUN_ID: 'zcnw'
+  LUT_VERSION: 'v6'
+  ANGLES_AS_PREDICTORS: TRUE
+  CAST_TO_TYPE: 'int16'
+  PHENO_START: 'MidGreenup'
+  PHENO_END: 'MidGreendown'
+  # TRAITS_TO_PREDICT: ["lai", "CHL", "EWT", "LMA", "CAR"]
+  TRAITS_TO_PREDICT: ["lai", "CHL"]
+
+INT16_SCALING: 
+  lai_mean: 1000
+  lai_stdDev: 1000
+  CHL_mean: 100
+  CHL_stdDev: 100
+  EWT_mean: 100000
+  EWT_stdDev: 100000
+  LMA_mean: 100000
+  LMA_stdDev: 100000
+  BROWN_mean: 10000
+  BROWN_stdDev: 10000
+  CAR_mean: 1000 
+  CAR_stdDev: 1000
+
+UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2072-4292/10/1/85
+  lai_mean: '[m2/m2]'
+  lai_stdDev: '[m2/m2]'
+  chl_mean: '[µg/cm2]'
+  chl_stdDev: '[µg/cm2]'
+  ewt_mean: '[cm]'
+  ewt_stdDev: '[cm]'
+  lma_mean: '[g/cm2]'
+  lma_stdDev: '[g/cm2]'
+  brown_mean: '[]'
+  brown_stdDev: '[]'
+  car_mean: '[µg/m2]'
+  car_stdDev: '[µg/m2]'
+
+S2_DATA:
+  L2A_BANDS: ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12']
+  SCALER_MODEL_COLNAMES: ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12', 'tto', 'tts', 'psi']
+  # OVERWRITE_ANGLES: FALSE
+  # ANGLES_RESOLUTION: 732 # this is in meters: 109800 / 732 = 150
+
+CLOUD_FILTERING:
+  APPLY_CLOUD_FILTER: TRUE
+  CLOUD_FILTER: 50 # only used if APPLY_CLOUD_FILTER = TRUE
+  CLOUD_SCORE_PLUS_THRESHOLD: 0.7
+  CLOUD_SCORE_PLUS_MODE: 'cs' # 'cs' or 'cs_cdf' : see https://medium.com/google-earth/all-clear-with-cloud-score-bd6ee2e2235e
+
+# GCLOUD_OPTIONS:
+  # BUCKET: felixspecker
+  # DIRECTORY: testSentinel
+  # substitute with '' target location is directly in the bucket
+
+GEE_FOLDERS:
+  # MISC_FOLDER: 'projects/crowtherlab/felix/open-earth/misc'
+  # CLOUDFREE_FOLDER: 'projects/crowtherlab/felix/open-earth/s2_cloudfree'
+  # PREDICTIONS_COLLECTION: 'projects/ee-speckerfelix/assets/open-earth/s2_predictions_brdftopo'
+  # S2_ANGLE_COLLECTION: 'projects/ee-speckerfelix/assets/open-earth/s2_angles'
+  # VALIDATION_TEST: 'projects/ee-speckerfelix/assets/open-earth/s2_validation_test'
+  # PREDICTIONS_TEST: 'projects/ee-speckerfelix/assets/test'
+
+GCLOUD_FOLDERS:
+  BUCKET: 'felixspecker'
+  # MISC_FOLDER: 'open-earth/misc'
+  # CLOUDFREE_FOLDER: 'open-earth/s2_cloudfree'
+  # S2_ANGLE_FOLDER: 'open-earth/s2_angles_sentinelhub'
+  LOCAL_RAW_FOLDER: '../data_shared/gee_exports/data_raw'
+  LOCAL_MERGED_FOLDER: '../data_shared/gee_exports/data_merged'
+  LOCAL_TEMP_FOLDER: '../data_shared/gee_exports/data_merged'
+  # TRAITS_FOLDER: 'open-earth/trait_maps'
+  # TRAITS_FOLDER: 'open-earth/test_exports'
+
+# PATH_DATA:
+#   LUT_FOLDER: 'data_shared/lut'
+#   MODELS_FOLDER: 'models'
+#   # plus GLOUD_FOLDERS.LCOAL_FOLDER
+#   S2_RANDOM_ANGLES: 'misc/random_angles_10000.csv'
+#   COUNTRY_BORDERS: 'data_shared/geometries/countries.geojson'
+#   CONTINENT_BORDERS: 'data_shared/geometries/continents_cleaned.geojson'
+#   S2_DOWNLOADS_CLOUDFREE: 'data_shared/S2_downloads/S2_cloudfree'
+#   S2_DOWNLOADS_TRAITS: 'data_shared/S2_downloads/S2_traits'
+#   S2_DOWNLOADS_COG: 'data_shared/S2_downloads/S2_cog'
+#   S2_L3A_FOLDER: '../Data/Sentinel/Level3A'
+#   S2_ANGLE_FOLDER: 'data/s2_angles_sentinelhub'
+#   DEM_30M: 'USGS/SRTMGL1_003'
+

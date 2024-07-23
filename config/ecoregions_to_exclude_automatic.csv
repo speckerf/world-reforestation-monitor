@@ -1,0 +1,41 @@
+ECO_ID,ECO_NAME,BIOME_NUM,REALM,SHAPE_AREA,reason
+117,Adelie Land tundra,11.0,Antarctica,0.0389483162871,Antarctic
+118,Central South Antarctic Peninsula tundra,11.0,Antarctica,1.18922203362,Antarctic
+120,East Antarctic tundra,11.0,Antarctica,0.228137691898,Antarctic
+121,Ellsworth Land tundra,11.0,Antarctica,0.0620223223725,Antarctic
+122,Ellsworth Mountains tundra,11.0,Antarctica,1.23655424508,Antarctic
+123,Enderby Land tundra,11.0,Antarctica,0.453849802876,Antarctic
+126,Northeast Antarctic Peninsula tundra,11.0,Antarctica,0.210329290822,Antarctic
+127,Northwest Antarctic Peninsula tundra,11.0,Antarctica,0.981716075905,Antarctic
+125,North Victoria Land tundra,11.0,Antarctica,2.58311322183,Antarctic
+128,Prince Charles Mountains tundra,11.0,Antarctica,1.59079151537,Antarctic
+129,Scotia Sea Islands tundra,11.0,Antarctica,1.26952119588,Antarctic
+130,South Antarctic Peninsula tundra,11.0,Antarctica,0.878434307311,Antarctic
+131,South Orkney Islands tundra,11.0,Antarctica,0.0243705548262,Antarctic
+132,South Victoria Land tundra,11.0,Antarctica,3.92397958053,Antarctic
+133,Southern Indian Ocean Islands tundra,11.0,Antarctica,1.0110094289,Antarctic
+134,Transantarctic Mountains tundra,11.0,Antarctica,16.3430541018,Antarctic
+119,Dronning Maud Land tundra,11.0,Antarctica,1.43543219103,Antarctic
+124,Marie Byrd Land tundra,11.0,Antarctica,0.392649607774,Antarctic
+325,Bermuda subtropical conifer forests,3.0,Nearctic,0.00377145279468,Too small: < 500 km^2
+568,Clipperton Island shrub and grasslands,7.0,Neotropic,0.0023745574521,Too small: < 500 km^2
+455,Cocos Island moist forests,1.0,Neotropic,0.00202106845379,Too small: < 500 km^2
+462,Fernando de Noronha-Atol das Rocas moist forests,1.0,Neotropic,0.00153269638721,Too small: < 500 km^2
+624,Kermadec Islands subtropical moist forests,1.0,Oceania,0.00313446551997,Too small: < 500 km^2
+142,Lord Howe Island subtropical forests,1.0,Australasia,0.00136338137795,Too small: < 500 km^2
+604,Malpelo Island xeric scrub,13.0,Neotropic,0.000623405736473,Too small: < 500 km^2
+147,Norfolk Island subtropical forests,1.0,Australasia,0.00385058836691,Too small: < 500 km^2
+641,Northwest Hawai'i scrub,7.0,Oceania,0.00133356825695,Too small: < 500 km^2
+562,San Félix-San Ambrosio Islands temperate forests,4.0,Neotropic,0.000586545692903,Too small: < 500 km^2
+267,South China Sea Islands,1.0,Indomalayan,0.00255411078887,Too small: < 500 km^2
+400,Southeast US mixed woodlands and savannas,8.0,Nearctic,0.0025345796395,Too small: < 500 km^2
+609,St. Peter and St. Paul Rocks,13.0,Neotropic,0.000490935831682,Too small: < 500 km^2
+96,Ile Europa and Bassas da India xeric scrub,13.0,Afrotropic,0.00188918142937,Too small: < 500 km^2
+509,Trindade-Martin Vaz Islands tropical forests,1.0,Neotropic,0.000801429625452,Too small: < 500 km^2
+723,Al-Hajar montane woodlands and shrublands,8.0,Palearctic,0.188713310624,No phenology period found
+821,East Arabian fog shrublands and sand desert,13.0,Palearctic,1.53083092483,No phenology period found
+103,Namib Desert,13.0,Afrotropic,7.03411922953,No phenology period found
+832,North Arabian highland shrublands,13.0,Palearctic,0.73517055642,No phenology period found
+628,Rapa Nui and Sala y Gómez subtropical forests,1.0,Oceania,0.0162058910213,No phenology period found
+836,Red Sea coastal desert,13.0,Palearctic,5.25270199575,No phenology period found
+844,Tibesti-Jebel Uweinat montane xeric woodlands,13.0,Palearctic,7.13003816119,No phenology period found
