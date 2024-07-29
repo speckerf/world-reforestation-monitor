@@ -9,3 +9,4 @@
 
 # Ignore all .pytest_cache directories
 **/.pytest_cache/
+.Rproj.user

@@ -1,61 +1,53 @@
-
-# prosail_version: 5
-# input_params: ['CHL', 'CAR', 'CAB', 'Cw', 'Cm', 'LAI', 'N', 'BROWN', 'LIDFa', 'q']
-# posthoc_params: ['EWT']
-traits: ['CHL', 'CAR', 'LMA', 'EWT', 'N', 'BROWN', 'lai', 'LIDFa', 'q']
+# GENERAL PARMAETERS
+traits: ['lai', 'CHL', 'LMA', 'EWT']  
 reflectance_bands: ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12']
 angle_bands: ['tts', 'tto', 'psi']
-# insitu trait samples
-# use_foliar_insitu_samples: False
-# lai_insitu_samples: False 
-
-# # soil reflectances adjustments
-# baresoil_insitu_samples: False
-# baresoil_per_ecoregion_samples: False
-
-number_of_samples: 2000
-lut_per_ecoregion: False
 list_ecoids_in_lai_validation: [399, 717, 392, 430, 686, 543, 344, 353, 429, 396, 366, 331, 338, 795, 428, 393, 648, 402, 664, 647, 193, 339, 654, 435, 407]
 list_ecoids_in_foliar_validation: null
 
-modify_rsoil_prosail: False 
-add_noise_to_reflectance: True
-use_s2_angles: True
-add_s2_baresoil_spectra: True
-add_s2_water_spectra: True
-add_S2_urban_spectra: True
-add_S2_snow_spectra: True
+# HYPERPARAMETERS FOR LUT CREATION
+number_of_samples: 2000
+lut_per_ecoregion: True
 
-lut_input_params:
+# prosail params
+add_noise: True # from lut_forward_params
+modify_rsoil: True  # from lut_forward_params
+
+# posthoc params
+# add_s2_baresoil_spectra: True
+# add_s2_water_spectra: True
+# add_s2_urban_spectra: True
+# add_s2_snow_spectra: True
+add_s2_nonvegetated_spectra: True
+
 
 lut_forward_params:
-  # noise_type: 'atbd' # should be one of ['atbd', 'add_multi']
-  # arguments: null # or for add_mulit: {AdditiveNoise: 0.01, MultiplicativeNoise: 0.02}
-  noise_type: 'add_multi' # should be one of ['atbd', 'add_multi']
-  arguments:  
-    AdditiveNoise: 0.01
-    MultiplicativeNoise: 0.04
+  add_noise:
+    noise_type: 'add_multi' # should be one of ['atbd', 'add_multi']
+    arguments:  # should be null for atbd, and have AdditiveNoise and MultiplicativeNoise for add_multi
+      AdditiveNoise: 0.01
+      MultiplicativeNoise: 0.04
+
   
   modify_rsoil:
     rsoil_from_insitu: 
-      bool: False
-      fraction: 0.0
+      bool: True
+      fraction: 0.5
     rsoil_from_emit:
       bool: False
       fraction: 0.0
 
 
-lut_posthoc_params:
+add_s2_nonvegetated_spectra:
   add_s2_baresoil_spectra: 
     num_spectra: 100
   add_s2_water_spectra: 
+    num_spectra: 20
+  add_s2_urban_spectra:
     num_spectra: 50
-  add_S2_urban_spectra:
-    num_spectra: 50
-  add_S2_snow_spectra:
-    num_spectra: 50
+  add_s2_snow_spectra:
+    num_spectra: 20
     
-
 
 prosail_params:
   CHL: 
@@ -74,7 +66,7 @@ prosail_params:
     mean: 1.5
     std: 0.3
     min: 1.2
-    max: 1.8
+    max: 1.8      
   BROWN: 
     distribution: 'truncnorm'
     mean: 0.0
