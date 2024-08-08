@@ -7,12 +7,60 @@ import pandas as pd
 import yaml
 from loguru import logger
 
+PATH_TO_ROOT = os.path.join(
+    "/Users", "felix", "Projects", "OEMC", "world-reforestation-monitor"
+)
+
+
+def predefined_prosail_params(descriptor: str) -> dict:
+    assert descriptor in [
+        "wan_2024_lai",
+        "snap_atbd",
+        "foliar_codistribution",
+        "kovacs_2023",
+        "estevez_2022",
+    ], f"Unknown descriptor: {descriptor}"
+
+    if descriptor == "wan_2024_lai":
+        with open(
+            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "wan_2024_lai.yaml"),
+            "r",
+        ) as file:
+            prosail_config = yaml.safe_load(file)
+    elif descriptor == "snap_atbd":
+        with open(
+            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "snap_atbd.yaml"), "r"
+        ) as file:
+            prosail_config = yaml.safe_load(file)
+    elif descriptor == "foliar_codistribution":
+        with open(
+            os.path.join(
+                PATH_TO_ROOT, "config", "rtm_simulator", "foliar_codistribution.yaml"
+            ),
+            "r",
+        ) as file:
+            prosail_config = yaml.safe_load(file)
+    elif descriptor == "kovacs_2023":
+        with open(
+            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "kovacs_2023.yaml"),
+            "r",
+        ) as file:
+            prosail_config = yaml.safe_load(file)
+    elif descriptor == "estevez_2022":
+        with open(
+            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "estevez_2022.yaml"),
+            "r",
+        ) as file:
+            prosail_config = yaml.safe_load(file)
+    return prosail_config
+
 
 def load_insitu_foliar() -> pd.DataFrame:
     # Load insitu foliar data
     foliar_generated = (
         pd.read_csv(
             os.path.join(
+                PATH_TO_ROOT,
                 "data",
                 "validation_pipeline",
                 "output",
@@ -37,51 +85,6 @@ def load_insitu_foliar() -> pd.DataFrame:
     return foliar_generated
 
 
-def load_baresoil_insitu_multispec(eco_id=None) -> pd.DataFrame:
-    raise NotImplementedError
-    assert eco_id is None, "Not implemented yet"
-    # Load insitu bare soil data
-    baresoil_insitu = pd.read_csv(
-        os.path.join(
-            "..",
-            "rtm_simulate_lut",
-            "data",
-            "soil_spectra_insitu_with_eco_for_prosail.csv",
-        )
-    )
-    return baresoil_insitu
-
-
-def load_baresoil_insitu_hyperspec(eco_id=None) -> pd.DataFrame:
-    raise NotImplementedError
-    assert eco_id is None, "Not implemented yet"
-    # Load insitu bare soil data
-    baresoil_insitu = pd.read_csv(
-        os.path.join(
-            "..",
-            "rtm_simulate_lut",
-            "data",
-            "soil_spectra_insitu_with_eco_for_prosail.csv",
-        )
-    )
-    return baresoil_insitu
-
-
-def load_baresoil_emit(eco_id=None) -> pd.DataFrame:
-    raise NotImplementedError
-    assert eco_id is not None, "Eco ID must be provided"
-    # Load insitu bare soil data
-    baresoil_emit = pd.read_csv(
-        os.path.join(
-            "..",
-            "rtm_simulate_lut",
-            "data",
-            "soil_spectra_emit_hyper_with_eco_for_prosail.csv",
-        )
-    )
-    return baresoil_emit
-
-
 def load_s2_angles(eco_id=None, resync=False) -> pd.DataFrame:
     # syn folder from google cloud storage: felixspecker/open-earth/s2_reflectances/ecoregion_level_all_lc/
     # to local repository: data/s2_reflectances/ecoregion_level_all_lc
@@ -100,12 +103,19 @@ def load_s2_angles(eco_id=None, resync=False) -> pd.DataFrame:
         )
 
     if eco_id is None:
+
         all_files = glob.glob(
-            "data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_*.csv"
+            os.path.join(
+                PATH_TO_ROOT,
+                "data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_*.csv",
+            )
         )
     else:
         all_files = glob.glob(
-            f"data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_{eco_id}.csv"
+            os.path.join(
+                PATH_TO_ROOT,
+                f"data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_{eco_id}.csv",
+            )
         )
     all_dfs = []
     for file in all_files:
@@ -260,53 +270,14 @@ def bool_to_r_str(value):
 def int_or_null_to_r_str(value):
     assert value is None or isinstance(value, int)
     if value is None:
-        return "NULL"
+        return "All"
     else:
         return str(value)
 
 
-def test_yield_hyperparams():
-    config_file = "config/rtm_pipeline_hyperparam_opt.yaml"
-
-    with open(config_file, "r") as file:
-        config = yaml.safe_load(file)
-
-    config_hyperparams = config["hyper_params"]
-    config_general = config["general_params"]
-    generator = ConfigGenerator(config_hyperparams)
-
-    for config_hyperparam_iter in generator.generate_configs():
-        print({"general_params": config_general, "hyperparams": config_hyperparam_iter})
-
-
-def generate_combinations(d):
-    import itertools
-
-    """Recursively generate all combinations of elements in lists within a nested dictionary."""
-    if isinstance(d, dict):
-        keys, values = zip(*d.items())
-        value_combinations = [generate_combinations(v) for v in values]
-        for combination in itertools.product(*value_combinations):
-            yield dict(zip(keys, combination))
-    elif isinstance(d, list):
-        for item in d:
-            yield from generate_combinations(item)
+def string_or_null_to_r_str(value):
+    assert value is None or isinstance(value, str)
+    if value is None:
+        return "NULL"
     else:
-        yield d
-
-
-class ConfigGenerator:
-    def __init__(self, config):
-        self.config = config
-
-    def generate_configs(self):
-        return generate_combinations(self.config)
-
-
-if __name__ == "__main__":
-    # load_s2_reflectances(eco_id=None)
-    a = load_s2_angles(eco_id=None)
-    b = load_s2_reflectances(eco_id=None)
-    print(a.head())
-
-    # test_yield_hyperparams()
+        return value

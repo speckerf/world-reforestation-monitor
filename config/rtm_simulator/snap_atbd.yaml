@@ -1,0 +1,7 @@
+prosail_params:
+  tts: 
+    distribution: 's2_angles_gee_samples'
+  tto: 
+    distribution: 's2_angles_gee_samples'
+  psi: 
+    distribution: 's2_angles_gee_samples'

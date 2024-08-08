@@ -1,44 +1,34 @@
-import glob
 import json
 import os
-import random
 import subprocess
 import tempfile
 
 import numpy as np
 import pandas as pd
-import yaml
 from loguru import logger
 from scipy.stats import truncnorm
-from sklearn.base import BaseEstimator, TransformerMixin
 
-from config.config import get_config
-from rtm_pipeline_python.preprocessing.postprocess_s2_reflectances import (  # load_s2_reflectances,; load_s2_vegetation_reflectances,
-    load_s2_baresoil_reflectances,
-    load_s2_snowice_reflectances,
-    load_s2_urban_reflectances,
-    load_s2_water_reflectances,
-)
 from rtm_pipeline_python.utils import (
     bool_to_r_str,
     int_or_null_to_r_str,
     load_insitu_foliar,
     load_s2_angles,
+    predefined_prosail_params,
     rename_angles_utils,
+    string_or_null_to_r_str,
 )
 
 
 class rtm_simulator:
     def __init__(self, config, r_script_path):
         self.config = config
+        self.prosail_config = predefined_prosail_params(config["parameter_setup"])
         self.r_script_path = r_script_path
         assert os.path.exists(
             self.r_script_path
         ), f"{self.r_script_path} does not exist"
-        self.prospect_version = "..."
-        self.four_sail_version = "..."
-        self.distributions = self.create_distributions(config["prosail_params"])
-        self.insitu_foliar = load_insitu_foliar()
+        self.distributions = None
+        self.insitu_foliar = None
         self.s2_angles = None
         self.eco_id = None
 
@@ -143,16 +133,24 @@ class rtm_simulator:
         return sampler
 
     def generate_prosail_input(self) -> pd.DataFrame:
+        self.distributions = self.create_distributions(
+            self.prosail_config["prosail_params"]
+        )
+        self.insitu_foliar = load_insitu_foliar()
         # Generate input reflectances
-        number_of_samples = self.config["number_of_samples"]
+        number_of_samples = self.config["num_spectra"]
 
-        # init InputPROSAIL with number of samples
-        InputPROSAIL = pd.DataFrame(index=range(number_of_samples))
+        if self.config["parameter_setup"] == "snap_atbd":
+            InputPROSAIL = pd.read_csv(
+                "/Users/felix/Projects/OEMC/world-reforestation-monitor/data/rtm_pipeline/input/prosail_atbd/atbd_inputs.csv"
+            ).sample(n=number_of_samples)
+        else:
+            InputPROSAIL = pd.DataFrame(index=range(number_of_samples))
 
         base_values = {}
         # First, sample all non-ratio parameters
         for parm, sampler in self.distributions.items():
-            if self.config["prosail_params"][parm]["distribution"] in [
+            if self.prosail_config["prosail_params"][parm]["distribution"] in [
                 "truncnorm",
                 "normal",
                 "uniform",
@@ -168,7 +166,7 @@ class rtm_simulator:
         insitu_foliar_sample = None
         for parm, sampler in self.distributions.items():
             if (
-                self.config["prosail_params"][parm]["distribution"]
+                self.prosail_config["prosail_params"][parm]["distribution"]
                 == "insitu_foliar_codistribution"
             ):
                 if insitu_foliar_sample is None:
@@ -180,7 +178,7 @@ class rtm_simulator:
         s2_angles_sample = None
         for parm, sampler in self.distributions.items():
             if (
-                self.config["prosail_params"][parm]["distribution"]
+                self.prosail_config["prosail_params"][parm]["distribution"]
                 == "s2_angles_gee_samples"
             ):
                 if s2_angles_sample is None:
@@ -189,9 +187,9 @@ class rtm_simulator:
 
         # Then, handle the ratio-based and insitu foliar parameters
         for parm, sampler in self.distributions.items():
-            if self.config["prosail_params"][parm]["distribution"] == "ratio":
+            if self.prosail_config["prosail_params"][parm]["distribution"] == "ratio":
                 # ratio = self.config["prosail_params"][parm]["ratio"]
-                base_param = self.config["prosail_params"][parm]["base_param"]
+                base_param = self.prosail_config["prosail_params"][parm]["base_param"]
                 InputPROSAIL[parm] = sampler(
                     size=number_of_samples, base_values=base_values[base_param]
                 )
@@ -207,32 +205,44 @@ class rtm_simulator:
             InputPROSAIL.to_csv(input_path, index=False)
 
             # Prepare noise arguments
-            noise_bool = self.config["add_noise"]
-            noise_type = self.config["lut_forward_params"]["add_noise"]["noise_type"]
-            noise_args = self.config["lut_forward_params"]["add_noise"].get(
-                "arguments", {}
-            )
-
-            # Prepare rsoil arguments
-            modify_rsoil = self.config["modify_rsoil"]
-            rsoil_insitu = self.config["lut_forward_params"]["modify_rsoil"][
-                "rsoil_from_insitu"
-            ]["bool"]
-            rsoil_insitu_fraction = self.config["lut_forward_params"]["modify_rsoil"][
-                "rsoil_from_insitu"
-            ]["fraction"]
-            rsoil_emit = self.config["lut_forward_params"]["modify_rsoil"][
-                "rsoil_from_emit"
-            ]["bool"]
-            rsoil_emit_fraction = self.config["lut_forward_params"]["modify_rsoil"][
-                "rsoil_from_emit"
-            ]["fraction"]
-
-            # Ensure noise_args is always a valid JSON string
+            # add_noise = True if self.config["add_noise"] != None else False
+            # noise_type = self.config["add_noise"]
+            if self.config["add_noise"]:
+                noise_bool = True
+                noise_type = self.config["noise_type"]
+                if noise_type == "atbd":
+                    noise_args = {}
+                elif noise_type == "addmulti":
+                    noise_args = {
+                        "AdditiveNoise": self.config["additive_noise"],
+                        "MultiplicativeNoise": self.config["multiplicative_noise"],
+                    }
+                else:
+                    raise ValueError(f"Unknown noise type: {noise_type}")
+            else:
+                noise_bool = False
+                noise_type = None
+                noise_args = {}
+            #  Ensure noise_args is always a valid JSON string
             if not noise_args:
                 noise_args = "{}"
             else:
                 noise_args = json.dumps(noise_args)
+
+            # Prepare rsoil arguments
+            modify_rsoil = self.config["modify_rsoil"]
+            rsoil_insitu = (
+                True if self.config.get("rsoil_emit_insitu", "") == "insitu" else False
+            )
+            rsoil_emit = (
+                True if self.config.get("rsoil_emit_insitu", "") == "emit" else False
+            )
+            rsoil_insitu_fraction = (
+                self.config["rsoil_fraction"] if modify_rsoil and rsoil_insitu else 0
+            )
+            rsoil_emit_fraction = (
+                self.config["rsoil_fraction"] if modify_rsoil and rsoil_emit else 0
+            )
 
             process = subprocess.Popen(
                 [
@@ -245,7 +255,7 @@ class rtm_simulator:
                     "--add_noise",
                     bool_to_r_str(noise_bool),
                     "--noise_type",
-                    noise_type,
+                    string_or_null_to_r_str(noise_type),
                     "--noise_args",
                     noise_args,
                     "--ecoregion",
@@ -297,94 +307,10 @@ class rtm_simulator:
         df_return = rename_angles_utils(df)
         return df_return
 
-    def apply_posthoc_modifications(
-        self, lut: pd.DataFrame, eco_id=None
-    ) -> pd.DataFrame:
-
-        # if self.config["add_s2_baresoil_spectra"]:
-        #     baresoil = self._load_s2_lulc_reflectances(
-        #         load_s2_baresoil_reflectances,
-        #         self.config["lut_posthoc_params"]["add_s2_baresoil_spectra"][
-        #             "num_spectra"
-        #         ],
-        #         eco_id=eco_id,
-        #     )
-        #     lut = pd.concat([lut, baresoil])
-
-        # if self.config["add_s2_urban_spectra"]:
-        #     urban = self._load_s2_lulc_reflectances(
-        #         load_s2_urban_reflectances,
-        #         self.config["lut_posthoc_params"]["add_s2_urban_spectra"][
-        #             "num_spectra"
-        #         ],
-        #         eco_id=eco_id,
-        #     )
-        #     lut = pd.concat([lut, urban])
-
-        # if self.config["add_s2_water_spectra"]:
-        #     water = self._load_s2_lulc_reflectances(
-        #         load_s2_water_reflectances,
-        #         self.config["lut_posthoc_params"]["add_s2_water_spectra"][
-        #             "num_spectra"
-        #         ],
-        #         eco_id=eco_id,
-        #     )
-        #     lut = pd.concat([lut, water])
-
-        # if self.config["add_s2_snow_spectra"]:
-        #     snow = self._load_s2_lulc_reflectances(
-        #         load_s2_snowice_reflectances,
-        #         self.config["lut_posthoc_params"]["add_s2_snow_spectra"]["num_spectra"],
-        #         eco_id=eco_id,
-        #     )
-        #     lut = pd.concat([lut, snow])
-
-        if self.config["add_s2_nonvegetated_spectra"]:
-            baresoil = self._load_s2_lulc_reflectances(
-                load_s2_baresoil_reflectances,
-                self.config["add_s2_baresoil_spectra"]["num_spectra"],
-                eco_id=eco_id,
-            )
-            urban = self._load_s2_lulc_reflectances(
-                load_s2_urban_reflectances,
-                self.config["add_s2_urban_spectra"]["num_spectra"],
-                eco_id=eco_id,
-            )
-            water = self._load_s2_lulc_reflectances(
-                load_s2_water_reflectances,
-                self.config["add_s2_water_spectra"]["num_spectra"],
-                eco_id=eco_id,
-            )
-            snow = self._load_s2_lulc_reflectances(
-                load_s2_snowice_reflectances,
-                self.config["add_s2_snow_spectra"]["num_spectra"],
-                eco_id=eco_id,
-            )
-            lut = pd.concat([lut, baresoil, urban, water, snow])
-
-        # replace nan with 0 for all trait columns
-        for trait in self.config["traits"]:
-            lut[trait] = lut[trait].fillna(0)
-
-        # drop unnecessary columns
-        columns_to_drop = [
-            "dw_label",
-            "proba_label",
-            "esa_label",
-            "dw_mask",
-            "proba_mask",
-            "esa_mask",
-            "sum_masks",
-        ]
-        if all(col in lut.columns for col in columns_to_drop):
-            lut = lut.drop(columns=columns_to_drop)
-
-        return lut
-
     def generate_lut(self, eco_id=None):
-        if self.config["lut_per_ecoregion"] is False and eco_id is not None:
+        if self.config["ecoregion_level"] is False and eco_id is not None:
             logger.warning(
-                "The 'lut_per_ecoregion' parameter is set to False. The 'eco_id' parameter will be ignored."
+                "The 'ecoregion_level' parameter is set to False. The 'eco_id' parameter will be ignored."
             )
             self.eco_id = None
         else:
@@ -398,12 +324,203 @@ class rtm_simulator:
         # Run PROSAIL
         OutputPROSAIL = self.call_prosail(InputPROSAIL)
 
-        # PostHoc modifications
-        OutputPROSAIL_POSTHOC = self.apply_posthoc_modifications(
-            OutputPROSAIL, eco_id=self.eco_id
-        )
+        return OutputPROSAIL
 
-        return OutputPROSAIL_POSTHOC
+
+def prepare_dataset(df: pd.DataFrame):
+    bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
+    if "solar_azimuth" in df.columns:
+
+        df["relative_azimuth"] = np.abs(df["solar_azimuth"] - df["view_azimuth"])
+
+        # rename columns to match the expected names
+        df = df.rename(
+            columns={
+                "solar_zenith": "tts",
+                "view_zenith": "tto",
+                "relative_azimuth": "psi",
+            }
+        )
+        angles = ["tts", "tto", "psi"]
+
+        # drop the original columns
+        df = df.drop(columns=["solar_azimuth", "view_azimuth"])
+    else:
+        angles = ["tts", "tto", "psi"]
+        assert all(
+            [angle in df.columns for angle in angles]
+        ), f"Missing angle columns: {angles}"
+
+    # if bands are integers and larger than 1, divide by 10000
+    if all([df[band].dtype == int and df[band].max() > 1 for band in bands]):
+        logger.debug("Dividing bands by 10000")
+        df[bands] = df[bands] / 10000
+
+    return df[[*bands, *angles]]
+
+
+def get_baresoil_s2(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "s2_reflectances",
+        "s2_reflectances_baresoil.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+    return prepare_dataset(df)
+
+
+def get_water_s2(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "s2_reflectances",
+        "s2_reflectances_water.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+    return prepare_dataset(df)
+
+
+def get_urban_s2(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "s2_reflectances",
+        "s2_reflectances_urban.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+    return prepare_dataset(df)
+
+
+def get_snowice_s2(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "s2_reflectances",
+        "s2_reflectances_snowice.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+    return prepare_dataset(df)
+
+
+def get_baresoil_insitu(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "insitu_soil_database",
+        "insitu_soil_spectra_sentinel2bands.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+
+    # select only the bands and set angles to 0
+    df = df[["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]]
+    df["tts"] = 0
+    df["tto"] = 0
+    df["psi"] = 0
+
+    return df
+
+
+def get_baresoil_emit(n=10) -> pd.DataFrame:
+    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+    path = os.path.join(
+        path_to_new_repo,
+        "data",
+        "rtm_pipeline",
+        "output",
+        "emit_hyperspectral",
+        "point_data",
+        "global-baresoil-random-points-all_sentinel2bands.csv",
+    )
+    df = pd.read_csv(path).sample(n=n)
+
+    # select only the bands and set angles to 0
+    df = df[["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]]
+    df["tts"] = 0
+    df["tto"] = 0
+    df["psi"] = 0
+
+    return df
+
+
+def helper_apply_posthoc_modifications(single_df, trait, config):
+    if config["posthoc_modifications"]:
+        single_df = apply_posthoc_modifications(single_df, trait, config)
+        # set all negative reflectances to 0 / in columns B2 - B12
+        single_df.loc[:, "B2":"B12"] = single_df.loc[:, "B2":"B12"].clip(lower=0)
+    return single_df
+
+
+def apply_posthoc_modifications(df: pd.DataFrame, trait: str, config: dict):
+    angles = ["tts", "tto", "psi"]
+
+    if config["use_baresoil_insitu"]:
+        df_baresoil = get_baresoil_insitu(n=config["n_baresoil_insitu"])
+        df_baresoil[angles] = (
+            df[angles].sample(n=config["n_baresoil_insitu"], replace=True).values
+        )
+        df_baresoil[trait] = 0
+        df = pd.concat([df, df_baresoil], ignore_index=True)
+
+    if config["use_baresoil_s2"]:
+        df_baresoil = get_baresoil_s2(n=config["n_baresoil_s2"])
+        df_baresoil[angles] = (
+            df[angles].sample(n=config["n_baresoil_s2"], replace=True).values
+        )
+        df_baresoil[trait] = 0
+        df = pd.concat([df, df_baresoil], ignore_index=True)
+
+    if config["use_urban_s2"]:
+        df_urban = get_urban_s2(n=config["n_urban_s2"])
+        df_urban[angles] = (
+            df[angles].sample(n=config["n_urban_s2"], replace=True).values
+        )
+        df_urban[trait] = 0
+        df = pd.concat([df, df_urban], ignore_index=True)
+
+    if config["use_water_s2"]:
+        df_water = get_water_s2(n=config["n_water_s2"])
+        df_water[angles] = (
+            df[angles].sample(n=config["n_water_s2"], replace=True).values
+        )
+        df_water[trait] = 0
+        df = pd.concat([df, df_water], ignore_index=True)
+
+    if config["use_snowice_s2"]:
+        df_snowice = get_snowice_s2(n=config["n_snowice_s2"])
+        df_snowice[angles] = (
+            df[angles].sample(n=config["n_snowice_s2"], replace=True).values
+        )
+        df_snowice[trait] = 0
+        df = pd.concat([df, df_snowice], ignore_index=True)
+
+    if config["use_baresoil_emit"]:
+        df_baresoil = get_baresoil_emit(n=config["n_baresoil_emit"])
+        df_baresoil[angles] = (
+            df[angles].sample(n=config["n_baresoil_emit"], replace=True).values
+        )
+        df_baresoil[trait] = 0
+        df = pd.concat([df, df_baresoil], ignore_index=True)
+
+    # Set all negative reflectances to 0 / in columns B2 - B12
+    df.loc[:, "B2":"B12"] = df.loc[:, "B2":"B12"].clip(lower=0)
+
+    return df
 
 
 if __name__ == "__main__":

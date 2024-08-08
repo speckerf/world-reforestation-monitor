@@ -1,0 +1,65 @@
+prosail_params:
+  CHL: 
+    distribution: 'uniform'
+    min: 0.0
+    max: 100.0
+  CAR: 
+    distribution: 'truncnorm'
+    mean: 10
+    std: 10
+    min: 0.0
+    max: 20.0
+  ANT: 
+    distribution: 'constant'
+    value: 0.0
+  LMA: 
+    distribution: 'truncnorm'
+    mean: 0.005
+    std: 0.003
+    min: 0.002
+    max: 0.02
+  EWT: 
+    distribution: 'truncnorm'
+    mean: 0.012
+    std: 0.006
+    min: 0.0005
+    max: 0.035
+  N: 
+    distribution: 'truncnorm'
+    mean: 1.5
+    std: 0.5
+    min: 1.0
+    max: 2.7
+  BROWN: 
+    distribution: 'constant'
+    value: 0.0
+  lai: 
+    distribution: 'uniform'
+    min: 0.0
+    max: 7.0
+  LIDFa: 
+    distribution: 'uniform'
+    min: 40.0
+    max: 70.0
+  q: 
+    distribution: 'constant'
+    value: 0.01
+  TypeLidf: 
+    distribution: 'constant'
+    value: 2
+  alpha: 
+    distribution: 'constant'
+    value: 40
+  tts: 
+    distribution: 's2_angles_gee_samples'
+  tto: 
+    distribution: 'uniform'
+    min: -10.0
+    max: 10.0
+  psi: 
+    distribution: 'constant'
+    value: 180.0
+  psoil: 
+    distribution: 'uniform'
+    min: 0.0
+    max: 1.0

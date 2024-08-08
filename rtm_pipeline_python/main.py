@@ -11,7 +11,7 @@ from rtm_pipeline_python.utils import ConfigGenerator
 def create_luts_wrapper():
     config_file = "config/rtm_pipeline_hyperparam_opt.yaml"
     with open(config_file, "r") as file:
-        config = yaml.safe_(file)
+        config = yaml.safe_load(file)
 
     general_params = config["general_params"]
     hyper_params = config["hyper_params"]
