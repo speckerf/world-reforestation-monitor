@@ -15,6 +15,9 @@ def predefined_prosail_params(descriptor: str) -> dict:
         "foliar_codistribution",
         "kovacs_2023",
         "estevez_2022",
+        "wan_2024_chl",
+        "custom_ewt",
+        "custom_lma",
     ], f"Unknown descriptor: {descriptor}"
 
     if descriptor == "wan_2024_lai":

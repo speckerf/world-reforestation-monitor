@@ -1,6 +1,8 @@
 import numpy as np
 from loguru import logger
 
+from config.config import get_config
+
 
 def log_splits(splits, df_val_trait):
     logger.trace("Number of splits: {len(splits)}")
@@ -30,6 +32,9 @@ def merge_dicts_safe(*dicts):
 
 
 def optuna_init_config(trial):
+    config_training = get_config("train_pipeline")
+    trait = config_training["trait"]
+
     config_general = {
         "model": trial.suggest_categorical("model", ["mlp", "rf"]),
         "ecoregion_level": trial.suggest_categorical("ecoregion_level", [True, False]),
@@ -53,15 +58,15 @@ def optuna_init_config(trial):
         # "modify_rsoil": False,
         "add_noise": trial.suggest_categorical("add_noise", [True, False]),
         # "add_noise": True,
-        "num_spectra": 1000 * trial.suggest_int("num_spectra_optuna", 1, 30, log=True),
+        "num_spectra": 2500 * trial.suggest_int("num_spectra_optuna", 1, 20, log=True),
         # "num_spectra": 1000,
         "parameter_setup": trial.suggest_categorical(
             "parameter_setup",
             [
-                "snap_atbd",
+                "estevez_2022",
                 "foliar_codistribution",
                 "kovacs_2023",
-                "estevez_2022",
+                "snap_atbd",
                 "wan_2024_lai",
             ],
         ),

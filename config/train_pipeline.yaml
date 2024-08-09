@@ -4,4 +4,9 @@ trait: 'lai'
 list_ecoids_in_lai_validation: [399, 717, 392, 430, 686, 543, 344, 353, 429, 396, 366, 331, 338, 795, 428, 393, 648, 402, 664, 647, 193, 339, 654, 435, 407]
 list_ecoids_in_foliar_validation: []
 optuna_study_name: "optuna-test-lai"
-optuna_storage: "mysql://root@localhost/example_optuna"
+optuna_storage: "mysql://root@localhost/oemc"
+optuna_distributions:
+  lai: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai']
+  CHL: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_chl']
+  EWT: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_ewt']
+  LMA: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_lma']
