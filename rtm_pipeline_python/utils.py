@@ -7,10 +7,6 @@ import pandas as pd
 import yaml
 from loguru import logger
 
-PATH_TO_ROOT = os.path.join(
-    "/Users", "felix", "Projects", "OEMC", "world-reforestation-monitor"
-)
-
 
 def predefined_prosail_params(descriptor: str) -> dict:
     assert descriptor in [
@@ -23,32 +19,30 @@ def predefined_prosail_params(descriptor: str) -> dict:
 
     if descriptor == "wan_2024_lai":
         with open(
-            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "wan_2024_lai.yaml"),
+            os.path.join("config", "rtm_simulator", "wan_2024_lai.yaml"),
             "r",
         ) as file:
             prosail_config = yaml.safe_load(file)
     elif descriptor == "snap_atbd":
         with open(
-            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "snap_atbd.yaml"), "r"
+            os.path.join("config", "rtm_simulator", "snap_atbd.yaml"), "r"
         ) as file:
             prosail_config = yaml.safe_load(file)
     elif descriptor == "foliar_codistribution":
         with open(
-            os.path.join(
-                PATH_TO_ROOT, "config", "rtm_simulator", "foliar_codistribution.yaml"
-            ),
+            os.path.join("config", "rtm_simulator", "foliar_codistribution.yaml"),
             "r",
         ) as file:
             prosail_config = yaml.safe_load(file)
     elif descriptor == "kovacs_2023":
         with open(
-            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "kovacs_2023.yaml"),
+            os.path.join("config", "rtm_simulator", "kovacs_2023.yaml"),
             "r",
         ) as file:
             prosail_config = yaml.safe_load(file)
     elif descriptor == "estevez_2022":
         with open(
-            os.path.join(PATH_TO_ROOT, "config", "rtm_simulator", "estevez_2022.yaml"),
+            os.path.join("config", "rtm_simulator", "estevez_2022.yaml"),
             "r",
         ) as file:
             prosail_config = yaml.safe_load(file)
@@ -60,7 +54,6 @@ def load_insitu_foliar() -> pd.DataFrame:
     foliar_generated = (
         pd.read_csv(
             os.path.join(
-                PATH_TO_ROOT,
                 "data",
                 "validation_pipeline",
                 "output",

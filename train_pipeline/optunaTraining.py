@@ -217,7 +217,10 @@ def main():
         )
         logger.info(f"Study '{study_name}' created.")
     else:
-        study = optuna.load_study(study_name=study_name, storage=storage)
+        sampler = TPESampler(n_startup_trials=100)
+        study = optuna.load_study(
+            study_name=study_name, storage=storage, sampler=sampler
+        )
         logger.info(f"Study '{study_name}' loaded.")
 
     if not study_exists:
