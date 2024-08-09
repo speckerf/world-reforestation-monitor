@@ -178,13 +178,13 @@ def objective(trial):
         scores_val_train_r2.append(r2_score(y_val_train, y_val_train_pred))
         scores_val_test_r2.append(r2_score(y_val_test, y_val_test_pred))
 
-    # Log additional values
-    trial.set_user_attr("val_train_rmse", np.mean(scores_val_train_rmse))
-    trial.set_user_attr("val_test_rmse", np.mean(scores_val_test_rmse))
-    trial.set_user_attr("val_train_mae", np.mean(scores_val_train_mae))
-    trial.set_user_attr("val_test_mae", np.mean(scores_val_test_mae))
-    trial.set_user_attr("val_train_r2", np.mean(scores_val_train_r2))
-    trial.set_user_attr("val_test_r2", np.mean(scores_val_test_r2))
+    # Log additional values / but set max or min values to avoid errors
+    trial.set_user_attr("val_train_rmse", np.min(np.mean(scores_val_train_rmse), 5))
+    trial.set_user_attr("val_test_rmse", np.min(np.mean(scores_val_test_rmse), 5))
+    trial.set_user_attr("val_train_mae", np.min(np.mean(scores_val_train_mae), 5))
+    trial.set_user_attr("val_test_mae", np.min(np.mean(scores_val_test_mae), 5))
+    trial.set_user_attr("val_train_r2", np.max(np.mean(scores_val_train_r2), -1))
+    trial.set_user_attr("val_test_r2", np.max(np.mean(scores_val_test_r2), -1))
     trial.set_user_attr("config", config)
 
     return np.mean(scores_val_train_rmse)
