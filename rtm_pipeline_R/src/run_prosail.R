@@ -51,7 +51,7 @@ if (interactive()) {
 } else {
   args <- parse_args_wrapper()
 }
-path_to_root <- "/Users/felix/Projects/OEMC/world-reforestation-monitor"
+path_to_root <- file.path('.')
 
 
 # Main function to run PROSAIL model
