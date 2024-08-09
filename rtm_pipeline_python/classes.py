@@ -142,7 +142,7 @@ class rtm_simulator:
 
         if self.config["parameter_setup"] == "snap_atbd":
             InputPROSAIL = pd.read_csv(
-                "/Users/felix/Projects/OEMC/world-reforestation-monitor/data/rtm_pipeline/input/prosail_atbd/atbd_inputs.csv"
+                "data/rtm_pipeline/input/prosail_atbd/atbd_inputs.csv"
             ).sample(n=number_of_samples)
         else:
             InputPROSAIL = pd.DataFrame(index=range(number_of_samples))
@@ -360,9 +360,7 @@ def prepare_dataset(df: pd.DataFrame):
 
 
 def get_baresoil_s2(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
@@ -374,9 +372,7 @@ def get_baresoil_s2(n=10) -> pd.DataFrame:
 
 
 def get_water_s2(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
@@ -388,9 +384,7 @@ def get_water_s2(n=10) -> pd.DataFrame:
 
 
 def get_urban_s2(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
@@ -402,9 +396,7 @@ def get_urban_s2(n=10) -> pd.DataFrame:
 
 
 def get_snowice_s2(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
@@ -416,9 +408,7 @@ def get_snowice_s2(n=10) -> pd.DataFrame:
 
 
 def get_baresoil_insitu(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
@@ -437,9 +427,7 @@ def get_baresoil_insitu(n=10) -> pd.DataFrame:
 
 
 def get_baresoil_emit(n=10) -> pd.DataFrame:
-    path_to_new_repo = "/Users/felix/Projects/OEMC/world-reforestation-monitor"
     path = os.path.join(
-        path_to_new_repo,
         "data",
         "rtm_pipeline",
         "output",
