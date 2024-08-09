@@ -99,14 +99,12 @@ def load_s2_angles(eco_id=None, resync=False) -> pd.DataFrame:
 
         all_files = glob.glob(
             os.path.join(
-                PATH_TO_ROOT,
                 "data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_*.csv",
             )
         )
     else:
         all_files = glob.glob(
             os.path.join(
-                PATH_TO_ROOT,
                 f"data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_{eco_id}.csv",
             )
         )
