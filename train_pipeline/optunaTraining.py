@@ -54,7 +54,7 @@ def objective(trial):
     if config["ecoregion_level"]:
         df = {
             ecoregion: lut_simulator.generate_lut(ecoregion)
-            for ecoregion in config["list_ecoids_in_lai_validation"]
+            for ecoregion in config["list_ecoids_in_validation"][trait]
         }
         if config["posthoc_modifications"]:
             df = {
@@ -72,12 +72,12 @@ def objective(trial):
     # df_val_trait = df_val_trait[df_val_trait[trait] > 0.001]
     # df_val_trait["site"] = df_val_trait["site"].apply(lambda x: x.split("_")[0])
     df_val_trait = df_val_trait[
-        df_val_trait["ECO_ID"].isin(config["list_ecoids_in_lai_validation"])
+        df_val_trait["ECO_ID"].isin(config["list_ecoids_in_validation"][trait])
     ]
 
     df_val_trait_dict = {
         eco: df_val_trait[df_val_trait["ECO_ID"] == eco].drop(columns="ECO_ID")
-        for eco in config["list_ecoids_in_lai_validation"]
+        for eco in config["list_ecoids_in_validation"][trait]
     }
 
     if config["ecoregion_level"]:
@@ -118,7 +118,7 @@ def objective(trial):
     pipeline = get_pipeline(model, config)
     if config["ecoregion_level"]:
         pipeline = EcoregionSpecificModel(pipeline, config)
-        pipeline.fit(X, y, ecoregions=config["list_ecoids_in_lai_validation"])
+        pipeline.fit(X, y, ecoregions=config["list_ecoids_in_validation"][trait])
         y_val_train_pred = pipeline.predict(X_val_train)
         y_val_test_pred = pipeline.predict(X_val_test)
 
@@ -132,10 +132,10 @@ def objective(trial):
 
         # sort true values by key
         y_val_train = np.concatenate(
-            [y_val_train[eco].values.squeeze() for eco in sorted(y_val_train.keys())]
+            [y_val_train[eco].values.reshape(-1) for eco in sorted(y_val_train.keys())]
         )
         y_val_test = np.concatenate(
-            [y_val_test[eco].values.squeeze() for eco in sorted(y_val_test.keys())]
+            [y_val_test[eco].values.reshape(-1) for eco in sorted(y_val_test.keys())]
         )
     else:
         pipeline.fit(X, y)
@@ -147,10 +147,10 @@ def objective(trial):
         )
 
         y_val_train = np.concatenate(
-            [y_val_train[eco].values.squeeze() for eco in sorted(X_val_train.keys())]
+            [y_val_train[eco].values.reshape(-1) for eco in sorted(X_val_train.keys())]
         )
         y_val_test = np.concatenate(
-            [y_val_test[eco].values.squeeze() for eco in sorted(X_val_test.keys())]
+            [y_val_test[eco].values.reshape(-1) for eco in sorted(X_val_test.keys())]
         )
 
     # save length of strings for model rf:
@@ -158,7 +158,7 @@ def objective(trial):
         if config["ecoregion_level"]:
             rf_model = (
                 pipeline.per_ecoregion_pipeline_[
-                    list(config["list_ecoids_in_lai_validation"])[0]
+                    list(config["list_ecoids_in_validation"][trait])[0]
                 ]
                 .named_steps["regressor"]
                 .regressor_
@@ -192,10 +192,19 @@ def objective(trial):
     trial.set_user_attr("val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test]))
 
     # Log additional values / but set max or min values to avoid errors
-    trial.set_user_attr("val_train_rmse", min(score_val_train_rmse, 5))
-    trial.set_user_attr("val_test_rmse", min(score_val_test_rmse, 5))
-    trial.set_user_attr("val_train_mae", min(score_val_train_mae, 5))
-    trial.set_user_attr("val_test_mae", min(score_val_test_mae, 5))
+    trial.set_user_attr(
+        "val_train_rmse",
+        min(score_val_train_rmse, config["optuna_report_thresh"][trait]),
+    )
+    trial.set_user_attr(
+        "val_test_rmse", min(score_val_test_rmse, config["optuna_report_thresh"][trait])
+    )
+    trial.set_user_attr(
+        "val_train_mae", min(score_val_train_mae, config["optuna_report_thresh"][trait])
+    )
+    trial.set_user_attr(
+        "val_test_mae", min(score_val_test_mae, config["optuna_report_thresh"][trait])
+    )
     trial.set_user_attr("val_train_r2", max(score_val_train_r2, -1))
     trial.set_user_attr("val_test_r2", max(score_val_test_r2, -1))
     trial.set_user_attr("val_test_r2_oos", max(score_val_test_r2_oos, -1))
