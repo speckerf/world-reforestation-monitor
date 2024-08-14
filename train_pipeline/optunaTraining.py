@@ -236,6 +236,7 @@ def objective(trial):
         return score_val_train_rmse
 
     except Exception as e:
+        logger.error(f"Error in objective function: {e}")
         raise RuntimeError(
             f"Error in objective function: {e}, Failed trial and continue."
         )
