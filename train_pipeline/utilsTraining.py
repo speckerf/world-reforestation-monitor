@@ -1,7 +1,9 @@
 import copy
+import sys
 from typing import Self
 
 import numpy as np
+from geemap import ml
 from loguru import logger
 from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
@@ -10,6 +12,24 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+
+def rf_get_size_of_string(rf: BaseEstimator, feature_names: list[str]) -> dict:
+    logger.debug("Calculating size of Random Forest string representation")
+    # Convert the model to a list of strings
+    trees = ml.rf_to_strings(rf, feature_names, output_mode="regression", processes=1)
+    # Measure the size of the resulting string
+    list_size = sys.getsizeof(trees)
+    strings_size = sum([sys.getsizeof(s) for s in trees])
+    total_size = list_size + strings_size
+
+    sizes = {
+        "bytes": total_size,
+        "kilobytes": total_size / 1024,
+        "megabytes": total_size / 1024 / 1024,
+    }
+
+    return sizes
 
 
 def get_model(config):
@@ -223,3 +243,19 @@ def limit_prediction_range(y_pred, trait):
     y_pred = np.maximum(y_pred, min_values[trait])
     y_pred = np.minimum(y_pred, max_values[trait])
     return y_pred
+
+
+def r2_score_oos(y_true, y_pred, y_true_train):
+    y_true = np.array(y_true).squeeze()
+    y_pred = np.array(y_pred).squeeze()
+    y_true_train = np.array(y_true_train).squeeze()
+    # Numerator: Residual sum of squares
+    numerator = np.sum((y_true - y_pred) ** 2)
+
+    # Denominator: Total sum of squares, using the mean of the training set
+    denominator = np.sum((y_true - np.average(y_true_train)) ** 2)
+
+    # Compute the out-of-sample R^2 score
+    output_scores = 1 - (numerator / denominator)
+
+    return output_scores

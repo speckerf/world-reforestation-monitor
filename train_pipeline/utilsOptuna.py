@@ -4,20 +4,35 @@ from loguru import logger
 from config.config import get_config
 
 
-def log_splits(splits, df_val_trait):
+def log_splits(splits, df_val_trait, current_fold=None):
     logger.trace("Number of splits: {len(splits)}")
-    logger.trace(
-        f"Number of observations in train splits: {[len(split[0]) for split in splits]}"
-    )
-    logger.trace(
-        f"Number of observations in test splits: {[len(split[1]) for split in splits]}"
-    )
-    logger.trace(
-        f"Number of unique ECO_IDs in train splits: {[len(np.unique(df_val_trait['ECO_ID'].values[split[0]])) for split in splits]}"
-    )
-    logger.trace(
-        f"Number of unique ECO_IDs in test splits: {[len(np.unique(df_val_trait['ECO_ID'].values[split[1]])) for split in splits]}"
-    )
+    if current_fold is None:
+        logger.trace(
+            f"Number of observations in train splits: {[len(split[0]) for split in splits]}"
+        )
+        logger.trace(
+            f"Number of observations in test splits: {[len(split[1]) for split in splits]}"
+        )
+        logger.trace(
+            f"Number of unique ECO_IDs in train splits: {[len(np.unique(df_val_trait['ECO_ID'].values[split[0]])) for split in splits]}"
+        )
+        logger.trace(
+            f"Number of unique ECO_IDs in test splits: {[len(np.unique(df_val_trait['ECO_ID'].values[split[1]])) for split in splits]}"
+        )
+    if current_fold is not None:
+        logger.trace(f"Current fold: {current_fold}")
+        logger.trace(
+            f"Current eco_id in train split: {np.unique(df_val_trait['ECO_ID'].values[splits[current_fold][0]])}"
+        )
+        logger.trace(
+            f"Current eco_id in test split: {np.unique(df_val_trait['ECO_ID'].values[splits[current_fold][1]])}"
+        )
+        logger.trace(
+            f"Current number of observations in train split: {len(splits[current_fold][0])}"
+        )
+        logger.trace(
+            f"Current number of observations in test split: {len(splits[current_fold][1])}"
+        )
 
 
 def merge_dicts_safe(*dicts):
@@ -36,7 +51,6 @@ def optuna_init_config(trial):
     trait = config_training["trait"]
 
     config_general = {
-        "model": trial.suggest_categorical("model", ["mlp", "rf"]),
         "ecoregion_level": trial.suggest_categorical("ecoregion_level", [True, False]),
         # "ecoregion_level": True,
         "use_angles_for_prediction": trial.suggest_categorical(
@@ -78,10 +92,10 @@ def optuna_init_config(trial):
         )
         if config_lut["noise_type"] == "addmulti":
             config_lut["additive_noise"] = 0.005 * trial.suggest_int(
-                "additive_noise_optuna", 1, 4
+                "additive_noise_optuna", 1, 6
             )
             config_lut["multiplicative_noise"] = 0.01 * trial.suggest_int(
-                "multiplicative_noise_optuna)", 1, 8
+                "multiplicative_noise_optuna)", 1, 10
             )
 
     if config_lut["modify_rsoil"]:
@@ -89,7 +103,7 @@ def optuna_init_config(trial):
             "rsoil_emit_insitu", ["emit", "insitu"]
         )
         config_lut["rsoil_fraction"] = 0.1 * trial.suggest_int(
-            "rsoil_fraction_optuna", 1, 9
+            "rsoil_fraction_optuna", 1, 10
         )
 
     if config_general["posthoc_modifications"]:
@@ -138,7 +152,7 @@ def optuna_init_config(trial):
     else:
         config_posthoc = {}
 
-    if config_general["model"] == "mlp":
+    if config_training["model"] == "mlp":
         hidden_layers_dict = {
             "5": (5,),
             "10": (10,),
@@ -183,15 +197,15 @@ def optuna_init_config(trial):
         config_ml["hidden_layers"] = hidden_layers_dict[
             config_ml["hidden_layers_optuna"]
         ]
-    elif config_general["model"] == "rf":
+    elif config_training["model"] == "rf":
         config_ml = {
             "n_estimators": 10
             * trial.suggest_int("n_estimators_optuna", 1, 20, log=True),
             "max_depth": 2 * trial.suggest_int("max_depth_optuna", 1, 10, log=True),
-            "min_samples_split": 2
-            * trial.suggest_int("min_samples_split_optuna", 1, 10),
-            "min_samples_leaf": 2 * trial.suggest_int("min_samples_leaf_optuna", 1, 10),
-            "max_features": trial.suggest_int("max_features", 2, 10),
+            "min_samples_split": 5
+            * trial.suggest_int("min_samples_split_optuna", 1, 15),
+            "min_samples_leaf": 3 * trial.suggest_int("min_samples_leaf_optuna", 1, 10),
+            "max_features": trial.suggest_int("max_features", 3, 8),
         }
     config = merge_dicts_safe(config_general, config_ml, config_posthoc, config_lut)
     return config

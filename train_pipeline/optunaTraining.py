@@ -22,6 +22,8 @@ from train_pipeline.utilsTraining import (
     get_pipeline,
     limit_prediction_range,
     merge_dicts_safe,
+    r2_score_oos,
+    rf_get_size_of_string,
 )
 
 
@@ -85,109 +87,121 @@ def objective(trial):
         X, y = df[feature_names], df[target]
 
     # find groupings for GroupKFold
-    skf = GroupKFold(n_splits=3)
+    skf = GroupKFold(n_splits=config["group_k_fold_splits"])
     splits = list(skf.split(df_val_trait, groups=df_val_trait["ECO_ID"]))
-    log_splits(splits, df_val_trait)
+
+    val_eco_train_split_indices, val_eco_test_split_indices = splits[
+        config["group_k_fold_current_split"]
+    ]
+
+    log_splits(splits, df_val_trait, current_fold=config["group_k_fold_current_split"])
     # convert from indices to group values
-    val_eco_train_splits = [
-        list(set(df_val_trait["ECO_ID"].values[split[0]])) for split in splits
-    ]
-    val_eco_test_splits = [
-        list(set(df_val_trait["ECO_ID"].values[split[1]])) for split in splits
-    ]
+    val_ecos_train = list(
+        set(df_val_trait["ECO_ID"].values[val_eco_train_split_indices])
+    )
+    val_ecos_test = list(set(df_val_trait["ECO_ID"].values[val_eco_test_split_indices]))
 
-    scores_val_train_rmse = []
-    scores_val_test_rmse = []
-    scores_val_train_mae = []
-    scores_val_test_mae = []
-    scores_val_train_r2 = []
-    scores_val_test_r2 = []
+    df_val_train_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_train}
+    df_val_test_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_test}
 
-    for val_ecos_train, val_ecos_test in zip(val_eco_train_splits, val_eco_test_splits):
-        df_val_train_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_train}
-        df_val_test_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_test}
+    X_val_train, y_val_train = {
+        eco: df.drop(columns=[*target, "site"])
+        for eco, df in df_val_train_current.items()
+    }, {eco: df[target] for eco, df in df_val_train_current.items()}
+    X_val_test, y_val_test = {
+        eco: df.drop(columns=[*target, "site"])
+        for eco, df in df_val_test_current.items()
+    }, {eco: df[target] for eco, df in df_val_test_current.items()}
 
-        X_val_train, y_val_train = {
-            eco: df.drop(columns=[*target, "site"])
-            for eco, df in df_val_train_current.items()
-        }, {eco: df[target] for eco, df in df_val_train_current.items()}
-        X_val_test, y_val_test = {
-            eco: df.drop(columns=[*target, "site"])
-            for eco, df in df_val_test_current.items()
-        }, {eco: df[target] for eco, df in df_val_test_current.items()}
+    # instantiate new model instance for each fold
+    model = get_model(config)
+    pipeline = get_pipeline(model, config)
+    if config["ecoregion_level"]:
+        pipeline = EcoregionSpecificModel(pipeline, config)
+        pipeline.fit(X, y, ecoregions=config["list_ecoids_in_lai_validation"])
+        y_val_train_pred = pipeline.predict(X_val_train)
+        y_val_test_pred = pipeline.predict(X_val_test)
 
-        # instantiate new model instance for each fold
-        model = get_model(config)
-        pipeline = get_pipeline(model, config)
+        # sort dictionary by key
+        y_val_train_pred = np.concatenate(
+            [y_val_train_pred[eco] for eco in sorted(y_val_train_pred.keys())]
+        )
+        y_val_test_pred = np.concatenate(
+            [y_val_test_pred[eco] for eco in sorted(y_val_test_pred.keys())]
+        )
+
+        # sort true values by key
+        y_val_train = np.concatenate(
+            [y_val_train[eco].values.squeeze() for eco in sorted(y_val_train.keys())]
+        )
+        y_val_test = np.concatenate(
+            [y_val_test[eco].values.squeeze() for eco in sorted(y_val_test.keys())]
+        )
+    else:
+        pipeline.fit(X, y)
+        y_val_train_pred = pipeline.predict(
+            pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
+        )
+        y_val_test_pred = pipeline.predict(
+            pd.concat([X_val_test[eco] for eco in sorted(X_val_test.keys())])
+        )
+
+        y_val_train = np.concatenate(
+            [y_val_train[eco].values.squeeze() for eco in sorted(X_val_train.keys())]
+        )
+        y_val_test = np.concatenate(
+            [y_val_test[eco].values.squeeze() for eco in sorted(X_val_test.keys())]
+        )
+
+    # save length of strings for model rf:
+    if config["model"] == "rf":
         if config["ecoregion_level"]:
-            pipeline = EcoregionSpecificModel(pipeline, config)
-            pipeline.fit(X, y, ecoregions=config["list_ecoids_in_lai_validation"])
-            y_val_train_pred = pipeline.predict(X_val_train)
-            y_val_test_pred = pipeline.predict(X_val_test)
-
-            # sort dictionary by key
-            y_val_train_pred = np.concatenate(
-                [y_val_train_pred[eco] for eco in sorted(y_val_train_pred.keys())]
-            )
-            y_val_test_pred = np.concatenate(
-                [y_val_test_pred[eco] for eco in sorted(y_val_test_pred.keys())]
-            )
-
-            # sort true values by key
-            y_val_train = np.concatenate(
-                [
-                    y_val_train[eco].values.squeeze()
-                    for eco in sorted(y_val_train.keys())
+            rf_model = (
+                pipeline.per_ecoregion_pipeline_[
+                    list(config["list_ecoids_in_lai_validation"])[0]
                 ]
-            )
-            y_val_test = np.concatenate(
-                [y_val_test[eco].values.squeeze() for eco in sorted(y_val_test.keys())]
+                .named_steps["regressor"]
+                .regressor_
             )
         else:
-            pipeline = pipeline
-            pipeline.fit(X, y)
-            y_val_train_pred = pipeline.predict(
-                pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
-            )
-            y_val_test_pred = pipeline.predict(
-                pd.concat([X_val_test[eco] for eco in sorted(X_val_test.keys())])
-            )
+            rf_model = pipeline.named_steps["regressor"].regressor_
+        string_size = rf_get_size_of_string(rf_model, feature_names=feature_names)
+        trial.set_user_attr("string_size_mb", string_size["megabytes"])
 
-            y_val_train = np.concatenate(
-                [
-                    y_val_train[eco].values.squeeze()
-                    for eco in sorted(X_val_train.keys())
-                ]
-            )
-            y_val_test = np.concatenate(
-                [y_val_test[eco].values.squeeze() for eco in sorted(X_val_test.keys())]
-            )
+        # if string size is too large, give warning / since earth engine has limit of 10MB / and we want to run at least 6 models in the same export. 9 MB + 1 MB Overhead
+        if string_size["megabytes"] > 1.5:
+            logger.warning(f"String size is larger than 1.5 MB: {string_size}")
 
-        # limit prediction range
-        y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
+    # limit prediction range
+    y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
 
-        scores_val_train_rmse.append(
-            root_mean_squared_error(y_val_train, y_val_train_pred)
-        )
+    score_val_train_rmse = root_mean_squared_error(y_val_train, y_val_train_pred)
+    score_val_test_rmse = root_mean_squared_error(y_val_test, y_val_test_pred)
+    score_val_train_mae = mean_absolute_error(y_val_train, y_val_train_pred)
+    score_val_test_mae = mean_absolute_error(y_val_test, y_val_test_pred)
+    score_val_train_r2 = r2_score(y_val_train, y_val_train_pred)
+    score_val_test_r2 = r2_score(y_val_test, y_val_test_pred)
+    score_val_test_r2_oos = r2_score_oos(
+        y_true=y_val_test, y_pred=y_val_test_pred, y_true_train=y_val_train
+    )
 
-        scores_val_test_rmse.append(
-            root_mean_squared_error(y_val_test, y_val_test_pred)
-        )
-        scores_val_train_mae.append(mean_absolute_error(y_val_train, y_val_train_pred))
-        scores_val_test_mae.append(mean_absolute_error(y_val_test, y_val_test_pred))
-        scores_val_train_r2.append(r2_score(y_val_train, y_val_train_pred))
-        scores_val_test_r2.append(r2_score(y_val_test, y_val_test_pred))
+    # log current split and eco_ids in train and test split
+    trial.set_user_attr(
+        "val_ecos_train", ", ".join([str(eco) for eco in val_ecos_train])
+    )
+    trial.set_user_attr("val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test]))
 
     # Log additional values / but set max or min values to avoid errors
-    trial.set_user_attr("val_train_rmse", min(np.mean(scores_val_train_rmse), 5))
-    trial.set_user_attr("val_test_rmse", min(np.mean(scores_val_test_rmse), 5))
-    trial.set_user_attr("val_train_mae", min(np.mean(scores_val_train_mae), 5))
-    trial.set_user_attr("val_test_mae", min(np.mean(scores_val_test_mae), 5))
-    trial.set_user_attr("val_train_r2", max(np.mean(scores_val_train_r2), -1))
-    trial.set_user_attr("val_test_r2", max(np.mean(scores_val_test_r2), -1))
+    trial.set_user_attr("val_train_rmse", min(score_val_train_rmse, 5))
+    trial.set_user_attr("val_test_rmse", min(score_val_test_rmse, 5))
+    trial.set_user_attr("val_train_mae", min(score_val_train_mae, 5))
+    trial.set_user_attr("val_test_mae", min(score_val_test_mae, 5))
+    trial.set_user_attr("val_train_r2", max(score_val_train_r2, -1))
+    trial.set_user_attr("val_test_r2", max(score_val_test_r2, -1))
+    trial.set_user_attr("val_test_r2_oos", max(score_val_test_r2_oos, -1))
     trial.set_user_attr("config", config)
 
-    return np.mean(scores_val_train_rmse)
+    return score_val_train_rmse
 
 
 def main():
@@ -229,11 +243,12 @@ def main():
                 "ecoregion_level": False,
                 "use_angles_for_prediction": True,
                 "posthoc_modifications": False,
+                "transform_target": "log1p",
                 "nirv_norm": True,
                 "modify_rsoil": False,
                 "add_noise": True,
                 "noise_type": "atbd",
-                "num_spectra_optuna": 18,
+                "num_spectra_optuna": 8,
                 "parameter_setup": "foliar_codistribution",
                 "n_estimators_optuna": 5,
                 "max_depth_optuna": 3,
@@ -246,6 +261,7 @@ def main():
             params={
                 "model": "rf",
                 "ecoregion_level": False,
+                "transform_target": "log1p",
                 "use_angles_for_prediction": True,
                 "posthoc_modifications": True,
                 "use_baresoil_insitu": False,
@@ -261,7 +277,7 @@ def main():
                 "modify_rsoil": False,
                 "add_noise": True,
                 "noise_type": "atbd",
-                "num_spectra_optuna": 18,
+                "num_spectra_optuna": 8,
                 "parameter_setup": "foliar_codistribution",
                 "n_estimators_optuna": 5,
                 "max_depth_optuna": 3,
@@ -274,6 +290,7 @@ def main():
             params={
                 "model": "mlp",
                 "ecoregion_level": False,
+                "transform_target": "log1p",
                 "use_angles_for_prediction": True,
                 "posthoc_modifications": True,
                 "use_baresoil_insitu": False,
@@ -289,7 +306,7 @@ def main():
                 "modify_rsoil": False,
                 "add_noise": True,
                 "noise_type": "atbd",
-                "num_spectra_optuna": 18,
+                "num_spectra_optuna": 8,
                 "parameter_setup": "foliar_codistribution",
                 "hidden_layers_optuna": "10_10",
                 "activation": "tanh",
@@ -302,13 +319,14 @@ def main():
             params={
                 "model": "mlp",
                 "ecoregion_level": False,
+                "transform_target": "log1p",
                 "use_angles_for_prediction": True,
                 "posthoc_modifications": False,
                 "nirv_norm": False,
                 "modify_rsoil": False,
                 "add_noise": True,
                 "noise_type": "atbd",
-                "num_spectra_optuna": 18,
+                "num_spectra_optuna": 8,
                 "parameter_setup": "foliar_codistribution",
                 "hidden_layers_optuna": "10_10",
                 "activation": "tanh",
