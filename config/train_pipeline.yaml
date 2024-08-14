@@ -1,8 +1,8 @@
 # GENERAL PARMAETERS
 # trait: ['lai', 'CHL', 'LMA', 'EWT']
 trait: 'lai'
-# list_ecoids_in_lai_validation: [399, 717, 392, 430, 686, 543, 344, 353, 429, 396, 366, 331, 338, 795, 428, 393, 648, 402, 664, 647, 193, 339, 654, 435, 407]
-list_ecoids_in_lai_validation: [399, 717, 392]
+list_ecoids_in_lai_validation: [399, 717, 392, 430, 686, 543, 344, 353, 429, 396, 366, 331, 338, 795, 428, 393, 648, 402, 664, 647, 193, 339, 654, 435, 407]
+# list_ecoids_in_lai_validation: [399, 717, 392]
 list_ecoids_in_foliar_validation: []
 optuna_study_name: "optuna-debug-lai"
 optuna_storage: "mysql://root@localhost/oemc"
