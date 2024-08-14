@@ -128,13 +128,14 @@ class NIRvTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         assert X.shape[1] == 10, f"Expected 10 bands, got {X.shape[1]}"
+        # problem:
         # X is a numpy array here, not a DataFrame
 
         # add random number to avoid division by zero
         X = X + np.abs(np.random.rand(*X.shape) * 1e-10)
 
-        NIR = X[["B8"]].values.squeeze()
-        RED = X[["B4"]].values.squeeze()
+        NIR = X[["B8"]].values.reshape(-1)
+        RED = X[["B4"]].values.reshape(-1)
 
         # check that NIR + RED is not 0
         if np.any(NIR + RED == 0):
@@ -258,9 +259,9 @@ def limit_prediction_range(y_pred, trait):
 
 
 def r2_score_oos(y_true, y_pred, y_true_train):
-    y_true = np.array(y_true).squeeze()
-    y_pred = np.array(y_pred).squeeze()
-    y_true_train = np.array(y_true_train).squeeze()
+    y_true = np.array(y_true).reshape(-1)
+    y_pred = np.array(y_pred).reshape(-1)
+    y_true_train = np.array(y_true_train).reshape(-1)
     # Numerator: Residual sum of squares
     numerator = np.sum((y_true - y_pred) ** 2)
 
