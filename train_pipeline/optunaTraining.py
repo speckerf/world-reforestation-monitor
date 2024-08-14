@@ -264,14 +264,17 @@ def main():
     # Create the study if it doesn't exist
     if not study_exists:
         sampler = TPESampler(
-            seed=10, n_startup_trials=200, constant_liar=True, multivariate=True
+            seed=None, n_startup_trials=100, constant_liar=True, multivariate=True
         )
         study = optuna.create_study(
             storage=storage, study_name=study_name, sampler=sampler
         )
         logger.info(f"Study '{study_name}' created.")
     else:
-        study = optuna.load_study(study_name=study_name, storage=storage)
+        sampler = TPESampler(
+            seed=None, n_startup_trials=100, constant_liar=True, multivariate=True
+        )
+        study = optuna.load_study(study_name=study_name, storage=storage, sampler = sampler)
         logger.info(f"Study '{study_name}' loaded.")
 
     if not study_exists:
