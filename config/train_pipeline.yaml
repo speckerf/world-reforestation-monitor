@@ -1,12 +1,12 @@
 # GENERAL PARMAETERS
 # trait: ['lai', 'CHL', 'LMA', 'EWT']
-trait: 'CHL'
+trait: 'lai'
 list_ecoids_in_validation: 
   lai: [399, 717, 392, 430, 686, 543, 344, 353, 429, 396, 366, 331, 338, 795, 428, 393, 648, 402, 664, 647, 193, 339, 654, 435, 407]
   CHL: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   EWT: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   LMA: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
-optuna_study_name: "optuna-debug-CHL"
+optuna_study_name: "optuna-lai-rf-testset2"
 optuna_storage: "mysql://root@localhost/oemc"
 optuna_distributions:
   lai: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai']
@@ -21,5 +21,5 @@ optuna_report_thresh:
   LMA: 1.0
 
 group_k_fold_splits: 3
-group_k_fold_current_split: 0 # from 0 to group_k_fold_splits-1
-model: 'mlp'
+group_k_fold_current_split: 2 # from 0 to group_k_fold_splits-1
+model: 'rf'
