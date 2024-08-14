@@ -237,104 +237,106 @@ def main():
         logger.info(f"Study '{study_name}' loaded.")
 
     if not study_exists:
-        study.enqueue_trial(
-            params={
-                "model": "rf",
-                "ecoregion_level": False,
-                "use_angles_for_prediction": True,
-                "posthoc_modifications": False,
-                "transform_target": "log1p",
-                "nirv_norm": True,
-                "modify_rsoil": False,
-                "add_noise": True,
-                "noise_type": "atbd",
-                "num_spectra_optuna": 8,
-                "parameter_setup": "foliar_codistribution",
-                "n_estimators_optuna": 5,
-                "max_depth_optuna": 3,
-                "min_samples_split_optuna": 5,
-                "min_samples_leaf_optuna": 5,
-                "max_features": 8,
-            }
-        )
-        study.enqueue_trial(
-            params={
-                "model": "rf",
-                "ecoregion_level": False,
-                "transform_target": "log1p",
-                "use_angles_for_prediction": True,
-                "posthoc_modifications": True,
-                "use_baresoil_insitu": False,
-                "use_urban_s2": True,
-                "use_water_s2": True,
-                "use_snowice_s2": False,
-                "use_baresoil_emit": True,
-                "use_baresoil_s2": False,
-                "n_baresoil_insitu_optuna": 15,
-                "n_baresoil_emit_optuna": 4,
-                "n_urban_s2_optuna": 1,
-                "nirv_norm": True,
-                "modify_rsoil": False,
-                "add_noise": True,
-                "noise_type": "atbd",
-                "num_spectra_optuna": 8,
-                "parameter_setup": "foliar_codistribution",
-                "n_estimators_optuna": 5,
-                "max_depth_optuna": 3,
-                "min_samples_split_optuna": 5,
-                "min_samples_leaf_optuna": 5,
-                "max_features": 8,
-            }
-        )
-        study.enqueue_trial(
-            params={
-                "model": "mlp",
-                "ecoregion_level": False,
-                "transform_target": "log1p",
-                "use_angles_for_prediction": True,
-                "posthoc_modifications": True,
-                "use_baresoil_insitu": False,
-                "use_urban_s2": True,
-                "use_water_s2": True,
-                "use_snowice_s2": False,
-                "use_baresoil_emit": True,
-                "use_baresoil_s2": False,
-                "n_baresoil_insitu_optuna": 15,
-                "n_baresoil_emit_optuna": 4,
-                "n_urban_s2_optuna": 1,
-                "nirv_norm": False,
-                "modify_rsoil": False,
-                "add_noise": True,
-                "noise_type": "atbd",
-                "num_spectra_optuna": 8,
-                "parameter_setup": "foliar_codistribution",
-                "hidden_layers_optuna": "10_10",
-                "activation": "tanh",
-                "alpha_optuna_exp": -4,
-                "learning_rate": "constant",
-                "max_iter_optuna": 10,
-            }
-        )
-        study.enqueue_trial(
-            params={
-                "model": "mlp",
-                "ecoregion_level": False,
-                "transform_target": "log1p",
-                "use_angles_for_prediction": True,
-                "posthoc_modifications": False,
-                "nirv_norm": False,
-                "modify_rsoil": False,
-                "add_noise": True,
-                "noise_type": "atbd",
-                "num_spectra_optuna": 8,
-                "parameter_setup": "foliar_codistribution",
-                "hidden_layers_optuna": "10_10",
-                "activation": "tanh",
-                "alpha_optuna_exp": -4,
-                "learning_rate": "constant",
-                "max_iter_optuna": 10,
-            }
-        )
+        if config_general["model"] == "rf":
+            study.enqueue_trial(
+                params={
+                    "model": "rf",
+                    "ecoregion_level": False,
+                    "use_angles_for_prediction": True,
+                    "posthoc_modifications": False,
+                    "transform_target": "log1p",
+                    "nirv_norm": True,
+                    "modify_rsoil": False,
+                    "add_noise": True,
+                    "noise_type": "atbd",
+                    "num_spectra_optuna": 8,
+                    "parameter_setup": "foliar_codistribution",
+                    "n_estimators_optuna": 5,
+                    "max_depth_optuna": 3,
+                    "min_samples_split_optuna": 5,
+                    "min_samples_leaf_optuna": 5,
+                    "max_features": 8,
+                }
+            )
+            study.enqueue_trial(
+                params={
+                    "model": "rf",
+                    "ecoregion_level": False,
+                    "transform_target": "log1p",
+                    "use_angles_for_prediction": True,
+                    "posthoc_modifications": True,
+                    "use_baresoil_insitu": False,
+                    "use_urban_s2": True,
+                    "use_water_s2": True,
+                    "use_snowice_s2": False,
+                    "use_baresoil_emit": True,
+                    "use_baresoil_s2": False,
+                    "n_baresoil_insitu_optuna": 15,
+                    "n_baresoil_emit_optuna": 4,
+                    "n_urban_s2_optuna": 1,
+                    "nirv_norm": True,
+                    "modify_rsoil": False,
+                    "add_noise": True,
+                    "noise_type": "atbd",
+                    "num_spectra_optuna": 8,
+                    "parameter_setup": "foliar_codistribution",
+                    "n_estimators_optuna": 5,
+                    "max_depth_optuna": 3,
+                    "min_samples_split_optuna": 5,
+                    "min_samples_leaf_optuna": 5,
+                    "max_features": 8,
+                }
+            )
+        elif config_general["model"] == "mlp":
+            study.enqueue_trial(
+                params={
+                    "model": "mlp",
+                    "ecoregion_level": False,
+                    "transform_target": "log1p",
+                    "use_angles_for_prediction": True,
+                    "posthoc_modifications": True,
+                    "use_baresoil_insitu": False,
+                    "use_urban_s2": True,
+                    "use_water_s2": True,
+                    "use_snowice_s2": False,
+                    "use_baresoil_emit": True,
+                    "use_baresoil_s2": False,
+                    "n_baresoil_insitu_optuna": 15,
+                    "n_baresoil_emit_optuna": 4,
+                    "n_urban_s2_optuna": 1,
+                    "nirv_norm": False,
+                    "modify_rsoil": False,
+                    "add_noise": True,
+                    "noise_type": "atbd",
+                    "num_spectra_optuna": 8,
+                    "parameter_setup": "foliar_codistribution",
+                    "hidden_layers_optuna": "10_10",
+                    "activation": "tanh",
+                    "alpha_optuna_exp": -4,
+                    "learning_rate": "constant",
+                    "max_iter_optuna": 10,
+                }
+            )
+            study.enqueue_trial(
+                params={
+                    "model": "mlp",
+                    "ecoregion_level": False,
+                    "transform_target": "log1p",
+                    "use_angles_for_prediction": True,
+                    "posthoc_modifications": False,
+                    "nirv_norm": False,
+                    "modify_rsoil": False,
+                    "add_noise": True,
+                    "noise_type": "atbd",
+                    "num_spectra_optuna": 8,
+                    "parameter_setup": "foliar_codistribution",
+                    "hidden_layers_optuna": "10_10",
+                    "activation": "tanh",
+                    "alpha_optuna_exp": -4,
+                    "learning_rate": "constant",
+                    "max_iter_optuna": 10,
+                }
+            )
     study.optimize(objective, n_trials=2000)
 
     # get the best hyperparameters
