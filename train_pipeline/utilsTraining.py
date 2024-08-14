@@ -16,18 +16,30 @@ from sklearn.preprocessing import StandardScaler
 
 def rf_get_size_of_string(rf: BaseEstimator, feature_names: list[str]) -> dict:
     logger.debug("Calculating size of Random Forest string representation")
-    # Convert the model to a list of strings
-    trees = ml.rf_to_strings(rf, feature_names, output_mode="regression", processes=1)
-    # Measure the size of the resulting string
-    list_size = sys.getsizeof(trees)
-    strings_size = sum([sys.getsizeof(s) for s in trees])
-    total_size = list_size + strings_size
+    try:
+        # Convert the model to a list of strings
+        trees = ml.rf_to_strings(
+            rf, feature_names, output_mode="regression", processes=1
+        )
+        # Measure the size of the resulting string
+        list_size = sys.getsizeof(trees)
+        strings_size = sum([sys.getsizeof(s) for s in trees])
+        total_size = list_size + strings_size
 
-    sizes = {
-        "bytes": total_size,
-        "kilobytes": total_size / 1024,
-        "megabytes": total_size / 1024 / 1024,
-    }
+        sizes = {
+            "bytes": total_size,
+            "kilobytes": total_size / 1024,
+            "megabytes": total_size / 1024 / 1024,
+        }
+    except Exception as e:
+        logger.error(
+            f"Error calculating size of Random Forest string representation: {e}"
+        )
+        sizes = {
+            "bytes": 999999999,
+            "kilobytes": 999999,
+            "megabytes": 999,
+        }
 
     return sizes
 
