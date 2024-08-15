@@ -151,7 +151,7 @@ run_prosail <- function(args) {
   
   BRF_LUT_1nm <- res$BRF
   input_prosail$fCover <- res$fCover
-  input_prosail$fAPAR <- res$fAPAR
+  input_prosail$fapar <- res$fAPAR
   input_prosail$albedo <- res$albedo
   
   BRF_LUT <- prosail::applySensorCharacteristics(wvl = prosail::SpecPROSPECT_FullRange$lambda,

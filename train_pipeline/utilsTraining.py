@@ -234,6 +234,7 @@ def limit_prediction_range(y_pred, trait):
         "CAR": 0.000,
         "EWT": 0.000,
         "LMA": 0.000,
+        "fapar": 0.000,
     }
     max_values = {
         "lai": 10.000,
@@ -241,6 +242,7 @@ def limit_prediction_range(y_pred, trait):
         "CAR": 100.000,
         "EWT": 0.100,
         "LMA": 0.050,
+        "fapar": 1.000,
     }
 
     # raise logging message if prediction is out of range
