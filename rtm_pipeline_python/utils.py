@@ -54,25 +54,21 @@ def predefined_prosail_params(descriptor: str) -> dict:
 
 def load_insitu_foliar_generated() -> pd.DataFrame:
     # Load insitu foliar data
-    foliar_generated = (
-        pd.read_csv(
-            os.path.join(
-                "data",
-                "validation_pipeline",
-                "output",
-                "foliar",
-                "neon_foliar_insitu_generated_copula_samples.csv",
-            )
+    foliar_generated = pd.read_csv(
+        os.path.join(
+            "data",
+            "validation_pipeline",
+            "output",
+            "foliar",
+            "neon_foliar_insitu_generated_copula_samples.csv",
         )
-        .rename(
-            columns={
-                "ewt_cm": "EWT",
-                "leafMassPerArea_g_cm2": "LMA",
-                "carotenoid_mug_cm2": "CAR",
-                "chlorophyll_ab_mug_cm2": "CHL",
-            }
-        )
-        .drop(columns=["system:index"])
+    ).rename(
+        columns={
+            "ewt_cm": "EWT",
+            "leafMassPerArea_g_cm2": "LMA",
+            "carotenoid_mug_cm2": "CAR",
+            "chlorophyll_ab_mug_cm2": "CHL",
+        }
     )
 
     foliar_generated["Cw_rel"] = 1 - (
