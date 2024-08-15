@@ -3,10 +3,12 @@ import os
 import pandas as pd
 
 
-def create_validation_set(df, columns, rename_dict, return_site):
+def create_validation_set(df, columns, rename_dict={}, return_site=True):
     if return_site:
         columns_to_select = [*columns, "PLOT_ID", "ECO_ID"]
         rename_dict["PLOT_ID"] = "site"
+    else:
+        columns_to_select = columns
     return df[columns_to_select].rename(columns=rename_dict)
 
 
@@ -17,14 +19,27 @@ def load_validation_data(return_site=False) -> dict:
             "data",
             "validation_pipeline",
             "output",
+            "foliar",
             "EXPORT_NEON_foliar_reflectances_with_angles.csv",
         )
     )
-    canopy_traits = pd.read_csv(
+    canopy_traits_lai = pd.read_csv(
         os.path.join(
             "data",
             "validation_pipeline",
             "output",
+            "lai",
+            # "EXPORT_COPERNICUS_GBOV_RM6,7_20240620120826_reflectances_with_angles.csv",
+            "EXPORT_GBOV_RM6,7_20240620120826_all_reflectances_with_angles.csv",
+        )
+    )
+
+    canopy_traits_fapar = pd.read_csv(
+        os.path.join(
+            "data",
+            "validation_pipeline",
+            "output",
+            "fapar",
             # "EXPORT_COPERNICUS_GBOV_RM6,7_20240620120826_reflectances_with_angles.csv",
             "EXPORT_GBOV_RM6,7_20240620120826_all_reflectances_with_angles.csv",
         )
@@ -34,7 +49,10 @@ def load_validation_data(return_site=False) -> dict:
     foliar_traits = foliar_traits.rename(
         columns={"sza": "tts", "vza": "tto", "phi": "psi", "plotID": "PLOT_ID"}
     )
-    canopy_traits = canopy_traits.rename(
+    canopy_traits_lai = canopy_traits_lai.rename(
+        columns={"sza": "tts", "vza": "tto", "phi": "psi"}
+    )
+    canopy_traits_fapar = canopy_traits_fapar.rename(
         columns={"sza": "tts", "vza": "tto", "phi": "psi"}
     )
 
@@ -48,10 +66,15 @@ def load_validation_data(return_site=False) -> dict:
 
     validation_sets = {
         "lai": create_validation_set(
-            canopy_traits,
+            canopy_traits_lai,
             bands_angles + ["LAIe_Warren"],
             {"LAIe_Warren": "lai"},
             return_site,
+        ),
+        "fapar": create_validation_set(
+            canopy_traits_fapar,
+            bands_angles + ["FIPAR_total"],
+            {"FIPAR_total": "fapar"},
         ),
         "CHL": create_validation_set(
             foliar_traits,
@@ -105,3 +128,8 @@ def load_validation_data(return_site=False) -> dict:
     validation_sets["lai"] = validation_sets["lai"][validation_sets["lai"]["lai"] <= 10]
 
     return validation_sets
+
+
+if __name__ == "__main__":
+    a = load_validation_data()
+    print(list(a.keys()))
