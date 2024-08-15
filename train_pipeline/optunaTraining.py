@@ -274,7 +274,9 @@ def main():
         sampler = TPESampler(
             seed=None, n_startup_trials=100, constant_liar=True, multivariate=True
         )
-        study = optuna.load_study(study_name=study_name, storage=storage, sampler = sampler)
+        study = optuna.load_study(
+            study_name=study_name, storage=storage, sampler=sampler
+        )
         logger.info(f"Study '{study_name}' loaded.")
 
     if not study_exists:
