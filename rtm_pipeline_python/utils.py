@@ -52,7 +52,7 @@ def predefined_prosail_params(descriptor: str) -> dict:
     return prosail_config
 
 
-def load_insitu_foliar() -> pd.DataFrame:
+def load_insitu_foliar_generated() -> pd.DataFrame:
     # Load insitu foliar data
     foliar_generated = (
         pd.read_csv(
@@ -60,7 +60,8 @@ def load_insitu_foliar() -> pd.DataFrame:
                 "data",
                 "validation_pipeline",
                 "output",
-                "EXPORT_NEON_foliar_reflectances_with_angles.csv",
+                "foliar",
+                "neon_foliar_insitu_generated_copula_samples.csv",
             )
         )
         .rename(

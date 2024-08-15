@@ -28,7 +28,8 @@ def lai_directories() -> tuple:
             "data",
             "validation_pipeline",
             "output",
-            f"merged_{folder_name}.csv",
+            "lai",
+            f"merged_lai_{folder_name}.csv",
         ),
         folder_name,
     )
@@ -97,7 +98,7 @@ def lai_points():
         )
         # export to Asset: featurecollection
         output_filename = (
-            f"open-earth/validation/{foldername}_{site}_reflectances_with_angles"
+            f"open-earth/validation/lai/{foldername}_{site}_reflectances_with_angles"
         )
         task = ee.batch.Export.table.toCloudStorage(
             collection=fc_reflectances_nonull,

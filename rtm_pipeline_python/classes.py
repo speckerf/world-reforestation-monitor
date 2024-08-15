@@ -11,7 +11,7 @@ from scipy.stats import truncnorm
 from rtm_pipeline_python.utils import (
     bool_to_r_str,
     int_or_null_to_r_str,
-    load_insitu_foliar,
+    load_insitu_foliar_generated,
     load_s2_angles,
     predefined_prosail_params,
     rename_angles_utils,
@@ -136,7 +136,7 @@ class rtm_simulator:
         self.distributions = self.create_distributions(
             self.prosail_config["prosail_params"]
         )
-        self.insitu_foliar = load_insitu_foliar()
+        self.insitu_foliar = load_insitu_foliar_generated()
         # Generate input reflectances
         number_of_samples = self.config["num_spectra"]
 
