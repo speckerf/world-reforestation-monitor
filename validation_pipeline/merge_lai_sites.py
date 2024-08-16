@@ -9,7 +9,7 @@ ee.Initialize(project="ee-speckerfelix")
 
 def main():
     # list all files in google cloud storage matching the pattern: open-earth/validation/COPERNICUS_GBOV_RM6,7_20240620120826_{site}_reflectances_with_angles.csv
-    command = "gsutil ls gs://felixspecker/open-earth/validation/COPERNICUS_GBOV_RM6,7_20240620120826_*_reflectances_with_angles.csv"
+    command = "gsutil ls gs://felixspecker/open-earth/validation/lai/COPERNICUS_GBOV_RM6,7_20240620120826_*_reflectances_with_angles.csv"
     files_names = (
         subprocess.check_output(command, shell=True).decode("utf-8").split("\n")
     )
