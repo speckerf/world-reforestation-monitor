@@ -150,7 +150,7 @@ run_prosail <- function(args) {
   }
   
   BRF_LUT_1nm <- res$BRF
-  input_prosail$fCover <- res$fCover
+  input_prosail$fcover <- res$fCover
   input_prosail$fapar <- res$fAPAR
   input_prosail$albedo <- res$albedo
   
