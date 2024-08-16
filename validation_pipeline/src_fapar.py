@@ -6,9 +6,11 @@ import ee
 import geopandas as gpd
 import pandas as pd
 from loguru import logger
-from utils import load_ecoregion_shapefile
 
-from validation_pipeline.utils import add_closest_cloudfree_s2_image_reflectances
+from validation_pipeline.utils import (
+    add_closest_cloudfree_s2_image_reflectances,
+    load_ecoregion_shapefile,
+)
 from validation_pipeline.utils_fapar import merge_fapar_files
 
 

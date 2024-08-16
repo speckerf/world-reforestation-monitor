@@ -20,7 +20,11 @@ def foliar_directories() -> list:
         (
             os.path.join("data", "validation_pipeline", "input", "traits_NEON"),
             os.path.join(
-                "data", "validation_pipeline", "output", "neon_foliar_insitu_merged.csv"
+                "data",
+                "validation_pipeline",
+                "output",
+                "foliar",
+                "neon_foliar_insitu_merged.csv",
             ),
         )
     ]

@@ -38,6 +38,7 @@ def main():
             "data",
             "validation_pipeline",
             "output",
+            "lai",
             "EXPORT_GBOV_RM6,7_20240620120826_all_reflectances_with_angles.csv",
         ),
         index=False,
