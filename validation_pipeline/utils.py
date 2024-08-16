@@ -120,7 +120,7 @@ def add_angles_from_metadata_to_properties(image: ee.Image) -> ee.Image:
 
 
 def add_closest_cloudfree_s2_image_reflectances(feature: ee.Feature) -> ee.Feature:
-    max_days_apart = 10
+    max_days_apart = 15
 
     # Get the point geometry
     point = feature.geometry()
