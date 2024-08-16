@@ -157,6 +157,20 @@ class NIRvTransformer(BaseEstimator, TransformerMixin):
         return X_normalized
 
 
+# Define the safe logit function
+def safe_logit(x):
+    # add warning when this clipping was used
+    if np.any(x <= 1e-9) or np.any(x >= 1 - 1e-9):
+        logger.debug("Clipping values to avoid 0 and 1")
+        x = np.clip(x, 1e-9, 1 - 1e-9)  # Clip the values to avoid 0 and 1
+    return np.log(x / (1 - x))
+
+
+# Define the inverse sigmoid function
+def safe_inverse_logit(x):
+    return 1 / (1 + np.exp(-x))
+
+
 def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
     angles = ["tts", "tto", "psi"]
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -196,6 +210,10 @@ def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
         regressor = TransformedTargetRegressor(
             regressor=model, func=lambda x: x, inverse_func=lambda x: x
         )
+    elif config["transform_target"] == "logit":
+        regressor = TransformedTargetRegressor(
+            regressor=model, func=safe_logit, inverse_func=safe_inverse_logit
+        )
     else:
         raise ValueError(f"Unknown target transformation: {config['transform_target']}")
 
@@ -234,7 +252,8 @@ def limit_prediction_range(y_pred, trait):
         "CAR": 0.000,
         "EWT": 0.000,
         "LMA": 0.000,
-        "fapar": 0.000,
+        "fapar": 0.0001,
+        "fcover": 0.0001,
     }
     max_values = {
         "lai": 10.000,
@@ -242,7 +261,8 @@ def limit_prediction_range(y_pred, trait):
         "CAR": 100.000,
         "EWT": 0.100,
         "LMA": 0.050,
-        "fapar": 1.000,
+        "fapar": 0.9999,
+        "fcover": 0.9999,
     }
 
     # raise logging message if prediction is out of range

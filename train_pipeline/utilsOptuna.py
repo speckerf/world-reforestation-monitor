@@ -50,9 +50,34 @@ def optuna_init_config(trial):
     config_training = get_config("train_pipeline")
     trait = config_training["trait"]
 
+    if trait == "fapar":
+        config_transform_target = {
+            "transform_target": trial.suggest_categorical(
+                "transform_target", ["logit", "None"]
+            ),
+        }
+    elif trait == "fcover":
+        config_transform_target = {
+            "transform_target": trial.suggest_categorical(
+                "transform_target", ["logit", "None"]
+            ),
+        }
+    elif trait == "lai":
+        config_transform_target = {
+            "transform_target": trial.suggest_categorical(
+                "transform_target", ["log1p", "standard", "None"]
+            ),
+        }
+    else:
+        config_transform_target = {
+            "transform_target": trial.suggest_categorical(
+                "transform_target", ["log1p", "standard", "None"]
+            ),
+        }
+
     config_general = {
-        "ecoregion_level": trial.suggest_categorical("ecoregion_level", [True, False]),
-        # "ecoregion_level": True,
+        # "ecoregion_level": trial.suggest_categorical("ecoregion_level", [True, False]),
+        "ecoregion_level": False,
         "use_angles_for_prediction": trial.suggest_categorical(
             "use_angles_for_prediction", [True, False]
         ),
@@ -60,9 +85,7 @@ def optuna_init_config(trial):
         "posthoc_modifications": trial.suggest_categorical(
             "posthoc_modifications", [True, False]
         ),
-        "transform_target": trial.suggest_categorical(
-            "transform_target", ["log1p", "standard", "None"]
-        ),
+        **config_transform_target,
         "nirv_norm": trial.suggest_categorical("nirv_norm", [True, False]),
         # "nirv_norm": True,
     }
