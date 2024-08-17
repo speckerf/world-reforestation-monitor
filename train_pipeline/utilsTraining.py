@@ -67,49 +67,6 @@ def get_model(config):
     return model
 
 
-class EcoregionSpecificModel(BaseEstimator, RegressorMixin):
-    def __init__(
-        self, pipeline: Pipeline, config: dict, fit_per_ecoregion: bool = True
-    ):
-        assert fit_per_ecoregion, "Only fit_per_ecoregion=True is supported"
-        self.pipeline: Pipeline = pipeline
-        self.config: dict = config
-        self.fit_per_ecoregion: bool = fit_per_ecoregion
-        self.ecoregions_: list[str] = []
-        self.per_ecoregion_pipeline_: dict[str, Pipeline] = {}
-
-    def fit(
-        self, X: dict[str, np.ndarray], y: dict[str, np.ndarray], ecoregions: list[str]
-    ) -> Self:
-        assert self.fit_per_ecoregion, "Only fit_per_ecoregion=True is supported"
-        # X needs to be a dictionary with eco_id as key and the corresponding data as value
-        self.ecoregions_ = list(np.unique(ecoregions))
-        self.per_ecoregion_pipeline_ = {
-            ecoregion: copy.deepcopy(self.pipeline) for ecoregion in self.ecoregions_
-        }
-        for eco_id, pipeline in self.per_ecoregion_pipeline_.items():
-            X_ecoregion = X[eco_id]
-            y_ecoregion = y[eco_id]
-            X_ecoregion, y_ecoregion = pairwise_nan_remove(X_ecoregion, y_ecoregion)
-
-            pipeline.fit(X_ecoregion, y_ecoregion)
-
-        return self
-
-    def predict(self, X: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-        assert all(
-            eco_id in self.ecoregions_ for eco_id in X.keys()
-        ), "Some ecoregions are missing in the fitted model"
-        assert all(
-            eco_id in self.per_ecoregion_pipeline_.keys() for eco_id in X.keys()
-        ), "Some ecoregions are missing in the fitted model"
-        return {
-            eco_id: pipeline.predict(X[eco_id])
-            for eco_id, pipeline in self.per_ecoregion_pipeline_.items()
-            if eco_id in X.keys()
-        }
-
-
 # Custom transformer that converts specified columns (angles) to their cosines
 class AngleTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):

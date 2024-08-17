@@ -17,7 +17,6 @@ from rtm_pipeline_python.classes import (
 from train_pipeline.utilsLoading import load_validation_data
 from train_pipeline.utilsOptuna import log_splits, optuna_init_config
 from train_pipeline.utilsTraining import (
-    EcoregionSpecificModel,
     get_model,
     get_pipeline,
     limit_prediction_range,
@@ -53,20 +52,9 @@ def objective(trial):
             ),
         )
 
-        if config["ecoregion_level"]:
-            df = {
-                ecoregion: lut_simulator.generate_lut(ecoregion)
-                for ecoregion in config["list_ecoids_in_validation"][trait]
-            }
-            if config["posthoc_modifications"]:
-                df = {
-                    eco: helper_apply_posthoc_modifications(single_df, trait, config)
-                    for eco, single_df in df.items()
-                }
-        else:
-            df = lut_simulator.generate_lut()
-            if config["posthoc_modifications"]:
-                df = helper_apply_posthoc_modifications(df, trait, config)
+        df = lut_simulator.generate_lut()
+        if config["posthoc_modifications"]:
+            df = helper_apply_posthoc_modifications(df, trait, config)
 
         ### load and prepare validation data
         df_val_trait = load_validation_data(return_site=True)[trait]
@@ -82,14 +70,10 @@ def objective(trial):
             for eco in config["list_ecoids_in_validation"][trait]
         }
 
-        if config["ecoregion_level"]:
-            X = {eco: df_eco[feature_names] for eco, df_eco in df.items()}
-            y = {eco: df_eco[target] for eco, df_eco in df.items()}
-        else:
-            X, y = df[feature_names], df[target]
-            X_train, X_val, y_train, y_val = train_test_split(
-                X, y, test_size=0.1, random_state=42
-            )
+        X, y = df[feature_names], df[target]
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=0.1, random_state=42
+        )
 
         # find groupings for GroupKFold
         skf = GroupKFold(n_splits=config["group_k_fold_splits"])
@@ -125,71 +109,29 @@ def objective(trial):
         # instantiate new model instance for each fold
         model = get_model(config)
         pipeline = get_pipeline(model, config)
-        if config["ecoregion_level"]:
-            pipeline = EcoregionSpecificModel(pipeline, config)
-            pipeline.fit(X, y, ecoregions=config["list_ecoids_in_validation"][trait])
-            y_val_train_pred = pipeline.predict(X_val_train)
-            y_val_test_pred = pipeline.predict(X_val_test)
 
-            # sort dictionary by key
-            y_val_train_pred = np.concatenate(
-                [y_val_train_pred[eco] for eco in sorted(y_val_train_pred.keys())]
-            )
-            y_val_test_pred = np.concatenate(
-                [y_val_test_pred[eco] for eco in sorted(y_val_test_pred.keys())]
-            )
+        pipeline.fit(X, y)
+        # also predict on the simualted training data
+        y_sim_train_pred = pipeline.predict(X_train)
+        y_sim_test_pred = pipeline.predict(X_val)
 
-            # sort true values by key
-            y_val_train = np.concatenate(
-                [
-                    y_val_train[eco].values.reshape(-1)
-                    for eco in sorted(y_val_train.keys())
-                ]
-            )
-            y_val_test = np.concatenate(
-                [
-                    y_val_test[eco].values.reshape(-1)
-                    for eco in sorted(y_val_test.keys())
-                ]
-            )
-        else:
-            pipeline.fit(X, y)
-            # also predict on the simualted training data
-            y_sim_train_pred = pipeline.predict(X_train)
-            y_sim_test_pred = pipeline.predict(X_val)
+        y_val_train_pred = pipeline.predict(
+            pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
+        )
+        y_val_test_pred = pipeline.predict(
+            pd.concat([X_val_test[eco] for eco in sorted(X_val_test.keys())])
+        )
 
-            y_val_train_pred = pipeline.predict(
-                pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
-            )
-            y_val_test_pred = pipeline.predict(
-                pd.concat([X_val_test[eco] for eco in sorted(X_val_test.keys())])
-            )
-
-            y_val_train = np.concatenate(
-                [
-                    y_val_train[eco].values.reshape(-1)
-                    for eco in sorted(X_val_train.keys())
-                ]
-            )
-            y_val_test = np.concatenate(
-                [
-                    y_val_test[eco].values.reshape(-1)
-                    for eco in sorted(X_val_test.keys())
-                ]
-            )
+        y_val_train = np.concatenate(
+            [y_val_train[eco].values.reshape(-1) for eco in sorted(X_val_train.keys())]
+        )
+        y_val_test = np.concatenate(
+            [y_val_test[eco].values.reshape(-1) for eco in sorted(X_val_test.keys())]
+        )
 
         # save length of strings for model rf:
         if config["model"] == "rf":
-            if config["ecoregion_level"]:
-                rf_model = (
-                    pipeline.per_ecoregion_pipeline_[
-                        list(config["list_ecoids_in_validation"][trait])[0]
-                    ]
-                    .named_steps["regressor"]
-                    .regressor_
-                )
-            else:
-                rf_model = pipeline.named_steps["regressor"].regressor_
+            rf_model = pipeline.named_steps["regressor"].regressor_
             string_size = rf_get_size_of_string(rf_model, feature_names=feature_names)
             trial.set_user_attr("string_size_mb", string_size["megabytes"])
 
@@ -225,26 +167,25 @@ def objective(trial):
             "val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test])
         )
 
-        if not config["ecoregion_level"]:
-            # Log simulation values
-            trial.set_user_attr(
-                "sim_train_rmse",
-                min(scores_sim_train_rmse, config["optuna_report_thresh"][trait]),
-            )
-            trial.set_user_attr(
-                "sim_test_rmse",
-                min(scores_sim_test_rmse, config["optuna_report_thresh"][trait]),
-            )
-            trial.set_user_attr(
-                "sim_train_mae",
-                min(scores_sim_train_mae, config["optuna_report_thresh"][trait]),
-            )
-            trial.set_user_attr(
-                "sim_test_mae",
-                min(scores_sim_test_mae, config["optuna_report_thresh"][trait]),
-            )
-            trial.set_user_attr("sim_train_r2", max(scores_sim_train_r2, -1))
-            trial.set_user_attr("sim_test_r2", max(scores_sim_test_r2, -1))
+        # Log simulation values
+        trial.set_user_attr(
+            "sim_train_rmse",
+            min(scores_sim_train_rmse, config["optuna_report_thresh"][trait]),
+        )
+        trial.set_user_attr(
+            "sim_test_rmse",
+            min(scores_sim_test_rmse, config["optuna_report_thresh"][trait]),
+        )
+        trial.set_user_attr(
+            "sim_train_mae",
+            min(scores_sim_train_mae, config["optuna_report_thresh"][trait]),
+        )
+        trial.set_user_attr(
+            "sim_test_mae",
+            min(scores_sim_test_mae, config["optuna_report_thresh"][trait]),
+        )
+        trial.set_user_attr("sim_train_r2", max(scores_sim_train_r2, -1))
+        trial.set_user_attr("sim_test_r2", max(scores_sim_test_r2, -1))
 
         # Log additional values / but set max or min values to avoid errors
         trial.set_user_attr(

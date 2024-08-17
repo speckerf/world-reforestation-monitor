@@ -76,8 +76,6 @@ def optuna_init_config(trial):
         }
 
     config_general = {
-        # "ecoregion_level": trial.suggest_categorical("ecoregion_level", [True, False]),
-        "ecoregion_level": False,
         "use_angles_for_prediction": trial.suggest_categorical(
             "use_angles_for_prediction", [True, False]
         ),

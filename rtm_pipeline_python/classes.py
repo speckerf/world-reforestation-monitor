@@ -308,14 +308,9 @@ class rtm_simulator:
         return df_return
 
     def generate_lut(self, eco_id=None):
-        if self.config["ecoregion_level"] is False and eco_id is not None:
-            logger.warning(
-                "The 'ecoregion_level' parameter is set to False. The 'eco_id' parameter will be ignored."
-            )
-            self.eco_id = None
-        else:
-            self.eco_id = eco_id
-            logger.info(f"Generating LUT for ecoregion {eco_id}.")
+
+        self.eco_id = eco_id
+        logger.info(f"Generating LUT for ecoregion {eco_id}.")
 
         self.s2_angles = load_s2_angles(eco_id=self.eco_id, resync=False)
         # Generate input reflectances
