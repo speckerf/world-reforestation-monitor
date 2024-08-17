@@ -7,7 +7,7 @@ from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, train_test_split
 
 from config.config import get_config
 from rtm_pipeline_python.classes import (
@@ -87,6 +87,9 @@ def objective(trial):
             y = {eco: df_eco[target] for eco, df_eco in df.items()}
         else:
             X, y = df[feature_names], df[target]
+            X_train, X_val, y_train, y_val = train_test_split(
+                X, y, test_size=0.1, random_state=42
+            )
 
         # find groupings for GroupKFold
         skf = GroupKFold(n_splits=config["group_k_fold_splits"])
@@ -151,6 +154,10 @@ def objective(trial):
             )
         else:
             pipeline.fit(X, y)
+            # also predict on the simualted training data
+            y_sim_train_pred = pipeline.predict(X_train)
+            y_sim_test_pred = pipeline.predict(X_val)
+
             y_val_train_pred = pipeline.predict(
                 pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
             )
@@ -193,6 +200,13 @@ def objective(trial):
         # limit prediction range
         y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
 
+        scores_sim_train_rmse = root_mean_squared_error(y_train, y_sim_train_pred)
+        scores_sim_test_rmse = root_mean_squared_error(y_val, y_sim_test_pred)
+        scores_sim_train_mae = mean_absolute_error(y_train, y_sim_train_pred)
+        scores_sim_test_mae = mean_absolute_error(y_val, y_sim_test_pred)
+        scores_sim_train_r2 = r2_score(y_train, y_sim_train_pred)
+        scores_sim_test_r2 = r2_score(y_val, y_sim_test_pred)
+
         score_val_train_rmse = root_mean_squared_error(y_val_train, y_val_train_pred)
         score_val_test_rmse = root_mean_squared_error(y_val_test, y_val_test_pred)
         score_val_train_mae = mean_absolute_error(y_val_train, y_val_train_pred)
@@ -210,6 +224,27 @@ def objective(trial):
         trial.set_user_attr(
             "val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test])
         )
+
+        if not config["ecoregion_level"]:
+            # Log simulation values
+            trial.set_user_attr(
+                "sim_train_rmse",
+                min(scores_sim_train_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_test_rmse",
+                min(scores_sim_test_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_train_mae",
+                min(scores_sim_train_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_test_mae",
+                min(scores_sim_test_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr("sim_train_r2", max(scores_sim_train_r2, -1))
+            trial.set_user_attr("sim_test_r2", max(scores_sim_test_r2, -1))
 
         # Log additional values / but set max or min values to avoid errors
         trial.set_user_attr(
