@@ -29,7 +29,6 @@ def load_validation_data(return_site=False) -> dict:
             "validation_pipeline",
             "output",
             "lai",
-            # "EXPORT_COPERNICUS_GBOV_RM6,7_20240620120826_reflectances_with_angles.csv",
             "EXPORT_GBOV_RM6,7_20240620120826_all_reflectances_with_angles.csv",
         )
     )
@@ -40,8 +39,17 @@ def load_validation_data(return_site=False) -> dict:
             "validation_pipeline",
             "output",
             "fapar",
-            # "EXPORT_COPERNICUS_GBOV_RM6,7_20240620120826_reflectances_with_angles.csv",
             "EXPORT_GBOV_RM6,7_20240620120826_all_reflectances_with_angles.csv",
+        )
+    )
+
+    caopy_traits_fcover = pd.read_csv(
+        os.path.join(
+            "data",
+            "validation_pipeline",
+            "output",
+            "fcover",
+            "EXPORT_COPERNICUS_GBOV_RM4_20240816101306_all_reflectances_with_angles.csv",
         )
     )
 
@@ -53,6 +61,9 @@ def load_validation_data(return_site=False) -> dict:
         columns={"sza": "tts", "vza": "tto", "phi": "psi"}
     )
     canopy_traits_fapar = canopy_traits_fapar.rename(
+        columns={"sza": "tts", "vza": "tto", "phi": "psi"}
+    )
+    canopy_traits_fcover = caopy_traits_fcover.rename(
         columns={"sza": "tts", "vza": "tto", "phi": "psi"}
     )
 
@@ -75,6 +86,11 @@ def load_validation_data(return_site=False) -> dict:
             canopy_traits_fapar,
             bands_angles + ["FIPAR_total"],
             {"FIPAR_total": "fapar"},
+        ),
+        "fcover": create_validation_set(
+            canopy_traits_fcover,
+            bands_angles + ["FCOVER_total"],
+            {"FCOVER_total": "fcover"},
         ),
         "CHL": create_validation_set(
             foliar_traits,

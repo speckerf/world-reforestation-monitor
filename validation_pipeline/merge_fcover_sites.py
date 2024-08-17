@@ -37,6 +37,20 @@ def main():
         [pd.read_csv(file_name) for file_name in local_filenames], ignore_index=True
     )
 
+    # load data/validation_pipeline/output/fcover/merged_fcover_COPERNICUS_GBOV_RM4_20240816101306.csv
+    df_fcover_total = pd.read_csv(
+        os.path.join(
+            "data",
+            "validation_pipeline",
+            "output",
+            "fcover",
+            "merged_fcover_COPERNICUS_GBOV_RM4_20240816101306.csv",
+        ),
+    )[["uuid", "FCOVER_total", "FCOVER_total_err"]]
+
+    # join df with df_fcover_total on uuid
+    df = df.merge(df_fcover_total, on="uuid")
+
     df.to_csv(
         os.path.join(
             "data",
