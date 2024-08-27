@@ -1,0 +1,84 @@
+# this file lists all combinations of ecoregions, that can potentially be processed together, for reducing computational load
+# they share a complex ecoregion border
+
+
+
+# these combinations have same phenology (usually tropical moist forest, with all year pheno window)
+same_pheno:
+- [506, 470]
+- [156, 157]
+- [483, 512, 469, 505]
+- [503, 496, 446]
+- [466, 465, 464]
+- [247, 246]
+- [161, 160]
+- [149, 148, 139]
+- [144, 145]
+- [473, 498, 484]
+- [497, 482, 476]
+- [447, 457]
+- [455, 462]
+- [154, 155]
+- [275, 274]
+- [3, 10, 29]
+- [263, 264, 265]
+- [279, 278, 277, 280]
+- [220, 219, 281, 273, 221] 
+
+
+# these combinations share an especially complex geoemtry, and have close phenology windows (start and end dates lare close. it will take the mean in the end, but because of phenology weighting of images should be fine. (images in the center of pheno window more likely to get selected, edges only considered if not enough cloudfree observations))
+close_pheno:
+- [40, 16]
+- [809, 810, 811]
+- [65, 66]
+- [89, 90, 110, 102]
+- [714, 771, 779, 772]
+- [713, 773, 712]
+- [780, 774]
+- [704, 697, 765]
+
+# # kept as notes:
+# pheno_dates:
+#     1:
+# 	- 816: '04-09 until 06-10'
+# 	- 752: '05-17 until 08-17'
+# 	- "don't merge"
+#     2: 
+# 	- 302: '07-02 until 10-14'
+# 	- 233: '05-27 until 10-30' 
+# 	- "don't merge..." 
+#     3:
+# 	- 16: '11-01 until 05-13'
+# 	- 40: '11-17 until 05-05'
+# 	- 'merge and simplify'
+#     4: 
+# 	- 809: '01-15 until 04-15'
+# 	- 810: '01-14 until 04-02'
+# 	- 811: '12-27 until 03-26'
+# 	- 840: '07-19 until 10-07' # dont merge this eco but the others are fine
+# 	- "merge 809, 811, 810"
+#     5: 
+# 	- 65: '12-13 until 04-24'
+# 	- 66: '12-11 until 04-23'
+# 	- 'merge these two'
+#     6:
+# 	- 89: '06-12 until 10-06'
+# 	- 90: '06-10 until 10-10'
+# 	- 110: '06-12 until 09-18'
+# 	- 102: '06-14 until 09-26'
+#     7: 
+# 	- 714: '06-06 until 09-02'
+# 	- 771: '06-04 until 09-04'
+# 	- 779: '06-12 until 09-11'
+# 	- 772: '06-15 until 09-04' 
+#     8:
+# 	- 713: '06-16 until 09-18'
+# 	- 773: '06-16 until 09-17'
+# 	- 712: '06-15 until 09-15'
+#     9: 
+# 	- 780: '06-16 until 09-16'
+# 	- 774: '06-16 until 09-19'
+#     10:
+# 	- 704: '06-08 until 09-24'
+# 	- 697: '06-08 until 09-26'
+# 	- 765: '06-12 until 09-24'
