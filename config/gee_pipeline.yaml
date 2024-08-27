@@ -2,7 +2,7 @@ PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
   YEAR: '2022'
-  OUTPUT_RESOLUTION: 1000 # in meters
+  OUTPUT_RESOLUTION: 10 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'lai'
   ENSEMBLE_SIZE: 6
@@ -56,6 +56,7 @@ UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2
   fcover_mean: '[]'
   fcover_stdDev: '[]'
 
+CONDA_PATH: "/Users/felix/miniforge3/envs/geospatial"
 
 CLOUD_FILTERING:
   CLOUDY_PIXEL_PERCENTAGE: 70 # max initial cloudy pixel percentage
@@ -66,6 +67,7 @@ CLOUD_FILTERING:
 GEE_FOLDERS:
   ASSET_FOLDER: 'projects/ee-speckerfelix/assets/open-earth'
   TEMP_FOLDER: 'projects/ee-speckerfelix/assets/temp'
+  MODEL_RF_LUT: projects/ee-speckerfelix/assets/test-models
   # MISC_FOLDER: 'projects/crowtherlab/felix/open-earth/misc'
   # CLOUDFREE_FOLDER: 'projects/crowtherlab/felix/open-earth/s2_cloudfree'
   # PREDICTIONS_COLLECTION: 'projects/ee-speckerfelix/assets/open-earth/'

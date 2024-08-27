@@ -49,6 +49,8 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
 def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     models = ["rf", "mlp"]
     testsets = [0, 1, 2]
+    # models = ["rf"]
+    # testsets = [2]
 
     for model in models:
         for testset in testsets:

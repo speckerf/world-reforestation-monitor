@@ -1,5 +1,9 @@
 import json
 import os
+import random
+import string
+import subprocess
+import time
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 
@@ -15,7 +19,7 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 from sklearn.model_selection import GroupKFold, train_test_split
 
 from config.config import get_config
-from gee_pipeline.utils import wait_for_task
+from gee_pipeline.utils import wait_for_task, wait_for_task_id
 from rtm_pipeline_python.classes import (
     helper_apply_posthoc_modifications,
     rtm_simulator,
@@ -29,6 +33,8 @@ from train_pipeline.utilsTraining import (
     merge_dicts_safe,
     r2_score_oos,
 )
+
+CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 
 def objective(trial, save_model=False):
@@ -168,29 +174,48 @@ def objective(trial, save_model=False):
                 [df_X_train_transformed, df_y_train_transformed], axis=1
             )
             # save to csv
+            local_lut_folder = os.path.join(
+                "data", "train_pipeline", "output", "models", trait
+            )
+            local_lut_transformed_filename = (
+                f"lut_transformed_{trial.user_attrs['config']['optuna_study_name']}.csv"
+            )
             df_train_transformed.to_csv(
-                os.path.join(
-                    "data",
-                    "train_pipeline",
-                    "output",
-                    "models",
-                    trait,
-                    f"lut_transformed_pretraining_{trial.user_attrs['config']['optuna_study_name']}.csv",
-                ),
+                os.path.join(local_lut_folder, local_lut_transformed_filename),
                 index=False,
             )
 
-            # add dummy longitude and latitude columns
-            df_train_transformed["latitude"] = 0
-            df_train_transformed["longitude"] = 0
+            gcs_folder_name = f"gs://felixspecker/open-earth/temp/"
+            # upload to google cloud storage
+            random_string = "".join(
+                random.choices(string.ascii_lowercase + string.digits, k=10)
+            )  # avoid unnecessary filename collisions
+            filename_gcs = os.path.join(gcs_folder_name, f"{random_string}.csv")
 
-            # dataframe to GEE feature collection
-            fc_train_transformed = df_to_ee(
-                df_train_transformed, latitude="latitude", longitude="longitude"
+            # Execute the gsutil command
+            subprocess.run(
+                f"gsutil cp {os.path.join(local_lut_folder, local_lut_transformed_filename)} {filename_gcs}",
+                shell=True,
+                check=True,
             )
 
-            # drop latitude and longitude columns
-            fc_train_transformed = fc_train_transformed.select([*feature_names, trait])
+            # time.sleep(10)
+            # import to earth engine using earthengine upload table/
+            asset_id = f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{local_lut_transformed_filename.removesuffix('.csv')}"
+            output = subprocess.run(
+                f"{CONFIG_GEE_PIPELINE['CONDA_PATH']}/bin/earthengine upload table --asset_id={asset_id} {filename_gcs}",
+                shell=True,
+                check=True,
+                capture_output=True,
+            )
+            # extract task id from output
+            task_id = output.stdout.decode("utf-8").split("ID: ")[1].strip()
+
+            wait_for_task_id(task_id)
+
+            fc_train_transformed = ee.FeatureCollection(asset_id).select(
+                [*feature_names, trait]
+            )
 
             rf_gee_params = {
                 "numberOfTrees": config["n_estimators"],
@@ -213,7 +238,7 @@ def objective(trial, save_model=False):
             # save random forest model directly to earth engine asset for later use during prediction
             model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}"
             ee_rf_model_filename = (
-                f"projects/ee-speckerfelix/assets/test-models/{model_filename}"
+                f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{model_filename}"
             )
 
             classifier_export_task = ee.batch.Export.classifier.toAsset(
