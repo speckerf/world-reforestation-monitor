@@ -5,7 +5,7 @@ PIPELINE_PARAMS:
   OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'lai'
-  MLP_ENSEMBLE_SIZE: 3 # should be a multiple of 3
+  ENSEMBLE_SIZE: 6
   VERSION: 'v2'
   EXPORT_EPSG: 'EPSG:4326'
 

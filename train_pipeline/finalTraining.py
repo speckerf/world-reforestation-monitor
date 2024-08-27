@@ -16,7 +16,7 @@ from train_pipeline.optunaTraining import objective
 from train_pipeline.utilsLoading import load_validation_data
 
 
-def rerun_and_save_best_optuna(config: dict, study=None):
+def rerun_and_save_best_optuna(config: dict, study=None) -> None:
 
     if study is None:
         # load the study
@@ -63,8 +63,8 @@ def rerun_and_save_best_optuna(config: dict, study=None):
 
 
 def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
-    # models = ["rf", "mlp"]
-    models = ["mlp"]
+    models = ["rf", "mlp"]
+    # models = ["rf"]
     testsets = [0, 1, 2]
     # models = ["mlp"]
     # testsets = [0]
@@ -195,7 +195,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
 
 def load_model_ensemble(trait: str):
     # list study names
-    models = ["mlp"]
+    models = ["mlp", "rf"]
     testsets = [0, 1, 2]
     model_names = [
         f"optuna-debug-{trait}-{model}-testset{testset}"
@@ -216,6 +216,15 @@ def load_model_ensemble(trait: str):
         for name in model_names
     }
 
+    # for model -rf-: add the gee_classifier_path
+    for name, path in model_names_path.items():
+        if "-rf-" in name:
+            path["gee_classifier_path"] = (
+                f"projects/ee-speckerfelix/assets/test-models/{path['model_path']}"
+            )
+        else:
+            path["gee_classifier_path"] = None
+
     # load all models: "model_optuna-debug-{trait}-*.pkl" using pickle_load
     models = {}
     for name, path in model_names_path.items():
@@ -225,6 +234,11 @@ def load_model_ensemble(trait: str):
                     "config": json.load(f_config),
                     "pipeline": pickle_load(f),
                     "model_path": path["model_path"],
+                    "gee_classifier": (
+                        ee.Classifier.load(path["gee_classifier_path"])
+                        if path["gee_classifier_path"]
+                        else None
+                    ),
                 }
 
     return models

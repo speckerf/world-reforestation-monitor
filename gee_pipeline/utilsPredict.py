@@ -27,13 +27,16 @@ def calculate_linear_weight(
     return image.set("phenology_weight", weight)
 
 
-# Function to add a random value based on system:time_start modulo 6
-def add_random_property(image):
-    time_start = ee.Number(image.get("system:time_start"))
-    random_value = time_start.mod(
-        CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["MLP_ENSEMBLE_SIZE"]
-    ).add(1)
-    return image.set("randomValue", random_value)
+def add_random_ensemble_assignment(imgc: ee.ImageCollection) -> ee.ImageCollection:
+    return imgc.randomColumn("randomValue", seed=0).map(
+        lambda img: img.set(
+            "random_ensemble_assignment",
+            img.getNumber("randomValue")
+            .multiply(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"])
+            .toInt8()
+            .add(1),
+        )
+    )
 
 
 def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
@@ -164,7 +167,7 @@ def eePipelinePredictMap(
     imgc: ee.ImageCollection,
     trait: str,
     model_config: dict,
-    asset_rf_id: Optional[str] = None,
+    gee_random_forest: Optional[ee.Classifier] = None,
 ):
     # get the bands and angles
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -203,22 +206,10 @@ def eePipelinePredictMap(
             pipeline.named_steps["regressor"].regressor_, trait_name=trait
         )
     elif model_config["model"] == "rf":
-        if asset_rf_id is not None:
-            ee_model = eeRandomForestRegressor(
-                rf_asset_id=asset_rf_id,
-                feature_names=features,
-                trait_name=trait,
-            )
-        else:
-            ee_model = eeRandomForestRegressor(
-                rf_model=pipeline.named_steps["regressor"].regressor_,
-                feature_names=features,
-                trait_name=trait,
-            )
-
-    imgc = imgc.map(
-        lambda image: ee_model.predict(image, copy_properties=["phenology_weight"])
-    )
+        ee_model = eeRandomForestRegressor(
+            feature_names=features, trait_name=trait, ee_rf_model=gee_random_forest
+        )
+    imgc = imgc.map(lambda image: ee_model.predict(image))
 
     # apply inverse transformations
     if model_config["transform_target"] == "log1p":

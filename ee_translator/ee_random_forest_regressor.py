@@ -11,22 +11,11 @@ class eeRandomForestRegressor:
         self,
         feature_names: list[str],
         trait_name: str,
-        rf_model: Optional[RandomForestRegressor] = None,
-        rf_asset_id: Optional[str] = None,
+        ee_rf_model: Optional[ee.Classifier],
+        # rf_asset_id: Optional[str] = None,
     ):
-        assert rf_model is not None or rf_asset_id is not None
-        if rf_model is not None:
-            self.rf_string = ml.rf_to_strings(
-                rf_model,
-                feature_names=feature_names,
-                output_mode="regression",
-                processes=1,
-            )
-            self.ee_model = ml.strings_to_classifier(self.rf_string)
-        else:
-            feature_collection = ee.FeatureCollection(rf_asset_id)
-            self.ee_model = ml.fc_to_classifier(feature_collection)
 
+        self.ee_model = ee_rf_model
         self.feature_names = feature_names
         self.trait_name = trait_name
 

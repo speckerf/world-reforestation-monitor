@@ -10,7 +10,7 @@ from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
 from gee_pipeline.utilsPhenology import get_start_end_date_phenology_for_ecoregion
 from gee_pipeline.utilsPredict import (
-    add_random_property,
+    add_random_ensemble_assignment,
     collapse_to_mean_and_stddev,
     eePipelinePredictMap,
 )
@@ -138,7 +138,8 @@ def export_ecoregion(
     imgc = apply_cloudScorePlus_mask(imgc)
 
     # Apply the function to each image in the collection
-    imgc = imgc.map(add_random_property)
+    # imgc = imgc.map(add_random_property)
+    imgc = ee.ImageCollection(add_random_ensemble_assignment(imgc))
 
     # add angles to bands
     imgc = imgc.map(add_angles_from_metadata_to_bands)
@@ -147,13 +148,16 @@ def export_ecoregion(
     # load model ensemble
     models = load_model_ensemble(trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"])
     for i, (model_name, model) in enumerate(models.items()):
-        imgc_i = imgc.filter(ee.Filter.eq("randomValue", i + 1))
+        imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
+        gee_random_forest_model = (
+            None if "rf" not in model_name else model["gee_classifier"]
+        )
         gee_preds[model_name] = eePipelinePredictMap(
             pipeline=model["pipeline"],
             imgc=imgc_i,
             trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
             model_config=model["config"],
-            asset_rf_id=None,
+            gee_random_forest=gee_random_forest_model,
         )
 
     # create single imagecollection from all imagecollections using reduce
@@ -172,10 +176,10 @@ def export_ecoregion(
     # epsg_string = epsg_string.lower().replace(":", ".")
     version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VERSION"]
     if isinstance(eco_id, int):
-        system_index = f"{trait}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}_{epsg_string}_{version}"
+        system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}_{epsg_string}_{version}"
     elif isinstance(eco_id, list):
         eco_ids_string = "-".join(map(str, eco_id))
-        system_index = f"{trait}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}_{epsg_string}_{version}"
+        system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}_{epsg_string}_{version}"
 
     # set system:time_start to beginning of the year
     output_image = (
@@ -234,7 +238,7 @@ def export_helper():
     for eco_id in ecoregions_to_export:
         logger.info(f"Exporting ecoregion {eco_id}")
 
-        if eco_id not in [799, 644, 660]:
+        if eco_id in [799, 644, 660]:
             continue
         export_ecoregion(
             eco_id=eco_id,
@@ -278,5 +282,5 @@ def test_multi_eco():
 
 if __name__ == "__main__":
     # export_continent()
-    # export_helper()
-    test_multi_eco()
+    export_helper()
+    # test_multi_eco()

@@ -7,7 +7,7 @@ import ee
 import numpy as np
 import optuna
 import pandas as pd
-from geemap import ml
+from geemap import df_to_ee, ml
 from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
@@ -15,6 +15,7 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 from sklearn.model_selection import GroupKFold, train_test_split
 
 from config.config import get_config
+from gee_pipeline.utils import wait_for_task
 from rtm_pipeline_python.classes import (
     helper_apply_posthoc_modifications,
     rtm_simulator,
@@ -27,7 +28,6 @@ from train_pipeline.utilsTraining import (
     limit_prediction_range,
     merge_dicts_safe,
     r2_score_oos,
-    rf_get_size_of_string,
 )
 
 
@@ -147,31 +147,85 @@ def objective(trial, save_model=False):
             [y_val_test[eco].values.reshape(-1) for eco in sorted(X_val_test.keys())]
         )
 
-        # save length of strings for model rf:
-        if config["model"] == "rf":
-            rf_model = pipeline.named_steps["regressor"].regressor_
-            # Convert the model to a list of strings
-            trees = ml.rf_to_strings(
-                rf_model, feature_names, output_mode="regression", processes=1
+        if config["model"] == "rf" and save_model:
+            logger.debug(
+                f"GEE: Retraining Random Forest model for trait {trait} with trial number {trial.number} with similar hyperparams using ee.Classifier.smileRandomForest"
             )
-            string_size = rf_get_size_of_string(trees)
-            trial.set_user_attr("string_size_mb", string_size["megabytes"])
+            # recreate pandas dataframe with preprocessed X and transformed y
+            X_train_transformed = pipeline.named_steps["preprocessor"].transform(
+                X_train
+            )
+            y_train_transformed = pipeline.named_steps[
+                "regressor"
+            ].transformer_.transform(
+                y_train
+            )  # use transformer_ instead of transformer, because transformer_ is the fitted transformer
+            df_X_train_transformed = pd.DataFrame(
+                X_train_transformed, columns=feature_names
+            )
+            df_y_train_transformed = pd.DataFrame(y_train_transformed, columns=target)
+            df_train_transformed = pd.concat(
+                [df_X_train_transformed, df_y_train_transformed], axis=1
+            )
+            # save to csv
+            df.to_csv(
+                os.path.join(
+                    "data",
+                    "train_pipeline",
+                    "output",
+                    "models",
+                    trait,
+                    f"lut_transformed_pretraining_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}.csv",
+                ),
+                index=False,
+            )
 
-            # if string size is too large, give warning / since earth engine has limit of 10MB / and we want to run at least 6 models in the same export. 9 MB + 1 MB Overhead
-            if string_size["megabytes"] > 1.5:
-                logger.warning(f"String size is larger than 1.5 MB: {string_size}")
+            # add dummy longitude and latitude columns
+            df_train_transformed["latitude"] = 0
+            df_train_transformed["longitude"] = 0
 
-            if save_model:
-                logger.debug(
-                    f"Saving local rf model to GEE asset... with string size: {string_size}"
+            # dataframe to GEE feature collection
+            fc_train_transformed = df_to_ee(
+                df_train_transformed, latitude="latitude", longitude="longitude"
+            )
+
+            # drop latitude and longitude columns
+            fc_train_transformed = fc_train_transformed.select([*feature_names, trait])
+
+            rf_gee_params = {
+                "numberOfTrees": config["n_estimators"],
+                "variablesPerSplit": config["max_features"],
+                "minLeafPopulation": config["min_samples_leaf"],
+                # 'bagFraction': config['max_samples'],
+                # 'maxNodes': config['max_leaf_nodes'],
+                "seed": 42,
+            }
+            # train rf model on resampled data
+            ee_rf_model = (
+                ee.Classifier.smileRandomForest(**rf_gee_params)
+                .setOutputMode("REGRESSION")
+                .train(
+                    features=fc_train_transformed,
+                    classProperty=trait,
+                    inputProperties=feature_names,
                 )
-                # save random forest model directly to earth engine asset
-                ee_model = ml.strings_to_classifier(trees)
-                model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
-                ml.export_trees_to_fc(
-                    trees=trees,
-                    asset_id=f"projects/ee-speckerfelix/assets/test-models/{model_filename}",
-                )
+            )
+
+            # save random forest model directly to earth engine asset for later use during prediction
+            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
+            ee_rf_model_filename = (
+                f"projects/ee-speckerfelix/assets/test-models/{model_filename}"
+            )
+
+            classifier_export_task = ee.batch.Export.classifier.toAsset(
+                classifier=ee_rf_model,
+                assetId=ee_rf_model_filename,
+                description=f"Exporting classifier: {model_filename}",
+            )
+            classifier_export_task.start()
+            # wait for task to finish
+            logger.debug("Waiting for classifier export task to finish...")
+            wait_for_task(classifier_export_task)
 
         # limit prediction range
         y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
