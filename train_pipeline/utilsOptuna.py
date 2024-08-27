@@ -177,16 +177,11 @@ def optuna_init_config(trial):
         hidden_layers_dict = {
             "5": (5,),
             "10": (10,),
-            "20": (20,),
             "5_5": (5, 5),
             "5_10": (5, 10),
             "10_5": (10, 5),
             "10_10": (10, 10),
-            "20_20": (20, 20),
             "5_5_5": (5, 5, 5),
-            "10_10_10": (10, 10, 10),
-            "5_10_5": (5, 10, 5),
-            "10_5_10": (10, 5, 10),
         }
 
         config_ml = {
@@ -195,16 +190,11 @@ def optuna_init_config(trial):
                 [
                     "5",
                     "10",
-                    "20",
                     "5_5",
                     "5_10",
                     "10_5",
                     "10_10",
-                    "20_20",
                     "5_5_5",
-                    "10_10_10",
-                    "5_10_5",
-                    "10_5_10",
                 ],
             ),
             "activation": trial.suggest_categorical("activation", ["relu", "tanh"]),
@@ -222,11 +212,9 @@ def optuna_init_config(trial):
         config_ml = {
             "n_estimators": 10
             * trial.suggest_int("n_estimators_optuna", 1, 20, log=True),
-            "max_depth": 2 * trial.suggest_int("max_depth_optuna", 1, 10, log=True),
-            "min_samples_split": 5
-            * trial.suggest_int("min_samples_split_optuna", 1, 15),
             "min_samples_leaf": 3 * trial.suggest_int("min_samples_leaf_optuna", 1, 10),
             "max_features": trial.suggest_int("max_features", 3, 8),
+            "max_samples": 0.1 * trial.suggest_int("max_samples_optuna", 2, 10),
         }
     config = merge_dicts_safe(config_general, config_ml, config_posthoc, config_lut)
     return config

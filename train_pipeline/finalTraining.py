@@ -24,21 +24,10 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
             study_name=config["optuna_study_name"], storage=config["optuna_storage"]
         )
     else:
-        # create a new study
         study = study
-    # rerun best model
-    # Retrieve the best trial
-    best_trial = study.best_trial
 
-    # if model == 'rf':
-    #    take the best trial with user attribute 'string_size_mb' lower than 1
     if config["model"] == "rf":
-        trials_filtered = [
-            t
-            for t in study.trials
-            if t.user_attrs.get("string_size_mb", float("inf")) < 1
-            and t.value is not None
-        ]
+        trials_filtered = [t for t in study.trials if t.value is not None]
         best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
         best_trial_number = best_trial_filtered.number
         best_trial_value = best_trial_filtered.value
@@ -64,10 +53,7 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
 
 def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     models = ["rf", "mlp"]
-    # models = ["rf"]
     testsets = [0, 1, 2]
-    # models = ["mlp"]
-    # testsets = [0]
 
     for model in models:
         for testset in testsets:

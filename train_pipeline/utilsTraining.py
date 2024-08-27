@@ -52,8 +52,7 @@ def get_model(config):
     elif config["model"] == "rf":
         model = RandomForestRegressor(
             n_estimators=config["n_estimators"],
-            max_depth=config["max_depth"],
-            min_samples_split=config["min_samples_split"],
+            max_samples=config["max_samples"],
             min_samples_leaf=config["min_samples_leaf"],
             max_features=config["max_features"],
         )

@@ -196,8 +196,7 @@ def objective(trial, save_model=False):
                 "numberOfTrees": config["n_estimators"],
                 "variablesPerSplit": config["max_features"],
                 "minLeafPopulation": config["min_samples_leaf"],
-                # 'bagFraction': config['max_samples'],
-                # 'maxNodes': config['max_leaf_nodes'],
+                "bagFraction": config["max_samples"],
                 "seed": 42,
             }
             # train rf model on resampled data

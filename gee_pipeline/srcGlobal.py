@@ -238,7 +238,7 @@ def export_helper():
     for eco_id in ecoregions_to_export:
         logger.info(f"Exporting ecoregion {eco_id}")
 
-        if eco_id in [799, 644, 660]:
+        if eco_id not in [799, 644, 660]:
             continue
         export_ecoregion(
             eco_id=eco_id,
