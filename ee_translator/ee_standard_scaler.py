@@ -28,18 +28,29 @@ class eeStandardScaler:
                 )
                 raise ValueError
 
+        # Create ee.Images for the mean and scale
+        self.scaler_mean_image = ee.Image.constant(list(self.mean_)).rename(
+            self.feature_names_
+        )
+        self.scaler_scale_image = ee.Image.constant(list(self.scale_)).rename(
+            self.feature_names_
+        )
+
     def transform_image(self, image: ee.Image) -> ee.Image:
-        # TODO: change to multiband image
-        band_names = self.feature_names_
+        # Select the relevant bands
+        image_selected = image.select(self.feature_names_)
 
-        image_scaled = image.select(band_names).toArray()  # dim: (n_bands)
+        # Subtract the mean image and divide by the scale image
+        image_scaled = image_selected.subtract(self.scaler_mean_image).divide(
+            self.scaler_scale_image
+        )
 
-        image_scaled = image_scaled.subtract(self.ee_mean_)  # dim: (n_bands)
-        image_scaled = image_scaled.divide(self.ee_scale_)  # dim: (n_bands)
-        image_scaled = image_scaled.arrayFlatten([band_names])  # multiband image
-        image_to_return = image.addBands(
-            image_scaled, overwrite=True
-        )  # overwrite=True to replace the original bands with the scaled bands
+        # Rename the scaled bands to match the original band names
+        image_scaled = image_scaled.rename(self.feature_names_)
+
+        # Add the scaled bands to the original image, replacing the original bands
+        image_to_return = image.addBands(image_scaled, overwrite=True)
+
         return image_to_return
 
     def inverse_transform(self, image: ee.Image) -> ee.Image:
