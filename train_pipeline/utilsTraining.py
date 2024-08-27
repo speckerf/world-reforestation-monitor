@@ -14,13 +14,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-def rf_get_size_of_string(rf: BaseEstimator, feature_names: list[str]) -> dict:
+def rf_get_size_of_string(trees: list[str]) -> dict:
     logger.debug("Calculating size of Random Forest string representation")
     try:
-        # Convert the model to a list of strings
-        trees = ml.rf_to_strings(
-            rf, feature_names, output_mode="regression", processes=1
-        )
         # Measure the size of the resulting string
         list_size = sys.getsizeof(trees)
         strings_size = sum([sys.getsizeof(s) for s in trees])
@@ -128,6 +124,10 @@ def safe_inverse_logit(x):
     return 1 / (1 + np.exp(-x))
 
 
+def identity(x):
+    return x
+
+
 def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
     angles = ["tts", "tto", "psi"]
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -138,7 +138,7 @@ def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
             steps=[
                 ("nirv_transformer", NIRvTransformer()),
                 ("scaler", StandardScaler()),
-            ]
+            ],
         )
     else:
         band_transformer = Pipeline(steps=[("scaler", StandardScaler())])
@@ -146,13 +146,15 @@ def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
     if config["use_angles_for_prediction"]:
         preprocessor = ColumnTransformer(
             transformers=[
-                ("angle_transformer", angle_transformer, angles),
                 ("band_transformer", band_transformer, bands),
-            ]
+                ("angle_transformer", angle_transformer, angles),
+            ],
+            remainder="passthrough",
         )
     else:
         preprocessor = ColumnTransformer(
-            transformers=[("band_transformer", band_transformer, bands)]
+            transformers=[("band_transformer", band_transformer, bands)],
+            remainder="passthrough",
         )
 
     if config["transform_target"] == "log1p":
@@ -165,7 +167,7 @@ def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
         )
     elif config["transform_target"] == "None":
         regressor = TransformedTargetRegressor(
-            regressor=model, func=lambda x: x, inverse_func=lambda x: x
+            regressor=model, func=identity, inverse_func=identity
         )
     elif config["transform_target"] == "logit":
         regressor = TransformedTargetRegressor(

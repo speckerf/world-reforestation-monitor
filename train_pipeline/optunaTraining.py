@@ -1,8 +1,13 @@
+import json
 import os
+from pickle import dump as pickle_dump
+from pickle import load as pickle_load
 
+import ee
 import numpy as np
 import optuna
 import pandas as pd
+from geemap import ml
 from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
@@ -26,7 +31,7 @@ from train_pipeline.utilsTraining import (
 )
 
 
-def objective(trial):
+def objective(trial, save_model=False):
 
     try:
 
@@ -53,6 +58,19 @@ def objective(trial):
         )
 
         df = lut_simulator.generate_lut()
+        if save_model:
+            df.to_csv(
+                os.path.join(
+                    "data",
+                    "train_pipeline",
+                    "output",
+                    "models",
+                    trait,
+                    f"lut_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}.csv",
+                ),
+                index=False,
+            )
+
         if config["posthoc_modifications"]:
             df = helper_apply_posthoc_modifications(df, trait, config)
 
@@ -132,12 +150,28 @@ def objective(trial):
         # save length of strings for model rf:
         if config["model"] == "rf":
             rf_model = pipeline.named_steps["regressor"].regressor_
-            string_size = rf_get_size_of_string(rf_model, feature_names=feature_names)
+            # Convert the model to a list of strings
+            trees = ml.rf_to_strings(
+                rf_model, feature_names, output_mode="regression", processes=1
+            )
+            string_size = rf_get_size_of_string(trees)
             trial.set_user_attr("string_size_mb", string_size["megabytes"])
 
             # if string size is too large, give warning / since earth engine has limit of 10MB / and we want to run at least 6 models in the same export. 9 MB + 1 MB Overhead
             if string_size["megabytes"] > 1.5:
                 logger.warning(f"String size is larger than 1.5 MB: {string_size}")
+
+            if save_model:
+                logger.debug(
+                    f"Saving local rf model to GEE asset... with string size: {string_size}"
+                )
+                # save random forest model directly to earth engine asset
+                ee_model = ml.strings_to_classifier(trees)
+                model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
+                ml.export_trees_to_fc(
+                    trees=trees,
+                    asset_id=f"projects/ee-speckerfelix/assets/test-models/{model_filename}",
+                )
 
         # limit prediction range
         y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
@@ -159,55 +193,107 @@ def objective(trial):
             y_true=y_val_test, y_pred=y_val_test_pred, y_true_train=y_val_train
         )
 
-        # log current split and eco_ids in train and test split
-        trial.set_user_attr(
-            "val_ecos_train", ", ".join([str(eco) for eco in val_ecos_train])
-        )
-        trial.set_user_attr(
-            "val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test])
-        )
+        if not save_model:
+            # log current split and eco_ids in train and test split
+            trial.set_user_attr(
+                "val_ecos_train", ", ".join([str(eco) for eco in val_ecos_train])
+            )
+            trial.set_user_attr(
+                "val_ecos_test", ", ".join([str(eco) for eco in val_ecos_test])
+            )
 
-        # Log simulation values
-        trial.set_user_attr(
-            "sim_train_rmse",
-            min(scores_sim_train_rmse, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "sim_test_rmse",
-            min(scores_sim_test_rmse, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "sim_train_mae",
-            min(scores_sim_train_mae, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "sim_test_mae",
-            min(scores_sim_test_mae, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr("sim_train_r2", max(scores_sim_train_r2, -1))
-        trial.set_user_attr("sim_test_r2", max(scores_sim_test_r2, -1))
+            # Log simulation values
+            trial.set_user_attr(
+                "sim_train_rmse",
+                min(scores_sim_train_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_test_rmse",
+                min(scores_sim_test_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_train_mae",
+                min(scores_sim_train_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "sim_test_mae",
+                min(scores_sim_test_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr("sim_train_r2", max(scores_sim_train_r2, -1))
+            trial.set_user_attr("sim_test_r2", max(scores_sim_test_r2, -1))
 
-        # Log additional values / but set max or min values to avoid errors
-        trial.set_user_attr(
-            "val_train_rmse",
-            min(score_val_train_rmse, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "val_test_rmse",
-            min(score_val_test_rmse, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "val_train_mae",
-            min(score_val_train_mae, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr(
-            "val_test_mae",
-            min(score_val_test_mae, config["optuna_report_thresh"][trait]),
-        )
-        trial.set_user_attr("val_train_r2", max(score_val_train_r2, -1))
-        trial.set_user_attr("val_test_r2", max(score_val_test_r2, -1))
-        trial.set_user_attr("val_test_r2_oos", max(score_val_test_r2_oos, -1))
-        trial.set_user_attr("config", config)
+            # Log additional values / but set max or min values to avoid errors
+            trial.set_user_attr(
+                "val_train_rmse",
+                min(score_val_train_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "val_test_rmse",
+                min(score_val_test_rmse, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "val_train_mae",
+                min(score_val_train_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr(
+                "val_test_mae",
+                min(score_val_test_mae, config["optuna_report_thresh"][trait]),
+            )
+            trial.set_user_attr("val_train_r2", max(score_val_train_r2, -1))
+            trial.set_user_attr("val_test_r2", max(score_val_test_r2, -1))
+            trial.set_user_attr("val_test_r2_oos", max(score_val_test_r2_oos, -1))
+            trial.set_user_attr("config", config)
+        else:
+            eval_metrics = {}
+            eval_metrics["sim_train_rmse"] = scores_sim_train_rmse
+            eval_metrics["sim_test_rmse"] = scores_sim_test_rmse
+            eval_metrics["sim_train_mae"] = scores_sim_train_mae
+            eval_metrics["sim_test_mae"] = scores_sim_test_mae
+            eval_metrics["sim_train_r2"] = scores_sim_train_r2
+            eval_metrics["sim_test_r2"] = scores_sim_test_r2
+            eval_metrics["val_train_rmse"] = score_val_train_rmse
+            eval_metrics["val_test_rmse"] = score_val_test_rmse
+            eval_metrics["val_train_mae"] = score_val_train_mae
+            eval_metrics["val_test_mae"] = score_val_test_mae
+            eval_metrics["val_train_r2"] = score_val_train_r2
+            eval_metrics["val_test_r2"] = score_val_test_r2
+            eval_metrics["val_test_r2_oos"] = score_val_test_r2_oos
+
+        # save model
+        if save_model:
+            logger.debug(
+                f"Saving model for trait {trait} with trial number {trial.number}"
+            )
+
+            save_dir = os.path.join(
+                "data",
+                "train_pipeline",
+                "output",
+                "models",
+                trait,
+            )
+            os.makedirs(save_dir, exist_ok=True)
+            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
+            full_model_path = os.path.join(save_dir, f"{model_filename}.pkl")
+            with open(full_model_path, "wb") as f:
+                pickle_dump(pipeline, f)
+            with open(os.path.join(save_dir, f"{model_filename}.json"), "w") as f:
+                # also write eval metrics to json
+                json.dump(eval_metrics, f)
+
+            with open(full_model_path, "rb") as f:
+                pipeline_pickle = pickle_load(f)
+
+            with open(
+                os.path.join(save_dir, f"{model_filename}_config.json"), "w"
+            ) as f:
+                json.dump(trial.user_attrs["config"], f)
+
+            # assert that predictions are the same / close
+            assert np.allclose(
+                pipeline.predict(X_val_test[list(X_val_test.keys())[0]]),
+                pipeline_pickle.predict(X_val_test[list(X_val_test.keys())[0]]),
+            )
 
         return score_val_train_rmse
 
