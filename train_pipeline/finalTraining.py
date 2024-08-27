@@ -36,12 +36,7 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
         objective(best_trial_filtered, save_model=True)
 
     elif config["model"] == "mlp":
-        trials_filtered = [
-            t
-            for t in study.trials
-            if t.params["hidden_layers"] in ["5", "5_5", "10", "5_10"]
-            and t.value is not None
-        ]
+        trials_filtered = [t for t in study.trials if t.value is not None]
 
         best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
         best_trial_number = best_trial_filtered.number
@@ -193,10 +188,10 @@ def load_model_ensemble(trait: str):
     dir_path = os.path.join("data", "train_pipeline", "output", "models", trait)
     model_names_path = {
         name: {
-            "pipeline": glob(os.path.join(dir_path, f"model_{name}_*.pkl"))[0],
-            "config": glob(os.path.join(dir_path, f"model_{name}_*_config.json"))[0],
+            "pipeline": glob(os.path.join(dir_path, f"model_{name}.pkl"))[0],
+            "config": glob(os.path.join(dir_path, f"model_{name}_config.json"))[0],
             "model_path": os.path.basename(
-                glob(os.path.join(dir_path, f"model_{name}_*.pkl"))[0]
+                glob(os.path.join(dir_path, f"model_{name}.pkl"))[0]
             ).removesuffix(".pkl"),
         }
         for name in model_names

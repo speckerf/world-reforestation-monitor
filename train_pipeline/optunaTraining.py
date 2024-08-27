@@ -66,7 +66,7 @@ def objective(trial, save_model=False):
                     "output",
                     "models",
                     trait,
-                    f"lut_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}.csv",
+                    f"lut_{trial.user_attrs['config']['optuna_study_name']}.csv",
                 ),
                 index=False,
             )
@@ -168,14 +168,14 @@ def objective(trial, save_model=False):
                 [df_X_train_transformed, df_y_train_transformed], axis=1
             )
             # save to csv
-            df.to_csv(
+            df_train_transformed.to_csv(
                 os.path.join(
                     "data",
                     "train_pipeline",
                     "output",
                     "models",
                     trait,
-                    f"lut_transformed_pretraining_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}.csv",
+                    f"lut_transformed_pretraining_{trial.user_attrs['config']['optuna_study_name']}.csv",
                 ),
                 index=False,
             )
@@ -211,7 +211,7 @@ def objective(trial, save_model=False):
             )
 
             # save random forest model directly to earth engine asset for later use during prediction
-            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
+            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}"
             ee_rf_model_filename = (
                 f"projects/ee-speckerfelix/assets/test-models/{model_filename}"
             )
@@ -326,7 +326,7 @@ def objective(trial, save_model=False):
                 trait,
             )
             os.makedirs(save_dir, exist_ok=True)
-            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}_trial_{trial.number}"
+            model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}"
             full_model_path = os.path.join(save_dir, f"{model_filename}.pkl")
             with open(full_model_path, "wb") as f:
                 pickle_dump(pipeline, f)
