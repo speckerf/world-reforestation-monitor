@@ -197,6 +197,10 @@ def objective(trial, save_model=False):
     )
 
     df = lut_simulator.generate_lut()
+
+    if config["posthoc_modifications"]:
+        df = helper_apply_posthoc_modifications(df, trait, config)
+
     if save_model:
         save_folder = os.path.join(
             "data",
@@ -213,9 +217,6 @@ def objective(trial, save_model=False):
             study_name=study_name,
             bands=bands,
         )
-
-    if config["posthoc_modifications"]:
-        df = helper_apply_posthoc_modifications(df, trait, config)
 
     ### load and prepare validation data
     df_val_trait = load_validation_data(return_site=True)[trait]
