@@ -1,8 +1,10 @@
+import os
 from datetime import datetime
 from functools import reduce
 
 import ee
 import numpy as np
+import pandas as pd
 from loguru import logger
 
 from config.config import get_config
@@ -118,6 +120,13 @@ def export_ecoregion(
                 CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUDY_PIXEL_PERCENTAGE"],
             )
         )
+        .filter(
+            ee.Filter.And(
+                ee.Filter.eq("GENERAL_QUALITY", "PASSED"),
+                ee.Filter.eq("GEOMETRIC_QUALITY", "PASSED"),
+                ee.Filter.gt("system:asset_size", 1000000),
+            )
+        )
         .select(bands)
     )
 
@@ -158,6 +167,8 @@ def export_ecoregion(
             trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
             model_config=model["config"],
             gee_random_forest=gee_random_forest_model,
+            min_max_bands=model["min_max_bands"],
+            min_max_label=model["min_max_label"],
         )
 
     # create single imagecollection from all imagecollections using reduce
@@ -169,11 +180,15 @@ def export_ecoregion(
     # collapse to mean and stddev
     output_image = collapse_to_mean_and_stddev(imgc_preds)
 
+    # mask permament water bodies :80: permanent water bodies at 10 meter resolution
+    water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v100").first()
+    output_image = output_image.updateMask(water_mask_2020.neq(80))
+
+    # Set export parameters
     year_start_string = str(year) + "0101"
     year_end_string = str(year) + "1231"
     epsg_code = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["EXPORT_EPSG"]
     epsg_string = epsg_code.lower().replace(":", "-")
-    # epsg_string = epsg_string.lower().replace(":", ".")
     version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VERSION"]
     if isinstance(eco_id, int):
         system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}_{epsg_string}_{version}"
@@ -181,7 +196,6 @@ def export_ecoregion(
         eco_ids_string = "-".join(map(str, eco_id))
         system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}_{epsg_string}_{version}"
 
-    # set system:time_start to beginning of the year
     output_image = (
         output_image.set("system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis())
         .set("system:time_end", ee.Date.fromYMD(int(year), 12, 31).millis())
@@ -194,9 +208,7 @@ def export_ecoregion(
         .set("system:index", system_index)
     )
 
-    # export the image
-
-    # image collection path:
+    # Export the image
     imgc_folder = (
         CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
         + f"/{trait}_predictions_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
@@ -280,7 +292,55 @@ def test_multi_eco():
     pass
 
 
+def test_export_global():
+    # export all ecoregions
+    ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017")
+    all_ecoregions = ecoregions.aggregate_array("ECO_ID").getInfo()
+
+    ecoregions_to_exclude = pd.read_csv(
+        os.path.join(
+            "data", "phenology_pipeline", "outputs", "ecoregions_to_exclude_all.csv"
+        )
+    )
+    ecoregions_simplifier = get_config("ecoregions_simple")
+    ecoregions_in_simplifier = set(
+        [item for row in ecoregions_simplifier["same_pheno"] for item in row]
+        + [item for row in ecoregions_simplifier["close_pheno"] for item in row]
+    )
+
+    ecoregions_process_single_list = list(
+        (
+            set(all_ecoregions)
+            - set(ecoregions_to_exclude["ECO_ID"])
+            - set(ecoregions_in_simplifier)
+        )
+    )
+
+    ecoregions_process_multi_list = [
+        *ecoregions_simplifier["same_pheno"],
+        *ecoregions_simplifier["close_pheno"],
+    ]
+
+    for eco_id in [*ecoregions_process_single_list, *ecoregions_process_multi_list]:
+        logger.info(f"Exporting ecoregion {eco_id}")
+
+        if eco_id not in [439, 762]:
+            continue
+
+        export_ecoregion(
+            eco_id=eco_id,
+            year=int(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["YEAR"]),
+            output_resolution=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"][
+                "OUTPUT_RESOLUTION"
+            ],
+            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
+        )
+
+    pass
+
+
 if __name__ == "__main__":
     # export_continent()
-    export_helper()
+    # export_helper()
+    test_export_global()
     # test_multi_eco()

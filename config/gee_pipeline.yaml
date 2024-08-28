@@ -2,7 +2,7 @@ PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
   YEAR: '2022'
-  OUTPUT_RESOLUTION: 10 # in meters
+  OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'lai'
   ENSEMBLE_SIZE: 6
@@ -76,6 +76,8 @@ GEE_FOLDERS:
   # PREDICTIONS_TEST: 'projects/ee-speckerfelix/assets/test'
 
 GCLOUD_FOLDERS:
+  TEMP_FOLDER: 'gs://felixspecker/open-earth/temp/'
+
   # BUCKET: 'felixspecker'
   # LOCAL_RAW_FOLDER: '../data_shared/gee_exports/data_raw'
   # LOCAL_MERGED_FOLDER: '../data_shared/gee_exports/data_merged'

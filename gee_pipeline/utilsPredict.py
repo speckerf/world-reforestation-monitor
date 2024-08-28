@@ -8,6 +8,7 @@ from config.config import get_config
 from ee_translator.ee_mlp_regressor import eeMLPRegressor
 from ee_translator.ee_random_forest_regressor import eeRandomForestRegressor
 from ee_translator.ee_standard_scaler import eeStandardScaler
+from gee_pipeline.utilsOOD import MinMaxRangeMasker
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 CONFIG_TRAIN_PIPELINE = get_config("train_pipeline")
@@ -168,6 +169,8 @@ def eePipelinePredictMap(
     trait: str,
     model_config: dict,
     gee_random_forest: Optional[ee.Classifier] = None,
+    min_max_bands: Optional[dict] = None,
+    min_max_label: Optional[dict] = None,
 ):
     # get the bands and angles
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -177,6 +180,11 @@ def eePipelinePredictMap(
     imgc = imgc.map(
         lambda image: image.addBands(image.select(bands).divide(10000), overwrite=True)
     )
+
+    # mask all pixels with reflectance values outside of the min_max reflectance values
+    if min_max_bands is not None:
+        min_max_band_masker = MinMaxRangeMasker(min_max_bands)
+        imgc = imgc.map(min_max_band_masker.ee_mask)
 
     if model_config["nirv_norm"]:
         imgc = imgc.map(ee_nirv_normalisation)
@@ -236,6 +244,10 @@ def eePipelinePredictMap(
         raise ValueError(
             f"Unknown target transformation: {model_config['transform_target']}"
         )
+
+    if min_max_label is not None:
+        min_max_label_masker = MinMaxRangeMasker(min_max_label)
+        imgc = imgc.map(min_max_label_masker.ee_mask)
 
     return imgc
 

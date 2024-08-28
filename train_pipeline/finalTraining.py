@@ -15,6 +15,8 @@ from config.config import get_config
 from train_pipeline.optunaTraining import objective
 from train_pipeline.utilsLoading import load_validation_data
 
+CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
+
 
 def rerun_and_save_best_optuna(config: dict, study=None) -> None:
 
@@ -195,6 +197,12 @@ def load_model_ensemble(trait: str):
             "model_path": os.path.basename(
                 glob(os.path.join(dir_path, f"model_{name}.pkl"))[0]
             ).removesuffix(".pkl"),
+            "min_max_bands": glob(
+                os.path.join(dir_path, f"min_max_band_values_{name}.json")
+            )[0],
+            "min_max_label": glob(
+                os.path.join(dir_path, f"min_max_label_values_{name}.json")
+            )[0],
         }
         for name in model_names
     }
@@ -203,7 +211,7 @@ def load_model_ensemble(trait: str):
     for name, path in model_names_path.items():
         if "-rf-" in name:
             path["gee_classifier_path"] = (
-                f"projects/ee-speckerfelix/assets/test-models/{path['model_path']}"
+                f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{path['model_path']}"
             )
         else:
             path["gee_classifier_path"] = None
@@ -222,6 +230,8 @@ def load_model_ensemble(trait: str):
                         if path["gee_classifier_path"]
                         else None
                     ),
+                    "min_max_bands": json.load(open(path["min_max_bands"], "r")),
+                    "min_max_label": json.load(open(path["min_max_label"], "r")),
                 }
 
     return models

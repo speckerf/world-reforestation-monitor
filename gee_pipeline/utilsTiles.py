@@ -27,7 +27,6 @@ def groupby_mgrs_orbit_pandas(
     end_pheno: ee.Date = None,
 ) -> ee.List:
 
-    logger.debug(f"imgc size before grouping and filtering: {imgc.size().getInfo()}")
     imgc = imgc.map(add_group)
     if center_pheno:
         imgc = imgc.map(
@@ -66,6 +65,7 @@ def groupby_mgrs_orbit_pandas(
         logger.debug(f"Total features retrieved: {total_features_retrieved}")
         fc_concat = {'type': 'FeatureCollection', 'features': [feature for fc in fc_list for feature in fc['features']]}
     else:
+        logger.debug(f"Total features retrieved: {total_features_retrieved}")
         fc_concat = fc_computed
 
     
