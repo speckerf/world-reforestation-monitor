@@ -9,8 +9,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from loguru import logger
-from sklearn.metrics import (mean_absolute_error, r2_score,
-                             root_mean_squared_error)
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 
 from config.config import get_config
 from train_pipeline.optunaTraining import objective
@@ -178,15 +177,20 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     logger.info(f"Ensemble RMSE: {rmse}")
 
     from train_pipeline.utilsPlotting import plot_predicted_vs_true
+
     plot_predicted_vs_true(
         y_val,
         predictions_ensemble,
         save_plot_filename=os.path.join(
-            "data", "train_pipeline", "output", "plots", trait, f"{'-'.join(model_name.split('-')[0:3])}_ensemble.png"
+            "data",
+            "train_pipeline",
+            "output",
+            "plots",
+            trait,
+            f"{'-'.join(model_name.split('-')[0:3])}_ensemble.png",
         ),
         plot_type="density_scatter",
     )
-
 
     return predictions_ensemble, y_val
 
@@ -217,11 +221,16 @@ def load_model_ensemble(trait: str):
                 os.path.join(dir_path, f"min_max_label_values_{name}.json")
             )[0],
             "split": os.path.join(dir_path, f"model_{name}_split.json"),
-            "fc_val_train_transformed": os.path.join(CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT'], f"val_train_transformed_{name}"),
-            "fc_val_test_transformed": os.path.join(CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT'], f"val_test_transformed_{name}"),
+            "fc_val_train_transformed": os.path.join(
+                CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["MODEL_RF_LUT"],
+                f"val_train_transformed_{name}",
+            ),
+            "fc_val_test_transformed": os.path.join(
+                CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["MODEL_RF_LUT"],
+                f"val_test_transformed_{name}",
+            ),
             "df_val_train": os.path.join(dir_path, f"df_val_train_{trait}_{name}.csv"),
             "df_val_test": os.path.join(dir_path, f"df_val_test_{trait}_{name}.csv"),
-
         }
         for name in model_names
     }
@@ -252,8 +261,12 @@ def load_model_ensemble(trait: str):
                     "min_max_bands": json.load(open(path["min_max_bands"], "r")),
                     "min_max_label": json.load(open(path["min_max_label"], "r")),
                     "split": json.load(open(path["split"], "r")),
-                    "fc_val_train_transformed": ee.FeatureCollection(path["fc_val_train_transformed"]),
-                    "fc_val_test_transformed": ee.FeatureCollection(path["fc_val_test_transformed"]),
+                    "fc_val_train_transformed": ee.FeatureCollection(
+                        path["fc_val_train_transformed"]
+                    ),
+                    "fc_val_test_transformed": ee.FeatureCollection(
+                        path["fc_val_test_transformed"]
+                    ),
                     "df_val_train": pd.read_csv(path["df_val_train"]),
                     "df_val_test": pd.read_csv(path["df_val_test"]),
                 }
@@ -262,11 +275,10 @@ def load_model_ensemble(trait: str):
 
 
 def featureToImage(feature):
-  
+
     properties = feature.toDictionary()
     image = ee.Image.constant(properties.values()).rename(properties.keys())
     return image
-
 
 
 def compare_local_gee_rf_predictions(trait: str):
@@ -285,8 +297,8 @@ def compare_local_gee_rf_predictions(trait: str):
     # loop over all models
     for model_name, model in models.items():
         if "-rf-" in model_name:
-            if model['config']['use_angles_for_prediction']:
-                features_for_prediction =[ *bands, *angles]
+            if model["config"]["use_angles_for_prediction"]:
+                features_for_prediction = [*bands, *angles]
             else:
                 features_for_prediction = bands
 
@@ -294,77 +306,119 @@ def compare_local_gee_rf_predictions(trait: str):
             df_val_test = model["df_val_test"].copy()
 
             # local predictions
-            val_train_local_preds = model["pipeline"].predict(df_val_train[features_for_prediction])
-            val_test_local_preds = model["pipeline"].predict(df_val_test[features_for_prediction])
+            val_train_local_preds = model["pipeline"].predict(
+                df_val_train[features_for_prediction]
+            )
+            val_test_local_preds = model["pipeline"].predict(
+                df_val_test[features_for_prediction]
+            )
 
             # merge predicitons with uuid
-            df_val_train_local_preds = pd.concat([df_val_train['uuid'], pd.DataFrame(val_train_local_preds, columns=[trait])], axis=1)
-
+            df_val_train_local_preds = pd.concat(
+                [
+                    df_val_train["uuid"],
+                    pd.DataFrame(val_train_local_preds, columns=[trait]),
+                ],
+                axis=1,
+            )
 
             # load the feature collection, already transformed
-            fc_val_train = model['fc_val_train_transformed']
-            fc_val_test = model['fc_val_test_transformed']
+            fc_val_train = model["fc_val_train_transformed"]
+            fc_val_test = model["fc_val_test_transformed"]
 
             # classify feature collection with random forest
-            val_train_gee_preds = fc_val_train.select(features_for_prediction).classify(**{'classifier': model['gee_classifier']}).aggregate_array('classification').getInfo()
-            val_test_gee_preds = fc_val_test.select(features_for_prediction).classify(**{'classifier': model['gee_classifier']}).aggregate_array('classification').getInfo()
-            val_train_uuid = fc_val_train.aggregate_array('uuid').getInfo()
-            val_test_uuid = fc_val_test.aggregate_array('uuid').getInfo()
+            val_train_gee_preds = (
+                fc_val_train.select(features_for_prediction)
+                .classify(**{"classifier": model["gee_classifier"]})
+                .aggregate_array("classification")
+                .getInfo()
+            )
+            val_test_gee_preds = (
+                fc_val_test.select(features_for_prediction)
+                .classify(**{"classifier": model["gee_classifier"]})
+                .aggregate_array("classification")
+                .getInfo()
+            )
+            val_train_uuid = fc_val_train.aggregate_array("uuid").getInfo()
+            val_test_uuid = fc_val_test.aggregate_array("uuid").getInfo()
             # backtransform the predictions
-            if model['config']['transform_target'] == 'log1p':
+            if model["config"]["transform_target"] == "log1p":
                 val_train_gee_preds = np.expm1(val_train_gee_preds)
                 val_test_gee_preds = np.expm1(val_test_gee_preds)
-            elif model['config']['transform_target'] == 'logit':
+            elif model["config"]["transform_target"] == "logit":
                 val_train_gee_preds = 1 / (1 + np.exp(-val_train_gee_preds))
                 val_test_gee_preds = 1 / (1 + np.exp(-val_test_gee_preds))
-            elif model['config']['transform_target'] == 'standard':
-                mean = model['pipeline'].named_steps['regressor'].transformer_.mean_
-                scale = model['pipeline'].named_steps['regressor'].transformer_.scale_
+            elif model["config"]["transform_target"] == "standard":
+                mean = model["pipeline"].named_steps["regressor"].transformer_.mean_
+                scale = model["pipeline"].named_steps["regressor"].transformer_.scale_
                 val_train_gee_preds = val_train_gee_preds * scale + mean
                 val_test_gee_preds = val_test_gee_preds * scale + mean
-            elif model['config']['transform_target'] == 'None':
+            elif model["config"]["transform_target"] == "None":
                 val_train_gee_preds = val_train_gee_preds
                 val_test_gee_preds = val_test_gee_preds
             else:
-                raise ValueError(f"Unknown target transformation: {model['config']['transform_target']}")
+                raise ValueError(
+                    f"Unknown target transformation: {model['config']['transform_target']}"
+                )
 
-            df_val_train_gee_preds = pd.DataFrame({'uuid': val_train_uuid, trait: val_train_gee_preds})
-            df_val_test_gee_preds = pd.DataFrame({'uuid': val_test_uuid, trait: val_test_gee_preds})
+            df_val_train_gee_preds = pd.DataFrame(
+                {"uuid": val_train_uuid, trait: val_train_gee_preds}
+            )
+            df_val_test_gee_preds = pd.DataFrame(
+                {"uuid": val_test_uuid, trait: val_test_gee_preds}
+            )
 
-            df_val_train_all_preds = pd.merge(df_val_train_local_preds, df_val_train_gee_preds, on='uuid', suffixes=('_local', '_gee'))
-            df_val_test_all_preds = pd.merge(df_val_test, df_val_test_gee_preds, on='uuid', suffixes=('_local', '_gee'))
-
-
-
+            df_val_train_all_preds = pd.merge(
+                df_val_train_local_preds,
+                df_val_train_gee_preds,
+                on="uuid",
+                suffixes=("_local", "_gee"),
+            )
+            df_val_test_all_preds = pd.merge(
+                df_val_test,
+                df_val_test_gee_preds,
+                on="uuid",
+                suffixes=("_local", "_gee"),
+            )
 
             # compare the predictions: plot local predictions vs GEE predictions
             plot_predicted_vs_true(
-                df_val_train_all_preds['lai_local'].values,
-                df_val_train_all_preds['lai_gee'].values,
+                df_val_train_all_preds["lai_local"].values,
+                df_val_train_all_preds["lai_gee"].values,
                 plot_type="density_scatter",
                 x_label="Local predictions",
                 y_label="GEE predictions",
-                title= f"Local vs GEE predictions for {trait} on validation train set",
+                title=f"Local vs GEE predictions for {trait} on validation train set",
             )
             plot_predicted_vs_true(
-                df_val_test_all_preds['lai_local'].values,
-                df_val_test_all_preds['lai_gee'].values,
+                df_val_test_all_preds["lai_local"].values,
+                df_val_test_all_preds["lai_gee"].values,
                 plot_type="density_scatter",
                 x_label="Local predictions",
                 y_label="GEE predictions",
-                title= f"Local vs GEE predictions for {trait} on validation test set",
+                title=f"Local vs GEE predictions for {trait} on validation test set",
             )
 
             # r2 score between local and GEE predictions
-            r2_local_gee_train = r2_score(df_val_train_all_preds['lai_local'].values, df_val_train_all_preds['lai_gee'].values)
-            r2_local_gee_test = r2_score(df_val_test_all_preds['lai_local'].values, df_val_test_all_preds['lai_gee'].values)
-            logger.info(f"R2 between local and GEE predictions on train set: {r2_local_gee_train}")
-            logger.info(f"R2 between local and GEE predictions on test set: {r2_local_gee_test}")
+            r2_local_gee_train = r2_score(
+                df_val_train_all_preds["lai_local"].values,
+                df_val_train_all_preds["lai_gee"].values,
+            )
+            r2_local_gee_test = r2_score(
+                df_val_test_all_preds["lai_local"].values,
+                df_val_test_all_preds["lai_gee"].values,
+            )
+            logger.info(
+                f"R2 between local and GEE predictions on train set: {r2_local_gee_train}"
+            )
+            logger.info(
+                f"R2 between local and GEE predictions on test set: {r2_local_gee_test}"
+            )
 
 
 def main():
     config = get_config("train_pipeline")
-    rerun_and_save_best_optuna_wrapper(config['trait'], config)
+    # rerun_and_save_best_optuna_wrapper("lai", config)
     # load_model_ensemble("lai")
     # evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")
