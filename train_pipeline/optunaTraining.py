@@ -3,9 +3,11 @@ import os
 import random
 import string
 import subprocess
+import tempfile
 import time
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
+from typing import Optional
 
 import ee
 import numpy as np
@@ -15,25 +17,21 @@ from geemap import df_to_ee, ml
 from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (mean_absolute_error, r2_score,
+                             root_mean_squared_error)
 from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.pipeline import Pipeline
 
 from config.config import get_config
 from gee_pipeline.utils import wait_for_task, wait_for_task_id
-from rtm_pipeline_python.classes import (
-    helper_apply_posthoc_modifications,
-    rtm_simulator,
-)
+from rtm_pipeline_python.classes import (helper_apply_posthoc_modifications,
+                                         rtm_simulator)
 from train_pipeline.utilsLoading import load_validation_data
 from train_pipeline.utilsOptuna import log_splits, optuna_init_config
-from train_pipeline.utilsTraining import (
-    get_model,
-    get_pipeline,
-    limit_prediction_range,
-    merge_dicts_safe,
-    r2_score_oos,
-)
+from train_pipeline.utilsPlotting import plot_predicted_vs_true
+from train_pipeline.utilsTraining import (get_model, get_pipeline,
+                                          limit_prediction_range,
+                                          merge_dicts_safe, r2_score_oos)
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
@@ -75,27 +73,78 @@ def save_lut_and_ranges(df, trait, save_folder, study_name, bands) -> None:
     return None
 
 
+def transform_X_y(
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    pipeline: Pipeline,
+    feature_names: list,
+    target: str,
+) -> pd.DataFrame:
+    X_transformed = pipeline.named_steps["preprocessor"].transform(X[feature_names])
+    y_transformed = pipeline.named_steps["regressor"].transformer_.transform(y[target])
+    df_X_transformed = pd.DataFrame(X_transformed, columns=feature_names)
+    df_y_transformed = pd.DataFrame(y_transformed, columns=target)
+
+    if "uuid" in X.columns:
+        # add uuid to transformed data
+        df_X_transformed["uuid"] = X["uuid"].values
+        df_y_transformed["uuid"] = y["uuid"].values
+        df_transformed = pd.merge(df_X_transformed, df_y_transformed, on="uuid")
+    else:
+        df_transformed = pd.concat([df_X_transformed, df_y_transformed], axis=1)
+    return df_transformed
+
+
+def upload_to_ee_via_gcs(df: pd.DataFrame, asset_name: str) -> str:
+    gcs_folder_name = CONFIG_GEE_PIPELINE["GCLOUD_FOLDERS"]["TEMP_FOLDER"]
+    random_string = "".join(
+        random.choices(string.ascii_lowercase + string.digits, k=10)
+    )  # avoid unnecessary filename collisions
+    filename_gcs = os.path.join(gcs_folder_name, f"{random_string}.csv")
+
+    # save df to temp dir locally
+    with tempfile.NamedTemporaryFile(suffix=".csv") as temp:
+        df.to_csv(temp.name, index=False)
+        subprocess.run(
+            f"gsutil cp {temp.name} {filename_gcs}",
+            shell=True,
+            check=True,
+        )
+
+    asset_id = f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{asset_name.removesuffix('.csv')}"
+    output = subprocess.run(
+        f"{CONFIG_GEE_PIPELINE['CONDA_PATH']}/bin/earthengine upload table --asset_id={asset_id} {filename_gcs}",
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+
+    # extract task id from output
+    task_id = output.stdout.decode("utf-8").split("ID: ")[1].strip()
+
+    wait_for_task_id(task_id)
+
+    return asset_id
+
+
 def retrain_rf_pipeline_and_upload_gee(
     pipeline: Pipeline,
-    X_train,
-    y_train,
-    feature_names,
-    target,
-    trait,
-    study_name,
-    trial_config,
+    X_train: pd.DataFrame,
+    y_train: pd.DataFrame,
+    feature_names: list,
+    target: str,
+    trait: str,
+    study_name: str,
+    trial_config: dict,
+    X_val_train: Optional[pd.DataFrame],
+    y_val_train: Optional[pd.DataFrame],
+    X_val_test: Optional[pd.DataFrame],
+    y_val_test: Optional[pd.DataFrame],
 ) -> None:
-    # recreate pandas dataframe with preprocessed X and transformed y
-    X_train_transformed = pipeline.named_steps["preprocessor"].transform(X_train)
-    y_train_transformed = pipeline.named_steps["regressor"].transformer_.transform(
-        y_train
-    )  # use transformer_ instead of transformer, because transformer_ is the fitted transformer
-    df_X_train_transformed = pd.DataFrame(X_train_transformed, columns=feature_names)
-    df_y_train_transformed = pd.DataFrame(y_train_transformed, columns=target)
-    df_train_transformed = pd.concat(
-        [df_X_train_transformed, df_y_train_transformed], axis=1
+    # recreate pandas dataframe for simulated data with preprocessed X and transformed y
+    df_train_transformed = transform_X_y(
+        X_train, y_train, pipeline, feature_names, target
     )
-    # save to csv
     local_lut_folder = os.path.join("data", "train_pipeline", "output", "models", trait)
     local_lut_transformed_filename = f"lut_transformed_{study_name}.csv"
     df_train_transformed.to_csv(
@@ -103,37 +152,47 @@ def retrain_rf_pipeline_and_upload_gee(
         index=False,
     )
 
-    gcs_folder_name = CONFIG_GEE_PIPELINE["GCLOUD_FOLDERS"]["TEMP_FOLDER"]
-    # upload to google cloud storage
-    random_string = "".join(
-        random.choices(string.ascii_lowercase + string.digits, k=10)
-    )  # avoid unnecessary filename collisions
-    filename_gcs = os.path.join(gcs_folder_name, f"{random_string}.csv")
-
-    # Execute the gsutil command
-    subprocess.run(
-        f"gsutil cp {os.path.join(local_lut_folder, local_lut_transformed_filename)} {filename_gcs}",
-        shell=True,
-        check=True,
+    fc_train_transformed_asset_id = upload_to_ee_via_gcs(
+        df_train_transformed, asset_name=local_lut_transformed_filename
     )
-
-    # time.sleep(10)
-    # import to earth engine using earthengine upload table/
-    asset_id = f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{local_lut_transformed_filename.removesuffix('.csv')}"
-    output = subprocess.run(
-        f"{CONFIG_GEE_PIPELINE['CONDA_PATH']}/bin/earthengine upload table --asset_id={asset_id} {filename_gcs}",
-        shell=True,
-        check=True,
-        capture_output=True,
-    )
-    # extract task id from output
-    task_id = output.stdout.decode("utf-8").split("ID: ")[1].strip()
-
-    wait_for_task_id(task_id)
-
-    fc_train_transformed = ee.FeatureCollection(asset_id).select(
+    fc_train_transformed = ee.FeatureCollection(fc_train_transformed_asset_id).select(
         [*feature_names, trait]
     )
+
+    # also transform, save and upload validation data
+    if X_val_train is not None and y_val_train is not None:
+        df_val_train_transformed = transform_X_y(
+            X_val_train, y_val_train, pipeline, feature_names, target
+        )
+        local_val_train_transformed_filename = f"val_train_transformed_{study_name}.csv"
+        df_val_train_transformed.to_csv(
+            os.path.join(local_lut_folder, local_val_train_transformed_filename),
+            index=False,
+        )
+
+        fc_val_train_transformed_asset_id = upload_to_ee_via_gcs(
+            df_val_train_transformed, asset_name=local_val_train_transformed_filename
+        )
+        fc_val_train_transformed = ee.FeatureCollection(
+            fc_val_train_transformed_asset_id
+        ).select([*feature_names, trait])
+
+    if X_val_test is not None and y_val_test is not None:
+        df_val_test_transformed = transform_X_y(
+            X_val_test, y_val_test, pipeline, feature_names, target
+        )
+        local_val_test_transformed_filename = f"val_test_transformed_{study_name}.csv"
+        df_val_test_transformed.to_csv(
+            os.path.join(local_lut_folder, local_val_test_transformed_filename),
+            index=False,
+        )
+
+        fc_val_test_transformed_asset_id = upload_to_ee_via_gcs(
+            df_val_test_transformed, asset_name=local_val_test_transformed_filename
+        )
+        fc_val_test_transformed = ee.FeatureCollection(
+            fc_val_test_transformed_asset_id
+        ).select([*feature_names, trait])
 
     rf_gee_params = {
         "numberOfTrees": trial_config["n_estimators"],
@@ -168,6 +227,117 @@ def retrain_rf_pipeline_and_upload_gee(
     # wait for task to finish
     logger.debug("Waiting for classifier export task to finish...")
     wait_for_task(classifier_export_task)
+
+    # report simulateted training rmse, mae and r2
+    y_train_backtransformed = np.expm1(
+        fc_train_transformed.aggregate_array(trait).getInfo()
+    )
+    y_train_gee_preds_backtransformed = np.expm1(
+        fc_train_transformed.classify(ee_rf_model, trait)
+        .aggregate_array(trait)
+        .getInfo()
+    )
+    y_val_train_backtransformed = np.expm1(
+        fc_val_train_transformed.aggregate_array(trait).getInfo()
+    )
+    y_val_train_gee_preds_backtransformed = np.expm1(
+        fc_val_train_transformed.classify(ee_rf_model, trait)
+        .aggregate_array(trait)
+        .getInfo()
+    )
+    y_val_test_backtransformed = np.expm1(
+        fc_val_test_transformed.aggregate_array(trait).getInfo()
+    )
+    y_val_test_gee_preds_backtransformed = np.expm1(
+        fc_val_test_transformed.classify(ee_rf_model, trait)
+        .aggregate_array(trait)
+        .getInfo()
+    )
+
+    score_r2_sim_train = r2_score(
+        y_train_backtransformed, y_train_gee_preds_backtransformed
+    )
+    score_rmse_sim_train = root_mean_squared_error(
+        y_train_backtransformed, y_train_gee_preds_backtransformed
+    )
+    score_mae_sim_train = mean_absolute_error(
+        y_train_backtransformed, y_train_gee_preds_backtransformed
+    )
+    score_r2_val_train = r2_score(
+        y_val_train_backtransformed, y_val_train_gee_preds_backtransformed
+    )
+    score_rmse_val_train = root_mean_squared_error(
+        y_val_train_backtransformed, y_val_train_gee_preds_backtransformed
+    )
+    score_mae_val_train = mean_absolute_error(
+        y_val_train_backtransformed, y_val_train_gee_preds_backtransformed
+    )
+    score_r2_val_test = r2_score(
+        y_val_test_backtransformed, y_val_test_gee_preds_backtransformed
+    )
+    score_rmse_val_test = root_mean_squared_error(
+        y_val_test_backtransformed, y_val_test_gee_preds_backtransformed
+    )
+    logger.info(
+        f"Retrained Random Forest model for trait {trait} with trial number {study_name} with similar hyperparams using ee.Classifier.smileRandomForest"
+    )
+    logger.info(
+        f"Simulated training set: RMSE: {score_rmse_sim_train}, MAE: {score_mae_sim_train}, R2: {score_r2_sim_train}"
+    )
+    logger.info(
+        f"Validation training set: RMSE: {score_rmse_val_train}, MAE: {score_mae_val_train}, R2: {score_r2_val_train}"
+    )
+    logger.info(
+        f"Validation test set: RMSE: {score_rmse_val_test}, R2: {score_r2_val_test}"
+    )
+
+    eval_metrics = {
+        "GEE_sim_train_rmse": score_rmse_sim_train,
+        "GEE_sim_train_mae": score_mae_sim_train,
+        "GEE_sim_train_r2": score_r2_sim_train,
+        "GEE_val_train_rmse": score_rmse_val_train,
+        "GEE_val_train_mae": score_mae_val_train,
+        "GEE_val_train_r2": score_r2_val_train,
+        "GEE_val_test_rmse": score_rmse_val_test,
+        "GEE_val_test_r2": score_r2_val_test,
+    }
+    with open(
+        os.path.join(local_lut_folder, f"{model_filename}_GEE_metrics.json"), "w"
+    ) as f:
+        json.dump(eval_metrics, f)
+
+    # plot simualted training
+    plot_predicted_vs_true(
+        y_true=y_train_backtransformed,
+        y_pred=y_train_gee_preds_backtransformed,
+        plot_type="density_scatter",
+        save_plot_filename=os.path.join(
+            local_lut_folder, f"predicted_vs_true_sim_train_GEE_{model_filename}.png"
+        ),
+        title=f"GEE: Predicted vs True for Simulated Training Set",
+    )
+
+    # plot validation training
+    plot_predicted_vs_true(
+        y_true=y_val_train_backtransformed,
+        y_pred=y_val_train_gee_preds_backtransformed,
+        plot_type="density_scatter",
+        save_plot_filename=os.path.join(
+            local_lut_folder, f"predicted_vs_true_val_train_GEE_{model_filename}.png"
+        ),
+        title=f"GEE: Predicted vs True for Validation Training Set",
+    )
+
+    # plot validation test
+    plot_predicted_vs_true(
+        y_true=y_val_test_backtransformed,
+        y_pred=y_val_test_gee_preds_backtransformed,
+        plot_type="density_scatter",
+        save_plot_filename=os.path.join(
+            local_lut_folder, f"predicted_vs_true_val_test_GEE_{model_filename}.png"
+        ),
+        title=f"GEE: Predicted vs True for Validation Test Set",
+    )
 
 
 def objective(trial, save_model=False):
@@ -231,7 +401,7 @@ def objective(trial, save_model=False):
         }
 
         X, y = df[feature_names], df[target]
-        X_train, X_val, y_train, y_val = train_test_split(
+        X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.1, random_state=42
         )
 
@@ -243,16 +413,12 @@ def objective(trial, save_model=False):
             config["group_k_fold_current_split"]
         ]
 
-        log_splits(
-            splits, df_val_trait, current_fold=config["group_k_fold_current_split"]
-        )
+        log_splits(splits, df_val_trait, current_fold=config["group_k_fold_current_split"])
         # convert from indices to group values
         val_ecos_train = list(
             set(df_val_trait["ECO_ID"].values[val_eco_train_split_indices])
         )
-        val_ecos_test = list(
-            set(df_val_trait["ECO_ID"].values[val_eco_test_split_indices])
-        )
+        val_ecos_test = list(set(df_val_trait["ECO_ID"].values[val_eco_test_split_indices]))
 
         df_val_train_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_train}
         df_val_test_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_test}
@@ -260,12 +426,24 @@ def objective(trial, save_model=False):
         X_val_train, y_val_train = {
             eco: df.drop(columns=[*target, "site"])
             for eco, df in df_val_train_current.items()
-        }, {eco: df[target] for eco, df in df_val_train_current.items()}
+        }, {eco: df[[*target, "uuid"]] for eco, df in df_val_train_current.items()}
         X_val_test, y_val_test = {
             eco: df.drop(columns=[*target, "site"])
             for eco, df in df_val_test_current.items()
-        }, {eco: df[target] for eco, df in df_val_test_current.items()}
+        }, {eco: df[[*target, "uuid"]] for eco, df in df_val_test_current.items()}
 
+        X_val_train = pd.concat(
+            [X_val_train[eco] for eco in sorted(df_val_train_current.keys())]
+        )
+        X_val_test = pd.concat(
+            [X_val_test[eco] for eco in sorted(df_val_test_current.keys())]
+        )
+        y_val_train = pd.concat(
+            [y_val_train[eco] for eco in sorted(df_val_train_current.keys())]
+        )
+        y_val_test = pd.concat(
+            [y_val_test[eco] for eco in sorted(df_val_test_current.keys())]
+        )
         # instantiate new model instance for each fold
         model = get_model(config)
         pipeline = get_pipeline(model, config)
@@ -273,31 +451,58 @@ def objective(trial, save_model=False):
         pipeline.fit(X_train, y_train)
         # also predict on the simualted training data
         y_sim_train_pred = pipeline.predict(X_train)
-        y_sim_test_pred = pipeline.predict(X_val)
+        y_sim_test_pred = pipeline.predict(X_test)
 
-        y_val_train_pred = pipeline.predict(
-            pd.concat([X_val_train[eco] for eco in sorted(X_val_train.keys())])
-        )
-        y_val_test_pred = pipeline.predict(
-            pd.concat([X_val_test[eco] for eco in sorted(X_val_test.keys())])
-        )
+        y_val_train_pred = pipeline.predict(X_val_train)
+        y_val_test_pred = pipeline.predict(X_val_test)
+        if "uuid" in X_val_train.columns:
+            assert "uuid" in X_val_test.columns
+            y_val_train_pred = pd.DataFrame(y_val_train_pred, columns=target)
+            y_val_train_pred["uuid"] = X_val_train["uuid"].values
+            y_val_test_pred = pd.DataFrame(y_val_test_pred, columns=target)
+            y_val_test_pred["uuid"] = X_val_test["uuid"].values
 
-        y_val_train = np.concatenate(
-            [y_val_train[eco].values.reshape(-1) for eco in sorted(X_val_train.keys())]
-        )
-        y_val_test = np.concatenate(
-            [y_val_test[eco].values.reshape(-1) for eco in sorted(X_val_test.keys())]
-        )
+        if save_model:
+            # save original validation data / merge X and y
+            df_val_train = pd.merge(X_val_train, y_val_train, on="uuid", how="inner")
+            df_val_test = pd.merge(X_val_test, y_val_test, on="uuid", how="inner")
+
+            df_val_train.to_csv(
+                os.path.join(save_folder, f"df_val_train_{trait}_{study_name}.csv"),
+                index=False,
+            )
+            df_val_test.to_csv(
+                os.path.join(save_folder, f"df_val_test_{trait}_{study_name}.csv"),
+                index=False,
+            )
+
+            # save transformed validation data
+            transform_X_y(X_val_train, y_val_train, pipeline, feature_names, target).to_csv(
+                os.path.join(
+                    save_folder, f"df_val_train_transformed_{trait}_{study_name}.csv"
+                ),
+                index=False,
+            )
+
+            transform_X_y(X_val_test, y_val_test, pipeline, feature_names, target).to_csv(
+                os.path.join(
+                    save_folder, f"df_val_test_transformed_{trait}_{study_name}.csv"
+                ),
+                index=False,
+            )
 
         if config["model"] == "rf" and save_model:
             logger.debug(
                 f"GEE: Retraining Random Forest model for trait {trait} with trial number {trial.number} with similar hyperparams using ee.Classifier.smileRandomForest"
             )
-
             retrain_rf_pipeline_and_upload_gee(
                 pipeline=pipeline,
                 X_train=X_train,
                 y_train=y_train,
+                X_val_train=X_val_train,
+                y_val_train=y_val_train,
+                X_val_test=X_val_test,
+                y_val_test=y_val_test,
                 feature_names=feature_names,
                 target=target,
                 trait=trait,
@@ -309,21 +514,43 @@ def objective(trial, save_model=False):
         y_val_train_pred = limit_prediction_range(y_val_train_pred, trait)
 
         scores_sim_train_rmse = root_mean_squared_error(y_train, y_sim_train_pred)
-        scores_sim_test_rmse = root_mean_squared_error(y_val, y_sim_test_pred)
+        scores_sim_test_rmse = root_mean_squared_error(y_test, y_sim_test_pred)
         scores_sim_train_mae = mean_absolute_error(y_train, y_sim_train_pred)
-        scores_sim_test_mae = mean_absolute_error(y_val, y_sim_test_pred)
+        scores_sim_test_mae = mean_absolute_error(y_test, y_sim_test_pred)
         scores_sim_train_r2 = r2_score(y_train, y_sim_train_pred)
-        scores_sim_test_r2 = r2_score(y_val, y_sim_test_pred)
+        scores_sim_test_r2 = r2_score(y_test, y_sim_test_pred)
 
-        score_val_train_rmse = root_mean_squared_error(y_val_train, y_val_train_pred)
-        score_val_test_rmse = root_mean_squared_error(y_val_test, y_val_test_pred)
-        score_val_train_mae = mean_absolute_error(y_val_train, y_val_train_pred)
-        score_val_test_mae = mean_absolute_error(y_val_test, y_val_test_pred)
-        score_val_train_r2 = r2_score(y_val_train, y_val_train_pred)
-        score_val_test_r2 = r2_score(y_val_test, y_val_test_pred)
-        score_val_test_r2_oos = r2_score_oos(
-            y_true=y_val_test, y_pred=y_val_test_pred, y_true_train=y_val_train
-        )
+        if "uuid" in y_val_train_pred.columns and "uuid" in y_val_train.columns:
+            assert (y_val_train_pred["uuid"].values == y_val_train["uuid"].values).all()
+            score_val_train_rmse = root_mean_squared_error(
+                y_val_train[trait], y_val_train_pred[trait]
+            )
+            score_val_test_rmse = root_mean_squared_error(
+                y_val_test[trait], y_val_test_pred[trait]
+            )
+            score_val_train_mae = mean_absolute_error(
+                y_val_train[trait], y_val_train_pred[trait]
+            )
+            score_val_test_mae = mean_absolute_error(
+                y_val_test[trait], y_val_test_pred[trait]
+            )
+            score_val_train_r2 = r2_score(y_val_train[trait], y_val_train_pred[trait])
+            score_val_test_r2 = r2_score(y_val_test[trait], y_val_test_pred[trait])
+            score_val_test_r2_oos = r2_score_oos(
+                y_true=y_val_test[trait],
+                y_pred=y_val_test_pred[trait],
+                y_true_train=y_val_train[trait],
+            )
+        else:
+            score_val_train_rmse = root_mean_squared_error(y_val_train, y_val_train_pred)
+            score_val_test_rmse = root_mean_squared_error(y_val_test, y_val_test_pred)
+            score_val_train_mae = mean_absolute_error(y_val_train, y_val_train_pred)
+            score_val_test_mae = mean_absolute_error(y_val_test, y_val_test_pred)
+            score_val_train_r2 = r2_score(y_val_train, y_val_train_pred)
+            score_val_test_r2 = r2_score(y_val_test, y_val_test_pred)
+            score_val_test_r2_oos = r2_score_oos(
+                y_true=y_val_test, y_pred=y_val_test_pred, y_true_train=y_val_train
+            )
 
         if not save_model:
             # log current split and eco_ids in train and test split
@@ -393,9 +620,8 @@ def objective(trial, save_model=False):
 
         # save model
         if save_model:
-            logger.debug(
-                f"Saving model for trait {trait} with trial number {trial.number}"
-            )
+
+            logger.debug(f"Saving model for trait {trait} with trial number {trial.number}")
 
             os.makedirs(save_folder, exist_ok=True)
             model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}"
@@ -409,18 +635,68 @@ def objective(trial, save_model=False):
             with open(full_model_path, "rb") as f:
                 pipeline_pickle = pickle_load(f)
 
-            with open(
-                os.path.join(save_folder, f"{model_filename}_config.json"), "w"
-            ) as f:
+            with open(os.path.join(save_folder, f"{model_filename}_config.json"), "w") as f:
                 json.dump(trial.user_attrs["config"], f)
+
+            with open(os.path.join(save_folder, f"{model_filename}_split.json"), "w") as f:
+                json.dump(
+                    {
+                        "val_ecos_train": trial.user_attrs["val_ecos_train"],
+                        "val_ecos_test": trial.user_attrs["val_ecos_test"],
+                    },
+                    f,
+                )
 
             # assert that predictions are the same / close
             assert np.allclose(
-                pipeline.predict(X_val_test[list(X_val_test.keys())[0]]),
-                pipeline_pickle.predict(X_val_test[list(X_val_test.keys())[0]]),
+                pipeline.predict(X_val_test),
+                pipeline_pickle.predict(X_val_test),
             )
 
+            # plot predicted vs true for simulated test set
+            plot_predicted_vs_true(
+                y_true=y_train,
+                y_pred=y_sim_train_pred,
+                plot_type="density_scatter",
+                save_plot_filename=os.path.join(
+                    save_folder, f"predicted_vs_true_sim_train_{model_filename}.png"
+                ),
+                title=f"Predicted vs True for trait {trait} on Simulated Training Set",
+            )
+
+            # plot predicted vs true for simulated test set
+            plot_predicted_vs_true(
+                y_true=y_test,
+                y_pred=y_sim_test_pred,
+                plot_type="density_scatter",
+                save_plot_filename=os.path.join(
+                    save_folder, f"predicted_vs_true_sim_test_{model_filename}.png"
+                ),
+                title=f"Predicted vs True for trait {trait} on Simulated Test Set",
+            )
+
+            # plot predicted vs true for validation train and test
+            plot_predicted_vs_true(
+                y_true=y_val_train[trait],
+                y_pred=y_val_train_pred[trait],
+                plot_type="density_scatter",
+                save_plot_filename=os.path.join(
+                    save_folder, f"predicted_vs_true_val_train_{model_filename}.png"
+                ),
+                title=f"Predicted vs True for trait {trait} on Validation Training Set",
+            )
+
+            plot_predicted_vs_true(
+                y_true=y_val_test[trait],
+                y_pred=y_val_test_pred[trait],
+                plot_type="density_scatter",
+                save_plot_filename=os.path.join(
+                    save_folder, f"predicted_vs_true_val_test_{model_filename}.png"
+                ),
+                title=f"Predicted vs True for trait {trait} on Validation Test Set",
+            )
         return score_val_train_rmse
+
 
     except Exception as e:
         logger.error(f"Error in objective function: {e}, Failed trial and continue.")

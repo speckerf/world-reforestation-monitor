@@ -18,6 +18,7 @@ optuna_distributions:
   EWT: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_ewt']
   LMA: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_lma']
 
+# these are rmse reporting thresholds to increase visability o optuna plots
 optuna_report_thresh:
   fcover: 2.0
   fapar: 2.0

@@ -43,7 +43,7 @@ def load_validation_data(return_site=False) -> dict:
         )
     )
 
-    caopy_traits_fcover = pd.read_csv(
+    canopy_traits_fcover = pd.read_csv(
         os.path.join(
             "data",
             "validation_pipeline",
@@ -63,7 +63,7 @@ def load_validation_data(return_site=False) -> dict:
     canopy_traits_fapar = canopy_traits_fapar.rename(
         columns={"sza": "tts", "vza": "tto", "phi": "psi"}
     )
-    canopy_traits_fcover = caopy_traits_fcover.rename(
+    canopy_traits_fcover = canopy_traits_fcover.rename(
         columns={"sza": "tts", "vza": "tto", "phi": "psi"}
     )
 
@@ -78,38 +78,41 @@ def load_validation_data(return_site=False) -> dict:
     validation_sets = {
         "lai": create_validation_set(
             canopy_traits_lai,
-            bands_angles + ["LAIe_Warren"],
+            bands_angles + ["LAIe_Warren"] + ["uuid"],
             {"LAIe_Warren": "lai"},
             return_site,
         ),
         "fapar": create_validation_set(
             canopy_traits_fapar,
-            bands_angles + ["FIPAR_total"],
+            bands_angles + ["FIPAR_total"] + ["uuid"],
             {"FIPAR_total": "fapar"},
         ),
         "fcover": create_validation_set(
             canopy_traits_fcover,
-            bands_angles + ["FCOVER_total"],
+            bands_angles + ["FCOVER_total"] + ["uuid"],
             {"FCOVER_total": "fcover"},
         ),
         "CHL": create_validation_set(
             foliar_traits,
-            bands_angles + ["chlorophyll_ab_mug_cm2"],
+            bands_angles + ["chlorophyll_ab_mug_cm2"] + ["uuid"],
             {"chlorophyll_ab_mug_cm2": "CHL"},
             return_site,
         ),
         "CAR": create_validation_set(
             foliar_traits,
-            bands_angles + ["carotenoid_mug_cm2"],
+            bands_angles + ["carotenoid_mug_cm2"] + ["uuid"],
             {"carotenoid_mug_cm2": "CAR"},
             return_site,
         ),
         "EWT": create_validation_set(
-            foliar_traits, bands_angles + ["ewt_cm"], {"ewt_cm": "EWT"}, return_site
+            foliar_traits,
+            bands_angles + ["ewt_cm"] + ["uuid"],
+            {"ewt_cm": "EWT"},
+            return_site,
         ),
         "LMA": create_validation_set(
             foliar_traits,
-            bands_angles + ["leafMassPerArea_g_cm2"],
+            bands_angles + ["leafMassPerArea_g_cm2"] + ["uuid"],
             {"leafMassPerArea_g_cm2": "LMA"},
             return_site,
         ),

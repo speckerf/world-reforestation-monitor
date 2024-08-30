@@ -5,7 +5,7 @@ PIPELINE_PARAMS:
   OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'lai'
-  ENSEMBLE_SIZE: 6
+  ENSEMBLE_SIZE: 6 # changing here does not change the ensemble size currently
   VERSION: 'v2'
   EXPORT_EPSG: 'EPSG:4326'
 

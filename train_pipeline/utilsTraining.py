@@ -1,8 +1,9 @@
 import copy
 import sys
-from typing import Self
+from typing import Self, Union
 
 import numpy as np
+import pandas as pd
 from geemap import ml
 from loguru import logger
 from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
@@ -203,7 +204,9 @@ def pairwise_nan_remove(X, y):
     return X[mask], y[mask]
 
 
-def limit_prediction_range(y_pred, trait):
+def limit_prediction_range(
+    y_pred: Union[np.array, pd.DataFrame], trait: str
+) -> Union[np.array, pd.DataFrame]:
     min_values = {
         "lai": 0.000,
         "CHL": 0.000,
@@ -222,6 +225,11 @@ def limit_prediction_range(y_pred, trait):
         "fapar": 0.9999,
         "fcover": 0.9999,
     }
+
+    # quickfix for pandas DataFrame: rethink this
+    if isinstance(y_pred, pd.DataFrame):
+        y_pred[trait] = limit_prediction_range(y_pred[trait].values, trait)
+        return y_pred
 
     # raise logging message if prediction is out of range
     if np.any(y_pred < min_values[trait]):
