@@ -282,13 +282,13 @@ def global_export_concurrent():
         *ecoregions_simplifier["close_pheno"],
     ]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = [
             executor.submit(export_ecoregion_per_mgrs_tile, eco_id)
             for eco_id in [
                 *ecoregions_process_single_list,
                 *ecoregions_process_multi_list,
-            ][::50]
+            ]
         ]
         for future in concurrent.futures.as_completed(futures):
             try:
