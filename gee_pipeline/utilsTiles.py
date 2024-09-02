@@ -4,6 +4,7 @@ import string
 import ee
 import geemap
 import geopandas as gpd
+import pandas as pd
 from loguru import logger
 from pyproj import CRS
 
@@ -12,6 +13,41 @@ from gee_pipeline.utils import wait_for_task
 from gee_pipeline.utilsPhenology import add_linear_weight
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
+
+
+def get_s2_indices_filtered(
+    ecoregion_geometry, start_date: ee.Date, end_date: ee.Date
+) -> pd.DataFrame:
+    # load s2 data
+    bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
+    imgc = (
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+        .filterBounds(ecoregion_geometry)
+        .filterDate(start_date, end_date)
+        .filter(
+            ee.Filter.lt(
+                "CLOUDY_PIXEL_PERCENTAGE",
+                CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUDY_PIXEL_PERCENTAGE"],
+            )
+        )
+        .filter(
+            ee.Filter.And(
+                ee.Filter.eq("GENERAL_QUALITY", "PASSED"),
+                ee.Filter.eq("GEOMETRIC_QUALITY", "PASSED"),
+                ee.Filter.gt("system:asset_size", 1000000),
+            )
+        )
+        .select(bands)
+    )
+
+    # filter imgc by grouping by mgrs tile and orbit number
+    s2_indices_filtered = groupby_mgrs_orbit_pandas(
+        imgc,
+        center_pheno=True,
+        start_pheno=start_date,
+        end_pheno=end_date,
+    )
+    return s2_indices_filtered
 
 
 def add_group(image):
