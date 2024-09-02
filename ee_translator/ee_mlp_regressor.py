@@ -83,8 +83,8 @@ class eeMLPRegressor:
             raise NotImplementedError
 
     def _apply_activation_function(
-        self, x: ee.Image | ee.Array, function: str
-    ) -> ee.Image | ee.Array:
+        self, x: ee.Image, function: str
+    ) -> ee.Image:
         if function == "tanh":
             return x.tanh()
         elif function == "identity":
@@ -98,7 +98,7 @@ class eeMLPRegressor:
         else:
             raise ValueError
 
-    def _forward_pass_array(self, ee_X: ee.Array) -> ee.Array:
+    def _forward_pass_array(self, ee_X):
         # this method is supposed to work with a array where the rows correspond to the number of rows, while the column cooresponds to the number of bands
         n_samples, _ = np.array(ee_X.getInfo()).shape
         x = ee_X  # dim: (n_samples, b_bands)
@@ -134,7 +134,7 @@ class eeMLPRegressor:
         return output_image
 
     def predict(
-        self, image: ee.Image | ee.Array, copy_properties: Optional[list[str]] = None
+        self, image: ee.Image, copy_properties: Optional[list[str]] = None
     ) -> ee.Image:
         if isinstance(image, ee.Image):
             # that should work now
@@ -144,7 +144,7 @@ class eeMLPRegressor:
                 )
             else:
                 return self._forward_pass_image(image)
-        elif isinstance(image, ee.Array):
-            raise NotImplementedError
+        # elif isinstance(image, ee.Array):
+        #     raise NotImplementedError
         else:
             raise TypeError

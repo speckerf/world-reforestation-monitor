@@ -11,7 +11,7 @@ class eeRandomForestRegressor:
         self,
         feature_names: list[str],
         trait_name: str,
-        ee_rf_model: Optional[ee.Classifier],
+        ee_rf_model = None,
         # rf_asset_id: Optional[str] = None,
     ):
 

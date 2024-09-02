@@ -33,8 +33,7 @@ def export_ecoregion(
     eco_id: int | list[int],
     year: int,
     output_resolution: int,
-    trait: str,
-):
+) -> None:
 
     # this is used for initial filtering of the imagecollection in GEE, but not for export
     ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017")
@@ -138,6 +137,10 @@ def export_ecoregion(
         end_pheno=end_date,
     )
 
+    if len(s2_indices_filtered) == 0:
+        logger.error(f"Sentinel-2 collection empty after filter for ecoregion: {eco_id}")
+        return
+
     del imgc
     imgc = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filter(
         ee.Filter.inList("system:index", s2_indices_filtered)
@@ -155,7 +158,7 @@ def export_ecoregion(
 
     gee_preds = {}
     # load model ensemble
-    models = load_model_ensemble(trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"])
+    models = load_model_ensemble(trait=CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT'])
     for i, (model_name, model) in enumerate(models.items()):
         imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
         gee_random_forest_model = (
@@ -164,7 +167,7 @@ def export_ecoregion(
         gee_preds[model_name] = eePipelinePredictMap(
             pipeline=model["pipeline"],
             imgc=imgc_i,
-            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
+            trait=CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT'],
             model_config=model["config"],
             gee_random_forest=gee_random_forest_model,
             min_max_bands=model["min_max_bands"],
@@ -191,10 +194,10 @@ def export_ecoregion(
     epsg_string = epsg_code.lower().replace(":", "-")
     version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VERSION"]
     if isinstance(eco_id, int):
-        system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}_{epsg_string}_{version}"
+        system_index = f"{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}_{epsg_string}_{version}"
     elif isinstance(eco_id, list):
         eco_ids_string = "-".join(map(str, eco_id))
-        system_index = f"{trait}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}_{epsg_string}_{version}"
+        system_index = f"{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}_{epsg_string}_{version}"
 
     output_image = (
         output_image.set("system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis())
@@ -204,14 +207,14 @@ def export_ecoregion(
         .set("year", year)
         .set("version", version)
         .set("ecoregion_id", eco_id)
-        .set("trait", trait)
+        .set("trait", CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT'])
         .set("system:index", system_index)
     )
 
     # Export the image
     imgc_folder = (
         CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
-        + f"/{trait}_predictions_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
+        + f"/{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_predictions_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
     )
 
     task = ee.batch.Export.image.toAsset(
@@ -324,7 +327,7 @@ def test_export_global():
     for eco_id in [*ecoregions_process_single_list, *ecoregions_process_multi_list]:
         logger.info(f"Exporting ecoregion {eco_id}")
 
-        if eco_id not in [439, 762]:
+        if eco_id in list(range(0, 38)):
             continue
 
         export_ecoregion(
@@ -333,7 +336,6 @@ def test_export_global():
             output_resolution=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"][
                 "OUTPUT_RESOLUTION"
             ],
-            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
         )
 
     pass

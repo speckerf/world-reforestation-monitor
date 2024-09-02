@@ -53,7 +53,10 @@ def groupby_mgrs_orbit_pandas(
     fc = imgc.map(extract_properties)
     fc_computed = ee.data.computeFeatures({'expression': fc})
 
-    total_features_retrieved = len(fc_computed['features'])
+    total_features_retrieved = len(fc_computed.get('features', {}))
+    if total_features_retrieved == 0:
+        logger.error(f"Empty feature collection; after grouping.")
+        return []
     if 'nextPageToken' in fc_computed:
         logger.debug(f"Partial retrieval of {total_features_retrieved} features. Fetching the rest.")
         fc_list = [fc_computed]
@@ -145,7 +148,7 @@ def groupby_mgrs_orbit_filter_and_export(
     export_task = ee.batch.Export.table.toAsset(
         collection=feature_collection,
         description=f"s2 imgc grouped filtering: {random_name}",
-        assetId=f"{CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["TEMP_FOLDER"]}/{random_name}",
+        assetId=f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['TEMP_FOLDER']}/{random_name}",
     )
     export_task.start()
 

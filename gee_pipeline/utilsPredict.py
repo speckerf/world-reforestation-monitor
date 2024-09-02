@@ -11,8 +11,6 @@ from ee_translator.ee_standard_scaler import eeStandardScaler
 from gee_pipeline.utilsOOD import MinMaxRangeMasker
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
-CONFIG_TRAIN_PIPELINE = get_config("train_pipeline")
-
 
 # Calculate weights based on linear distance from the midpoint, allowing weights to reach 0
 def calculate_linear_weight(
@@ -41,7 +39,7 @@ def add_random_ensemble_assignment(imgc: ee.ImageCollection) -> ee.ImageCollecti
 
 
 def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
-
+    trait_name = CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']
     # weighted mean
     weighted_sum_pred_img = imgc.map(
         lambda img: img.multiply(img.getNumber("phenology_weight"))
@@ -68,8 +66,8 @@ def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     # Step 4: Take the square root of the variance to get the weighted standard deviation
     weighted_std_dev = weighted_variance.sqrt()
 
-    mean_name = f"{CONFIG_TRAIN_PIPELINE['trait']}_mean"
-    std_name = f"{CONFIG_TRAIN_PIPELINE['trait']}_stdDev"
+    mean_name = f"{trait_name}_mean"
+    std_name = f"{trait_name}_stdDev"
     if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
         # reduce to mean and standard deviation and number of unmasked pixels
         img_mean = (
@@ -95,8 +93,9 @@ def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
 
 
 def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
-    mean_name = f"{CONFIG_TRAIN_PIPELINE['trait']}_mean"
-    std_name = f"{CONFIG_TRAIN_PIPELINE['trait']}_stdDev"
+    trait_name = CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']
+    mean_name = f"{trait_name}_mean"
+    std_name = f"{trait_name}_stdDev"
     if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
         # reduce to mean and standard deviation and number of unmasked pixels
         img_mean = (
@@ -168,7 +167,7 @@ def eePipelinePredictMap(
     imgc: ee.ImageCollection,
     trait: str,
     model_config: dict,
-    gee_random_forest: Optional[ee.Classifier] = None,
+    gee_random_forest = None,
     min_max_bands: Optional[dict] = None,
     min_max_label: Optional[dict] = None,
 ):

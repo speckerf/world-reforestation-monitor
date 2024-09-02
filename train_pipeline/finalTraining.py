@@ -58,7 +58,7 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
 
     for model in models:
         for testset in testsets:
-            study_name = f"optuna-debug-{trait}-{model}-testset{testset}"
+            study_name = f"optuna-{trait}-{model}-testset{testset}"
 
             config["optuna_study_name"] = study_name
             config["model"] = model
@@ -182,7 +182,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
         y_val,
         predictions_ensemble,
         save_plot_filename=os.path.join(
-            "data", "train_pipeline", "output", "plots", trait, f"{"-".join(model_name.split('-')[0:3])}_ensemble.png"
+            "data", "train_pipeline", "output", "plots", trait, f"{'-'.join(model_name.split('-')[0:3])}_ensemble.png"
         ),
         plot_type="density_scatter",
     )
@@ -196,7 +196,7 @@ def load_model_ensemble(trait: str):
     models = ["mlp", "rf"]
     testsets = [0, 1, 2]
     model_names = [
-        f"optuna-debug-{trait}-{model}-testset{testset}"
+        f"optuna-{trait}-{model}-testset{testset}"
         for model in models
         for testset in testsets
     ]
@@ -364,10 +364,10 @@ def compare_local_gee_rf_predictions(trait: str):
 
 def main():
     config = get_config("train_pipeline")
-    # rerun_and_save_best_optuna_wrapper("lai", config)
+    rerun_and_save_best_optuna_wrapper(config['trait'], config)
     # load_model_ensemble("lai")
     # evaluate_model_ensemble("lai")
-    compare_local_gee_rf_predictions("lai")
+    # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 
 
