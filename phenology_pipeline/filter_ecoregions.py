@@ -24,13 +24,12 @@ def main():
     ecoregions_antarctic["reason"] = "Antarctic"
     ecoregions_too_small["reason"] = "Too small: < 500 km^2"
 
+    save_dir = os.path.join("data", "phenology_pipeline", "outputs")
+
     # also add all ecoregions for which no phenology period was found
     pheno_df = pd.read_csv(
         os.path.join(
-            "data",
-            "gee_pipeline",
-            "inputs",
-            "phenology",
+            save_dir,
             "artificial_masked_w_amplitude_singleeco.csv",
         )
     )
@@ -52,11 +51,17 @@ def main():
     ecoregions_to_exclude = ecoregions_to_exclude.drop_duplicates(subset="ECO_ID")
 
     ecoregions_to_exclude.to_csv(
-        "config/ecoregions_to_exclude_automatic.csv", index=False
+        os.path.join(
+            save_dir,
+            "ecoregions_to_exclude_automatic.csv",
+        ),
+        index=False,
     )
 
     # load manually excluded ecoregions
-    ecoregions_manual = pd.read_csv("config/ecoregions_to_exclude_manual.csv")
+    ecoregions_manual = pd.read_csv(
+        os.path.join(save_dir, "ecoregions_to_exclude_manual.csv")
+    )
 
     # combine automatic and manual exclusions
     ecoregions_to_exclude_all = pd.concat([ecoregions_to_exclude, ecoregions_manual])
@@ -64,7 +69,10 @@ def main():
         subset="ECO_ID"
     )
     ecoregions_to_exclude_all.to_csv(
-        "config/ecoregions_to_exclude_all.csv", index=False
+        os.path.join(
+            save_dir,
+            "ecoregions_to_exclude_all.csv",
+        )
     )
 
 
