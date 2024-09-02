@@ -5,6 +5,7 @@ import ee
 import geemap
 import geopandas as gpd
 from loguru import logger
+from pyproj import CRS
 
 from config.config import get_config
 from gee_pipeline.utils import wait_for_task
@@ -18,6 +19,39 @@ def add_group(image):
     tile = image.getString("MGRS_TILE")
     group = ee.String(orbit.format()).cat("_").cat(tile)
     return image.set("group", group)
+
+
+def get_epsg_code_from_mgrs(mgrs_zone_number: str):
+    """
+    Get the EPSG code for a UTM zone from its MGRS zone number.
+
+    Parameters:
+    - zone_number (int): The MGRS zone number. Four digit string, e.g. 'T40K'
+        - if last digit is from N to Z: Northern hemisphere
+        - if last digit is from A to M: Southern hemisphere
+
+    Returns:
+    - int: The EPSG code.
+    """
+    assert len(mgrs_zone_number) == 4, "MGRS zone number must be a four digit string."
+    if mgrs_zone_number[-1] in string.ascii_uppercase[13:26]:
+        southern_hemisphere = False
+    elif mgrs_zone_number[-1] in string.ascii_uppercase[0:13]:
+        southern_hemisphere = True
+    else:
+        raise ValueError("Invalid MGRS zone number.")
+    zone_number = int(mgrs_zone_number[1:3])
+    crs = CRS.from_dict(
+        {
+            "proj": "utm",
+            "zone": zone_number,
+            "south": southern_hemisphere,
+            "datum": "WGS84",
+            "units": "m",
+        }
+    )
+
+    return crs.to_epsg()
 
 
 def groupby_mgrs_orbit_pandas(
@@ -51,36 +85,44 @@ def groupby_mgrs_orbit_pandas(
         )
 
     fc = imgc.map(extract_properties)
-    fc_computed = ee.data.computeFeatures({'expression': fc})
+    fc_computed = ee.data.computeFeatures({"expression": fc})
 
-    total_features_retrieved = len(fc_computed.get('features', {}))
+    total_features_retrieved = len(fc_computed.get("features", {}))
     if total_features_retrieved == 0:
         logger.error(f"Empty feature collection; after grouping.")
         return []
-    if 'nextPageToken' in fc_computed:
-        logger.debug(f"Partial retrieval of {total_features_retrieved} features. Fetching the rest.")
+    if "nextPageToken" in fc_computed:
+        logger.debug(
+            f"Partial retrieval of {total_features_retrieved} features. Fetching the rest."
+        )
         fc_list = [fc_computed]
-        while 'nextPageToken' in fc_computed:
-            fc_computed = ee.data.computeFeatures({'expression': fc, 'pageToken': fc_computed['nextPageToken']})
+        while "nextPageToken" in fc_computed:
+            fc_computed = ee.data.computeFeatures(
+                {"expression": fc, "pageToken": fc_computed["nextPageToken"]}
+            )
             fc_list.append(fc_computed)
-            total_features_retrieved += len(fc_computed['features'])
-            logger.debug(f"Partial retrieval of {total_features_retrieved} features. Fetching the rest.")
+            total_features_retrieved += len(fc_computed["features"])
+            logger.debug(
+                f"Partial retrieval of {total_features_retrieved} features. Fetching the rest."
+            )
         logger.debug(f"Total features retrieved: {total_features_retrieved}")
-        fc_concat = {'type': 'FeatureCollection', 'features': [feature for fc in fc_list for feature in fc['features']]}
+        fc_concat = {
+            "type": "FeatureCollection",
+            "features": [feature for fc in fc_list for feature in fc["features"]],
+        }
     else:
         logger.debug(f"Total features retrieved: {total_features_retrieved}")
         fc_concat = fc_computed
 
-    
     # parse dict to pandas dataframe
-
-
 
     # convert feature collection to pandas dataframe # drop geometry column
     df = gpd.GeoDataFrame.from_features(fc_concat).drop(columns="geometry")
 
     # filter by group and sort by cloud_pheno_image_weight, limit to 10 images per group
-    df_sorted = df.sort_values(by=["group", "cloud_pheno_image_weight"], ascending=[True, True])
+    df_sorted = df.sort_values(
+        by=["group", "cloud_pheno_image_weight"], ascending=[True, True]
+    )
     df_grouped = df_sorted.groupby("group").head(10)
 
     logger.debug(f"imgc size after grouping and filtering: {df_grouped.shape[0]}")
@@ -163,7 +205,7 @@ def groupby_mgrs_orbit_filter_and_export(
 
 if __name__ == "__main__":
 
-    ee.Initialize(project = 'ee-speckerfelix')
+    ee.Initialize(project="ee-speckerfelix")
 
     small_geometry = ee.Geometry.Polygon(
         [
@@ -214,7 +256,7 @@ if __name__ == "__main__":
             ]
         ],
         None,
-        False
+        False,
     )
 
     # geometry = middle_geometry
@@ -238,39 +280,53 @@ if __name__ == "__main__":
     )
 
     del imgc
-    imgc = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED').filter(ee.Filter.inList('system:index', s2_indices_filtered))
+    imgc = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filter(
+        ee.Filter.inList("system:index", s2_indices_filtered)
+    )
 
     logger.info(f"Filtered ImageCollection size: {imgc.size().getInfo()}")
 
-
-
     # to debug here:
     if False:
-        imgc.filter(ee.Filter.eq('MGRS_TILE', '32TLQ')).aggregate_array('CLOUDY_PIXEL_PERCENTAGE').getInfo()
+        imgc.filter(ee.Filter.eq("MGRS_TILE", "32TLQ")).aggregate_array(
+            "CLOUDY_PIXEL_PERCENTAGE"
+        ).getInfo()
 
-        a = imgc.filter(ee.Filter.eq('MGRS_TILE', '32TLQ'))
-        cloud_percentages = a.aggregate_array('CLOUDY_PIXEL_PERCENTAGE').getInfo()
-        days_of_image = a.map(lambda img: ee.Feature(ee.Geometry.Point([0,0]), {'date': img.date().format('YYYY-MM-dd')})).aggregate_array('date').getInfo()
+        a = imgc.filter(ee.Filter.eq("MGRS_TILE", "32TLQ"))
+        cloud_percentages = a.aggregate_array("CLOUDY_PIXEL_PERCENTAGE").getInfo()
+        days_of_image = (
+            a.map(
+                lambda img: ee.Feature(
+                    ee.Geometry.Point([0, 0]), {"date": img.date().format("YYYY-MM-dd")}
+                )
+            )
+            .aggregate_array("date")
+            .getInfo()
+        )
         import pandas as pd
-        df = pd.DataFrame({'cloud_percentage': cloud_percentages, 'date': days_of_image})    
 
-        
+        df = pd.DataFrame(
+            {"cloud_percentage": cloud_percentages, "date": days_of_image}
+        )
+
         from datetime import datetime
-        df['date'] = df['date'].apply(lambda x: datetime.strptime(x, '%Y-%m-%d'))
-        df['start_date'] = datetime.strptime('2022-04-16', '%Y-%m-%d')
-        df['end_date'] = datetime.strptime('2022-09-16', '%Y-%m-%d')
 
-        df['days_from_start'] = (df['date'] - df['start_date']).dt.days
-        df['days_to_end'] = (df['date'] - df['end_date']).dt.days.abs()
-        df['min_days_to_start_or_end'] = df[['days_from_start', 'days_to_end']].min(axis=1)
-        df['total_days'] = (df['end_date'] - df['start_date']).dt.days
-        df['pheno_weight'] = df['min_days_to_start_or_end'] / (df['total_days'] / 2)
-        df['pheno_weight_inverted'] = (1 - df['pheno_weight']) / 2
-        df['cloud_weight'] = df['cloud_percentage'] / 100
-        df['cloud_pheno_weight_combined'] = df['cloud_weight'] + df['pheno_weight_inverted']
+        df["date"] = df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
+        df["start_date"] = datetime.strptime("2022-04-16", "%Y-%m-%d")
+        df["end_date"] = datetime.strptime("2022-09-16", "%Y-%m-%d")
 
+        df["days_from_start"] = (df["date"] - df["start_date"]).dt.days
+        df["days_to_end"] = (df["date"] - df["end_date"]).dt.days.abs()
+        df["min_days_to_start_or_end"] = df[["days_from_start", "days_to_end"]].min(
+            axis=1
+        )
+        df["total_days"] = (df["end_date"] - df["start_date"]).dt.days
+        df["pheno_weight"] = df["min_days_to_start_or_end"] / (df["total_days"] / 2)
+        df["pheno_weight_inverted"] = (1 - df["pheno_weight"]) / 2
+        df["cloud_weight"] = df["cloud_percentage"] / 100
+        df["cloud_pheno_weight_combined"] = (
+            df["cloud_weight"] + df["pheno_weight_inverted"]
+        )
 
         # pheno_cloud_weight = cloud_percentage/100 + (1 - weight)/2
         # weight is 1 at the midpoint, 0 at the start and end
-
-

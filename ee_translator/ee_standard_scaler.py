@@ -17,7 +17,7 @@ class eeStandardScaler:
         self.n_samples_seen_ = scaler.n_samples_seen_
 
         if self.feature_names_ is None:
-            logger.debug(
+            logger.trace(
                 f"No feature_names provided; they will be set to the names scaler.feature_names_in_"
             )
             self.feature_names_ = list(scaler.feature_names_in_)

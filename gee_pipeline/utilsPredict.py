@@ -12,6 +12,7 @@ from gee_pipeline.utilsOOD import MinMaxRangeMasker
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
+
 # Calculate weights based on linear distance from the midpoint, allowing weights to reach 0
 def calculate_linear_weight(
     image: ee.Image, start_date: ee.Date, end_date: ee.Date, total_days: ee.Number
@@ -39,7 +40,7 @@ def add_random_ensemble_assignment(imgc: ee.ImageCollection) -> ee.ImageCollecti
 
 
 def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
-    trait_name = CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']
+    trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
     # weighted mean
     weighted_sum_pred_img = imgc.map(
         lambda img: img.multiply(img.getNumber("phenology_weight"))
@@ -93,7 +94,7 @@ def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
 
 
 def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
-    trait_name = CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']
+    trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
     mean_name = f"{trait_name}_mean"
     std_name = f"{trait_name}_stdDev"
     if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
@@ -110,11 +111,11 @@ def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
             .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][std_name])
             .toInt16()
         )
-        img_nobs = imgc.count().rename("n_observations").toUint8()
+        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
     else:
         img_mean = imgc.mean().rename(mean_name)
         img_std = imgc.reduce(ee.Reducer.stdDev()).rename(std_name)
-        img_nobs = imgc.count().rename("n_observations")
+        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations")
 
     img_to_return = ee.Image([img_mean, img_std, img_nobs])
     return img_to_return
@@ -167,7 +168,7 @@ def eePipelinePredictMap(
     imgc: ee.ImageCollection,
     trait: str,
     model_config: dict,
-    gee_random_forest = None,
+    gee_random_forest=None,
     min_max_bands: Optional[dict] = None,
     min_max_label: Optional[dict] = None,
 ):
