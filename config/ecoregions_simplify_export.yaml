@@ -33,6 +33,7 @@ same_pheno:
 - [288, 289, 230, 229]
 - [241, 240, 303]
 - [248, 231]
+- [494, 489, 564, 613]
 
 
 # these combinations share an especially complex geoemtry, and have close phenology windows (start and end dates lare close. it will take the mean in the end, but because of phenology weighting of images should be fine. (images in the center of pheno window more likely to get selected, edges only considered if not enough cloudfree observations))
