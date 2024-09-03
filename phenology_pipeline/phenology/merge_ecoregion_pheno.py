@@ -122,6 +122,27 @@ def main():
         "end_season",
     ] = pd.to_datetime("2021-12-31")
 
+    # Manual decision:
+    # set the following ecoregions to full year period:
+    # 460, 493, 481, 518, 442,
+    # 491, 492, 508, 486, 516,
+    # 471, 451, 494, 501, 30,
+    # 11, 23, 22, 6, 111, 21,
+    # 7, 5, 26, 223, 284, 218,
+    # 252, 288, 289, 230, 229
+    # 241, 240, 303, 248, 231
+    # 188 # parse from yaml
+
+    # read pheno set manually:
+    ecoregions_pheno_manually = pd.read_csv(
+        os.path.join(
+            "data",
+            "phenology_pipeline",
+            "outputs",
+            "ecoregions_pheno_manual_full_year.csv",
+        )
+    )
+
     # temp season length
     df["season_length_temp"] = (df["end_season"] - df["start_season"]).dt.days
 
@@ -151,6 +172,26 @@ def main():
 
     # drop columns that are not needed
     df.drop(["season_length_temp", "days_diff"], axis=1, inplace=True)
+
+    # overwrite the start_season and end_season with the manually set values
+    df.loc[
+        df["ECO_ID"].isin(ecoregions_pheno_manually["ECO_ID"]),
+        ["start_season"],
+    ] = "01-01"
+    df.loc[
+        df["ECO_ID"].isin(ecoregions_pheno_manually["ECO_ID"]),
+        ["end_season"],
+    ] = "12-31"
+    df.loc[
+        df["ECO_ID"].isin(ecoregions_pheno_manually["ECO_ID"]),
+        ["days_vegetative_period"],
+    ] = 364
+
+    # set reason column for changed ecoregions
+    df.loc[df["ECO_ID"].isin(ecoregions_pheno_manually["ECO_ID"]), "reason"] = (
+        "Manually set to full year due to high cloud cover"
+    )
+
     # save the final data
     df.to_csv(
         os.path.join(
