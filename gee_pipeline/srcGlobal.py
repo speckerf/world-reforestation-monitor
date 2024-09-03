@@ -165,6 +165,9 @@ def export_ecoregion_per_mgrs_tile(
             ee.Filter.inList("system:index", current_sentinel2_indices)
         )
 
+        # determine intersecting output geometry
+        output_geometry_bbox = imgc.geometry().bounds()
+
         # apply cloud mask
         imgc = apply_cloudScorePlus_mask(imgc)
 
@@ -246,7 +249,7 @@ def export_ecoregion_per_mgrs_tile(
             description=system_index,
             crs=epsg_code_gee,
             assetId=imgc_folder + system_index,
-            region=bounding_box_geometry,
+            region=output_geometry_bbox,
             scale=output_resolution,
             maxPixels=1e11,
         )

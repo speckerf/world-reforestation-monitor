@@ -278,7 +278,7 @@ def test_export_global(export_per_mgrs_tile: bool = False):
     for eco_id in [*ecoregions_process_single_list, *ecoregions_process_multi_list]:
         logger.info(f"Exporting ecoregion {eco_id}")
 
-        if eco_id not in [412]:
+        if eco_id not in [781, 710, [714, 771, 779, 772]]:
             continue
 
         if export_per_mgrs_tile:
