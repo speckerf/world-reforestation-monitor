@@ -1,0 +1,4 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = gs://felixspecker/open-earth/world-reforestation-monitor-remote
