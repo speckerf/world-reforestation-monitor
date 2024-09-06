@@ -1,4 +1,4 @@
-name: geospatial
+name: gee_pipeline
 channels:
   - conda-forge
 dependencies:
@@ -9,11 +9,14 @@ dependencies:
   - pandas
   - numpy
   - geopandas
-  - xarray
-  - rioxarray
   - scikit-learn
   - jupyterlab
   - loguru
   - pyyaml
-  - hvplot
+  - geemap
   - cartopy
+  - dvc
+  - dvc-gs
+  - optuna
+  - optuna-dashboard
+  - seaborn
