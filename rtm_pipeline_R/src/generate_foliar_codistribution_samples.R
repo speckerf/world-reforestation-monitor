@@ -6,7 +6,7 @@
 
 library('tidyverse')
 
-path <- file.path('data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_merged.csv')
+path <- file.path('..', 'data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_merged.csv')
 df <- readr::read_csv(path, col_select = c('plotID', 'lat', 'lon', 'date', 'chlorophyll_ab_mug_cm2', 'leafMassPerArea_g_cm2', 'ewt_cm', 'carotenoid_mug_cm2'))
 
 # filter out all entries with CHL > 100 mug/cm2
@@ -20,7 +20,7 @@ df_filtered = df %>%
                   carotenoid_mug_cm2 < 30) %>%
   dplyr::select(c('chlorophyll_ab_mug_cm2', 'leafMassPerArea_g_cm2', 'ewt_cm', 'carotenoid_mug_cm2'))
 
-readr::write_csv(df_filtered, file.path('data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_merged_filtered.csv'))
+readr::write_csv(df_filtered, file.path('..', 'data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_merged_filtered.csv'))
 
 ####
 # Fit multivariate truncated normals / and sample from them
@@ -59,4 +59,4 @@ leaf_foliar_traits_random <- rMvdc(n = 100000, mvdc = multi_norm)
 colnames(leaf_foliar_traits_random) <- colnames(df_filtered)
 leaf_foliar_traits_random <- leaf_foliar_traits_random %>% tibble::as_tibble()
 
-readr::write_csv(leaf_foliar_traits_random, file = file.path('data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_generated_copula_samples.csv'))
+readr::write_csv(leaf_foliar_traits_random, file = file.path('..', 'data', 'validation_pipeline', 'output', 'foliar', 'neon_foliar_insitu_generated_copula_samples.csv'))
