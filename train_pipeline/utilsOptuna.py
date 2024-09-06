@@ -105,7 +105,7 @@ def optuna_init_config(trial):
         0.005 * trial.suggest_int("additive_noise_optuna", 1, 7) - 0.005
     )
     config_lut["multiplicative_noise"] = (
-        0.01 * trial.suggest_int("multiplicative_noise_optuna", 1, 11) - 0.01
+        0.01 * trial.suggest_int("multiplicative_noise_optuna)", 1, 11) - 0.01
     )
 
     config_lut["rsoil_emit_insitu"] = trial.suggest_categorical(

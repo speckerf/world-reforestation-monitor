@@ -93,6 +93,45 @@ def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     return img_to_return
 
 
+def collapse_to_mean_and_stddev_multi_trait(imgc: ee.ImageCollection) -> ee.Image:
+    # trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
+    # mean_name = f"{trait_name}_mean"
+    # std_name = f"{trait_name}_stdDev"
+    trait_names = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]
+
+    if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
+        images_mean = [
+            imgc.select(t)
+            .mean()
+            .rename(f"{t}_mean")
+            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{t}_mean"])
+            .toInt16()
+            for t in trait_names
+        ]
+
+        images_stdDev = [
+            imgc.select(t)
+            .reduce(ee.Reducer.stdDev())
+            .rename(f"{t}_stdDev")
+            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{t}_stdDev"])
+            .toInt16()
+            for t in trait_names
+        ]
+
+        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
+
+    else:
+        images_mean = [imgc.select(t).mean().rename(f"{t}_mean") for t in trait_names]
+        images_stdDev = [
+            imgc.select(t).reduce(ee.Reducer.stdDev()).rename(f"{t}_stdDev")
+            for t in trait_names
+        ]
+
+    img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
+    img_to_return = ee.Image([*images_mean, *images_stdDev, img_nobs])
+    return img_to_return
+
+
 def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
     mean_name = f"{trait_name}_mean"
@@ -168,7 +207,6 @@ def eePipelinePredictMap(
     imgc: ee.ImageCollection,
     trait: str,
     model_config: dict,
-    gee_random_forest=None,
     min_max_bands: Optional[dict] = None,
     min_max_label: Optional[dict] = None,
 ):
@@ -213,10 +251,8 @@ def eePipelinePredictMap(
         ee_model = eeMLPRegressor(
             pipeline.named_steps["regressor"].regressor_, trait_name=trait
         )
-    elif model_config["model"] == "rf":
-        ee_model = eeRandomForestRegressor(
-            feature_names=features, trait_name=trait, ee_rf_model=gee_random_forest
-        )
+    else:
+        raise ValueError("Only mlp models are supported for now")
     imgc = imgc.map(lambda image: ee_model.predict(image))
 
     # apply inverse transformations

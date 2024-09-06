@@ -179,24 +179,19 @@ def export_ecoregion_per_mgrs_tile(
         imgc = imgc.map(add_angles_from_metadata_to_bands)
 
         gee_preds = {}
-        # load model ensemble
-        models = load_model_ensemble(
-            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"], models=["rf"]
-        )
-        for i, (model_name, model) in enumerate(models.items()):
-            imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
-            gee_random_forest_model = (
-                None if "rf" not in model_name else model["gee_classifier"]
-            )
-            gee_preds[model_name] = eePipelinePredictMap(
-                pipeline=model["pipeline"],
-                imgc=imgc_i,
-                trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
-                model_config=model["config"],
-                gee_random_forest=gee_random_forest_model,
-                min_max_bands=model["min_max_bands"],
-                min_max_label=model["min_max_label"],
-            )
+
+        for trait in CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]:
+            models = load_model_ensemble(trait=trait, models=["mlp"])
+            for i, (model_name, model) in enumerate(models.items()):
+                imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
+                gee_preds[model_name] = eePipelinePredictMap(
+                    pipeline=model["pipeline"],
+                    imgc=imgc_i,
+                    trait=trait,
+                    model_config=model["config"],
+                    min_max_bands=model["min_max_bands"],
+                    min_max_label=model["min_max_label"],
+                )
 
         # create single imagecollection from all imagecollections using reduce
         imgc_preds = reduce(lambda x, y: x.merge(y), gee_preds.values())

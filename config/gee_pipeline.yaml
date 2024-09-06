@@ -4,10 +4,12 @@ PIPELINE_PARAMS:
   YEAR: '2022'
   OUTPUT_RESOLUTION: 10 # in meters
   CAST_TO_INT16: TRUE
-  TRAIT_LIST: ['lai', 'fapar', 'fcover']
-  TRAIT: 'lai'
-  ENSEMBLE_SIZE: 6 # changing here does not change the ensemble size currently
-  VERSION: 'v2'
+  # TRAIT_LIST: ['lai', 'fapar', 'fcover']
+  # TRAIT: 'lai'
+  # TRAITS: ['lai', 'fapar', 'fcover']
+  TRAITS: ['lai', 'fapar']
+  ENSEMBLE_SIZE: 5 
+  VERSION: 'v3'
   EXPORT_EPSG: 'EPSG:4326'
 
 INT16_SCALING: 

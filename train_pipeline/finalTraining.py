@@ -47,7 +47,7 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     testsets = [i for i in range(config["group_k_fold_splits"])]
 
     for testset in testsets:
-        study_name = f"optuna-{trait}-{model}-testset{testset}"
+        study_name = f"optuna-{trait}-{model}-split-{testset}"
 
         config["optuna_study_name"] = study_name
         config["model"] = model
@@ -185,16 +185,13 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     return predictions_ensemble, y_val
 
 
-def load_model_ensemble(trait: str, models: list[str] = ["mlp", "rf"]) -> dict:
+def load_model_ensemble(trait: str, models: list[str] = ["mlp"]) -> dict:
     # list study names
-    if models is not ["mlp", "rf"]:
-        assert models == ["mlp"] or models == [
-            "rf"
-        ], "Only mlp or rf models are allowed"
+    assert models == ["mlp"], "Only mlp models are supported for now"
 
-    testsets = [0, 1, 2]
+    testsets = list(range(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"]))
     model_names = [
-        f"optuna-{trait}-{model}-testset{testset}"
+        f"optuna-{trait}-{model}-split-{testset}"
         for model in models
         for testset in testsets
     ]
@@ -215,14 +212,6 @@ def load_model_ensemble(trait: str, models: list[str] = ["mlp", "rf"]) -> dict:
                 os.path.join(dir_path, f"min_max_label_values_{name}.json")
             )[0],
             "split": os.path.join(dir_path, f"model_{name}_split.json"),
-            "fc_val_train_transformed": os.path.join(
-                CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["MODEL_RF_LUT"],
-                f"val_train_transformed_{name}",
-            ),
-            "fc_val_test_transformed": os.path.join(
-                CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["MODEL_RF_LUT"],
-                f"val_test_transformed_{name}",
-            ),
             "df_val_train": os.path.join(dir_path, f"df_val_train_{trait}_{name}.csv"),
             "df_val_test": os.path.join(dir_path, f"df_val_test_{trait}_{name}.csv"),
         }
@@ -241,12 +230,6 @@ def load_model_ensemble(trait: str, models: list[str] = ["mlp", "rf"]) -> dict:
                     "min_max_bands": json.load(open(path["min_max_bands"], "r")),
                     "min_max_label": json.load(open(path["min_max_label"], "r")),
                     "split": json.load(open(path["split"], "r")),
-                    "fc_val_train_transformed": ee.FeatureCollection(
-                        path["fc_val_train_transformed"]
-                    ),
-                    "fc_val_test_transformed": ee.FeatureCollection(
-                        path["fc_val_test_transformed"]
-                    ),
                     "df_val_train": pd.read_csv(path["df_val_train"]),
                     "df_val_test": pd.read_csv(path["df_val_test"]),
                 }
@@ -263,7 +246,7 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    # rerun_and_save_best_optuna_wrapper("lai", config)
+    rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
     # evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")

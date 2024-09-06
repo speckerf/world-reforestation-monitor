@@ -527,7 +527,7 @@ def main():
         )
         logger.info(f"Study '{study_name}' loaded.")
 
-    study.optimize(objective, n_trials=2000)
+    study.optimize(objective, n_trials=20)
 
     # get the best hyperparameters
     best_params = study.best_params
