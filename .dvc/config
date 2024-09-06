@@ -1,4 +1,5 @@
 [core]
     remote = myremote
+    autostage = true
 ['remote "myremote"']
     url = gs://felixspecker/open-earth/world-reforestation-monitor-remote
