@@ -147,27 +147,27 @@ def optuna_init_config(trial):
 
         if config_posthoc["use_baresoil_insitu"]:
             config_posthoc["n_baresoil_insitu"] = 20 * trial.suggest_int(
-                "n_baresoil_insitu_optuna", 1, 50, log=True
+                "n_baresoil_insitu_optuna", 0, 50, log=True
             )
         if config_posthoc["use_baresoil_s2"]:
             config_posthoc["n_baresoil_s2"] = 20 * trial.suggest_int(
-                "n_baresoil_s2_optuna", 1, 50, log=True
+                "n_baresoil_s2_optuna", 0, 50, log=True
             )
         if config_posthoc["use_urban_s2"]:
             config_posthoc["n_urban_s2"] = 20 * trial.suggest_int(
-                "n_urban_s2_optuna", 1, 25, log=True
+                "n_urban_s2_optuna", 0, 25, log=True
             )
         if config_posthoc["use_water_s2"]:
             config_posthoc["n_water_s2"] = 20 * trial.suggest_int(
-                "n_water_s2_optuna", 1, 25, log=True
+                "n_water_s2_optuna", 0, 25, log=True
             )
         if config_posthoc["use_snowice_s2"]:
             config_posthoc["n_snowice_s2"] = 20 * trial.suggest_int(
-                "n_snowice_s2_optuna", 1, 25, log=True
+                "n_snowice_s2_optuna", 0, 25, log=True
             )
         if config_posthoc["use_baresoil_emit"]:
             config_posthoc["n_baresoil_emit"] = 20 * trial.suggest_int(
-                "n_baresoil_emit_optuna", 1, 50, log=True
+                "n_baresoil_emit_optuna", 0, 50, log=True
             )
 
     else:
@@ -178,10 +178,7 @@ def optuna_init_config(trial):
             "5": (5,),
             "10": (10,),
             "5_5": (5, 5),
-            "5_10": (5, 10),
             "10_5": (10, 5),
-            "10_10": (10, 10),
-            "5_5_5": (5, 5, 5),
         }
 
         config_ml = {
@@ -191,10 +188,7 @@ def optuna_init_config(trial):
                     "5",
                     "10",
                     "5_5",
-                    "5_10",
                     "10_5",
-                    "10_10",
-                    "5_5_5",
                 ],
             ),
             "activation": trial.suggest_categorical("activation", ["relu", "tanh"]),
@@ -208,13 +202,5 @@ def optuna_init_config(trial):
         config_ml["hidden_layers"] = hidden_layers_dict[
             config_ml["hidden_layers_optuna"]
         ]
-    elif config_training["model"] == "rf":
-        config_ml = {
-            "n_estimators": 10
-            * trial.suggest_int("n_estimators_optuna", 1, 20, log=True),
-            "min_samples_leaf": 3 * trial.suggest_int("min_samples_leaf_optuna", 1, 10),
-            "max_features": trial.suggest_int("max_features", 3, 8),
-            "max_samples": 0.1 * trial.suggest_int("max_samples_optuna", 2, 10),
-        }
     config = merge_dicts_safe(config_general, config_ml, config_posthoc, config_lut)
     return config

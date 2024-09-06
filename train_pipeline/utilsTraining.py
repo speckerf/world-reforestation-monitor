@@ -15,32 +15,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-def rf_get_size_of_string(trees: list[str]) -> dict:
-    logger.debug("Calculating size of Random Forest string representation")
-    try:
-        # Measure the size of the resulting string
-        list_size = sys.getsizeof(trees)
-        strings_size = sum([sys.getsizeof(s) for s in trees])
-        total_size = list_size + strings_size
-
-        sizes = {
-            "bytes": total_size,
-            "kilobytes": total_size / 1024,
-            "megabytes": total_size / 1024 / 1024,
-        }
-    except Exception as e:
-        logger.error(
-            f"Error calculating size of Random Forest string representation: {e}"
-        )
-        sizes = {
-            "bytes": 999999999,
-            "kilobytes": 999999,
-            "megabytes": 999,
-        }
-
-    return sizes
-
-
 def get_model(config):
     if config["model"] == "mlp":
         model = MLPRegressor(
@@ -49,13 +23,6 @@ def get_model(config):
             alpha=config["alpha"],
             learning_rate=config["learning_rate"],
             max_iter=config["max_iter"],
-        )
-    elif config["model"] == "rf":
-        model = RandomForestRegressor(
-            n_estimators=config["n_estimators"],
-            max_samples=config["max_samples"],
-            min_samples_leaf=config["min_samples_leaf"],
-            max_features=config["max_features"],
         )
     else:
         raise ValueError(f"Unknown model: {config['model']}")

@@ -35,6 +35,6 @@ optuna_report_thresh:
 #   EWT: 0.05
 #   LMA: 0.05
 
-group_k_fold_splits: 3
+group_k_fold_splits: 6
 group_k_fold_current_split: 2 # from 0 to group_k_fold_splits-1
 model: 'mlp'
