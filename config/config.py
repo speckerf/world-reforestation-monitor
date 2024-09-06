@@ -22,6 +22,15 @@ def get_config(instance: str) -> dict:
     if instance == "gee_pipeline":
         return config_gee_pipeline
     elif instance == "train_pipeline":
+        # replace okaceholder in optuna study name with the trait and split and model
+        config_train_pipeline["optuna_study_name"] = (
+            config_train_pipeline["optuna_study_name"]
+            .replace("(TRAIT)", config_train_pipeline["trait"])
+            .replace(
+                "(SPLIT)", str(config_train_pipeline["group_k_fold_current_split"])
+            )
+            .replace("(MODEL)", config_train_pipeline["model"])
+        )
         return config_train_pipeline
     elif instance == "validation_pipeline":
         return config_validation_pipeline

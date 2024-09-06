@@ -17,21 +17,26 @@ from geemap import df_to_ee, ml
 from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
-from sklearn.metrics import (mean_absolute_error, r2_score,
-                             root_mean_squared_error)
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.pipeline import Pipeline
 
 from config.config import get_config
 from gee_pipeline.utils import wait_for_task, wait_for_task_id
-from rtm_pipeline_python.classes import (helper_apply_posthoc_modifications,
-                                         rtm_simulator)
+from rtm_pipeline_python.classes import (
+    helper_apply_posthoc_modifications,
+    rtm_simulator,
+)
 from train_pipeline.utilsLoading import load_validation_data
 from train_pipeline.utilsOptuna import log_splits, optuna_init_config
 from train_pipeline.utilsPlotting import plot_predicted_vs_true
-from train_pipeline.utilsTraining import (get_model, get_pipeline,
-                                          limit_prediction_range,
-                                          merge_dicts_safe, r2_score_oos)
+from train_pipeline.utilsTraining import (
+    get_model,
+    get_pipeline,
+    limit_prediction_range,
+    merge_dicts_safe,
+    r2_score_oos,
+)
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
@@ -368,8 +373,7 @@ def objective(trial, save_model=False):
 
         df = lut_simulator.generate_lut()
 
-        if config["posthoc_modifications"]:
-            df = helper_apply_posthoc_modifications(df, trait, config)
+        df = helper_apply_posthoc_modifications(df, trait, config)
 
         if save_model:
             save_folder = os.path.join(
@@ -413,12 +417,16 @@ def objective(trial, save_model=False):
             config["group_k_fold_current_split"]
         ]
 
-        log_splits(splits, df_val_trait, current_fold=config["group_k_fold_current_split"])
+        log_splits(
+            splits, df_val_trait, current_fold=config["group_k_fold_current_split"]
+        )
         # convert from indices to group values
         val_ecos_train = list(
             set(df_val_trait["ECO_ID"].values[val_eco_train_split_indices])
         )
-        val_ecos_test = list(set(df_val_trait["ECO_ID"].values[val_eco_test_split_indices]))
+        val_ecos_test = list(
+            set(df_val_trait["ECO_ID"].values[val_eco_test_split_indices])
+        )
 
         df_val_train_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_train}
         df_val_test_current = {eco: df_val_trait_dict[eco] for eco in val_ecos_test}
@@ -477,14 +485,18 @@ def objective(trial, save_model=False):
             )
 
             # save transformed validation data
-            transform_X_y(X_val_train, y_val_train, pipeline, feature_names, target).to_csv(
+            transform_X_y(
+                X_val_train, y_val_train, pipeline, feature_names, target
+            ).to_csv(
                 os.path.join(
                     save_folder, f"df_val_train_transformed_{trait}_{study_name}.csv"
                 ),
                 index=False,
             )
 
-            transform_X_y(X_val_test, y_val_test, pipeline, feature_names, target).to_csv(
+            transform_X_y(
+                X_val_test, y_val_test, pipeline, feature_names, target
+            ).to_csv(
                 os.path.join(
                     save_folder, f"df_val_test_transformed_{trait}_{study_name}.csv"
                 ),
@@ -542,7 +554,9 @@ def objective(trial, save_model=False):
                 y_true_train=y_val_train[trait],
             )
         else:
-            score_val_train_rmse = root_mean_squared_error(y_val_train, y_val_train_pred)
+            score_val_train_rmse = root_mean_squared_error(
+                y_val_train, y_val_train_pred
+            )
             score_val_test_rmse = root_mean_squared_error(y_val_test, y_val_test_pred)
             score_val_train_mae = mean_absolute_error(y_val_train, y_val_train_pred)
             score_val_test_mae = mean_absolute_error(y_val_test, y_val_test_pred)
@@ -621,7 +635,9 @@ def objective(trial, save_model=False):
         # save model
         if save_model:
 
-            logger.debug(f"Saving model for trait {trait} with trial number {trial.number}")
+            logger.debug(
+                f"Saving model for trait {trait} with trial number {trial.number}"
+            )
 
             os.makedirs(save_folder, exist_ok=True)
             model_filename = f"model_{trial.user_attrs['config']['optuna_study_name']}"
@@ -635,10 +651,14 @@ def objective(trial, save_model=False):
             with open(full_model_path, "rb") as f:
                 pipeline_pickle = pickle_load(f)
 
-            with open(os.path.join(save_folder, f"{model_filename}_config.json"), "w") as f:
+            with open(
+                os.path.join(save_folder, f"{model_filename}_config.json"), "w"
+            ) as f:
                 json.dump(trial.user_attrs["config"], f)
 
-            with open(os.path.join(save_folder, f"{model_filename}_split.json"), "w") as f:
+            with open(
+                os.path.join(save_folder, f"{model_filename}_split.json"), "w"
+            ) as f:
                 json.dump(
                     {
                         "val_ecos_train": trial.user_attrs["val_ecos_train"],
@@ -697,7 +717,6 @@ def objective(trial, save_model=False):
             )
         return score_val_train_rmse
 
-
     except Exception as e:
         logger.error(f"Error in objective function: {e}, Failed trial and continue.")
         return float("nan")
@@ -725,7 +744,7 @@ def main():
     # Create the study if it doesn't exist
     if not study_exists:
         sampler = TPESampler(
-            seed=None, n_startup_trials=500, constant_liar=True, multivariate=True
+            seed=None, n_startup_trials=10, constant_liar=True, multivariate=True
         )
         study = optuna.create_study(
             storage=storage, study_name=study_name, sampler=sampler
@@ -733,7 +752,7 @@ def main():
         logger.info(f"Study '{study_name}' created.")
     else:
         sampler = TPESampler(
-            seed=None, n_startup_trials=500, constant_liar=True, multivariate=True
+            seed=None, n_startup_trials=10, constant_liar=True, multivariate=True
         )
         study = optuna.load_study(
             study_name=study_name, storage=storage, sampler=sampler

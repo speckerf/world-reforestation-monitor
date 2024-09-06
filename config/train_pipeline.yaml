@@ -1,6 +1,6 @@
 # GENERAL PARMAETERS
 # trait: ['lai', 'CHL', 'LMA', 'EWT', 'fapar', 'fcover']
-trait: 'CHL'
+trait: 'lai'
 list_ecoids_in_validation: 
   fcover: [647, 392, 393, 648, 396, 654, 399, 402, 407, 664, 793, 795, 543, 428, 429, 430, 686, 435, 193, 331, 717, 338, 344, 353, 366]
   fapar: [193, 331, 338, 344, 353, 366, 392, 393, 396, 399, 402, 428, 429, 430, 435, 543, 647, 648, 654, 664, 686, 717, 793, 795]
@@ -8,7 +8,7 @@ list_ecoids_in_validation:
   CHL: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   EWT: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   LMA: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
-optuna_study_name: "optuna-CHL-mlp-testset2"
+optuna_study_name: "optuna-(TRAIT)-(MODEL)-split-(SPLIT)"
 optuna_storage: "mysql://root@localhost/oemc"
 optuna_distributions:
   fcover: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai'] 
@@ -36,5 +36,5 @@ optuna_report_thresh:
 #   LMA: 0.05
 
 group_k_fold_splits: 6
-group_k_fold_current_split: 2 # from 0 to group_k_fold_splits-1
+group_k_fold_current_split: 5 # from 0 to group_k_fold_splits-1
 model: 'mlp'

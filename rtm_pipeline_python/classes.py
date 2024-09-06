@@ -205,44 +205,27 @@ class rtm_simulator:
             InputPROSAIL.to_csv(input_path, index=False)
 
             # Prepare noise arguments
-            # add_noise = True if self.config["add_noise"] != None else False
-            # noise_type = self.config["add_noise"]
-            if self.config["add_noise"]:
-                noise_bool = True
-                noise_type = self.config["noise_type"]
-                if noise_type == "atbd":
-                    noise_args = {}
-                elif noise_type == "addmulti":
-                    noise_args = {
-                        "AdditiveNoise": self.config["additive_noise"],
-                        "MultiplicativeNoise": self.config["multiplicative_noise"],
-                    }
-                else:
-                    raise ValueError(f"Unknown noise type: {noise_type}")
-            else:
-                noise_bool = False
-                noise_type = None
-                noise_args = {}
-            #  Ensure noise_args is always a valid JSON string
-            if not noise_args:
-                noise_args = "{}"
-            else:
+            noise_bool = True
+            noise_type = "addmulti"
+            if noise_type == "addmulti":
+                noise_args = {
+                    "AdditiveNoise": self.config["additive_noise"],
+                    "MultiplicativeNoise": self.config["multiplicative_noise"],
+                }
                 noise_args = json.dumps(noise_args)
+            else:
+                raise ValueError(f"Unknown noise type: {noise_type}")
 
             # Prepare rsoil arguments
-            modify_rsoil = self.config["modify_rsoil"]
+            modify_rsoil = True
             rsoil_insitu = (
                 True if self.config.get("rsoil_emit_insitu", "") == "insitu" else False
             )
             rsoil_emit = (
                 True if self.config.get("rsoil_emit_insitu", "") == "emit" else False
             )
-            rsoil_insitu_fraction = (
-                self.config["rsoil_fraction"] if modify_rsoil and rsoil_insitu else 0
-            )
-            rsoil_emit_fraction = (
-                self.config["rsoil_fraction"] if modify_rsoil and rsoil_emit else 0
-            )
+            rsoil_insitu_fraction = self.config["rsoil_fraction"] if rsoil_insitu else 0
+            rsoil_emit_fraction = self.config["rsoil_fraction"] if rsoil_emit else 0
 
             process = subprocess.Popen(
                 [
@@ -442,63 +425,44 @@ def get_baresoil_emit(n=10) -> pd.DataFrame:
 
 
 def helper_apply_posthoc_modifications(single_df, trait, config):
-    if config["posthoc_modifications"]:
-        single_df = apply_posthoc_modifications(single_df, trait, config)
-        # set all negative reflectances to 0 / in columns B2 - B12
-        single_df.loc[:, "B2":"B12"] = single_df.loc[:, "B2":"B12"].clip(lower=0)
+    single_df = apply_posthoc_modifications(single_df, trait, config)
+    # set all negative reflectances to 0 / in columns B2 - B12
+    single_df.loc[:, "B2":"B12"] = single_df.loc[:, "B2":"B12"].clip(lower=0)
     return single_df
 
 
 def apply_posthoc_modifications(df: pd.DataFrame, trait: str, config: dict):
     angles = ["tts", "tto", "psi"]
 
-    if config["use_baresoil_insitu"]:
-        df_baresoil = get_baresoil_insitu(n=config["n_baresoil_insitu"])
-        df_baresoil[angles] = (
-            df[angles].sample(n=config["n_baresoil_insitu"], replace=True).values
-        )
-        df_baresoil[trait] = 0
-        df = pd.concat([df, df_baresoil], ignore_index=True)
+    df_baresoil_insitu = get_baresoil_insitu(n=config["n_baresoil_insitu"])
+    df_baresoil_s2 = get_baresoil_s2(n=config["n_baresoil_s2"])
+    df_baresoil_emit = get_baresoil_emit(n=config["n_baresoil_emit"])
+    df_urban_s2 = get_urban_s2(n=config["n_urban_s2"])
+    df_water_s2 = get_water_s2(n=config["n_water_s2"])
+    df_snowice_s2 = get_snowice_s2(n=config["n_snowice_s2"])
 
-    if config["use_baresoil_s2"]:
-        df_baresoil = get_baresoil_s2(n=config["n_baresoil_s2"])
-        df_baresoil[angles] = (
-            df[angles].sample(n=config["n_baresoil_s2"], replace=True).values
-        )
-        df_baresoil[trait] = 0
-        df = pd.concat([df, df_baresoil], ignore_index=True)
+    df_posthoc_additions = pd.concat(
+        [
+            df_baresoil_insitu,
+            df_baresoil_s2,
+            df_baresoil_emit,
+            df_urban_s2,
+            df_water_s2,
+            df_snowice_s2,
+        ],
+        ignore_index=True,
+    )
 
-    if config["use_urban_s2"]:
-        df_urban = get_urban_s2(n=config["n_urban_s2"])
-        df_urban[angles] = (
-            df[angles].sample(n=config["n_urban_s2"], replace=True).values
-        )
-        df_urban[trait] = 0
-        df = pd.concat([df, df_urban], ignore_index=True)
+    # add angles to the posthoc additions
+    df_posthoc_additions[angles] = (
+        df[angles].sample(n=len(df_posthoc_additions), replace=True).values
+    )
 
-    if config["use_water_s2"]:
-        df_water = get_water_s2(n=config["n_water_s2"])
-        df_water[angles] = (
-            df[angles].sample(n=config["n_water_s2"], replace=True).values
-        )
-        df_water[trait] = 0
-        df = pd.concat([df, df_water], ignore_index=True)
+    # set trait to zero
+    df_posthoc_additions[trait] = 0
 
-    if config["use_snowice_s2"]:
-        df_snowice = get_snowice_s2(n=config["n_snowice_s2"])
-        df_snowice[angles] = (
-            df[angles].sample(n=config["n_snowice_s2"], replace=True).values
-        )
-        df_snowice[trait] = 0
-        df = pd.concat([df, df_snowice], ignore_index=True)
-
-    if config["use_baresoil_emit"]:
-        df_baresoil = get_baresoil_emit(n=config["n_baresoil_emit"])
-        df_baresoil[angles] = (
-            df[angles].sample(n=config["n_baresoil_emit"], replace=True).values
-        )
-        df_baresoil[trait] = 0
-        df = pd.concat([df, df_baresoil], ignore_index=True)
+    # add the posthoc additions to the original dataframe
+    df = pd.concat([df, df_posthoc_additions], ignore_index=True)
 
     # Set all negative reflectances to 0 / in columns B2 - B12
     df.loc[:, "B2":"B12"] = df.loc[:, "B2":"B12"].clip(lower=0)

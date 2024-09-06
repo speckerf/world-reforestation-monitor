@@ -79,19 +79,12 @@ def optuna_init_config(trial):
         "use_angles_for_prediction": trial.suggest_categorical(
             "use_angles_for_prediction", [True, False]
         ),
-        # "use_angles_for_prediction": False,
-        "posthoc_modifications": trial.suggest_categorical(
-            "posthoc_modifications", [True, False]
-        ),
         **config_transform_target,
         "nirv_norm": trial.suggest_categorical("nirv_norm", [True, False]),
         # "nirv_norm": True,
     }
 
     config_lut = {
-        "modify_rsoil": trial.suggest_categorical("modify_rsoil", [True, False]),
-        # "modify_rsoil": False,
-        "add_noise": trial.suggest_categorical("add_noise", [True, False]),
         # "add_noise": True,
         "num_spectra": 2500 * trial.suggest_int("num_spectra_optuna", 1, 20, log=True),
         # "num_spectra": 1000,
@@ -107,71 +100,40 @@ def optuna_init_config(trial):
         ),
         # "parameter_setup": "foliar_codistribution",
     }
-    if config_lut["add_noise"]:
-        config_lut["noise_type"] = trial.suggest_categorical(
-            "noise_type", ["atbd", "addmulti"]
-        )
-        if config_lut["noise_type"] == "addmulti":
-            config_lut["additive_noise"] = 0.005 * trial.suggest_int(
-                "additive_noise_optuna", 1, 6
-            )
-            config_lut["multiplicative_noise"] = 0.01 * trial.suggest_int(
-                "multiplicative_noise_optuna)", 1, 10
-            )
 
-    if config_lut["modify_rsoil"]:
-        config_lut["rsoil_emit_insitu"] = trial.suggest_categorical(
-            "rsoil_emit_insitu", ["emit", "insitu"]
-        )
-        config_lut["rsoil_fraction"] = 0.1 * trial.suggest_int(
-            "rsoil_fraction_optuna", 1, 10
-        )
+    config_lut["additive_noise"] = (
+        0.005 * trial.suggest_int("additive_noise_optuna", 1, 7) - 0.005
+    )
+    config_lut["multiplicative_noise"] = (
+        0.01 * trial.suggest_int("multiplicative_noise_optuna", 1, 11) - 0.01
+    )
 
-    if config_general["posthoc_modifications"]:
-        config_posthoc = {
-            "use_baresoil_insitu": trial.suggest_categorical(
-                "use_baresoil_insitu", [True, False]
-            ),
-            "use_baresoil_s2": trial.suggest_categorical(
-                "use_baresoil_s2", [True, False]
-            ),
-            "use_urban_s2": trial.suggest_categorical("use_urban_s2", [True, False]),
-            "use_water_s2": trial.suggest_categorical("use_water_s2", [True, False]),
-            "use_snowice_s2": trial.suggest_categorical(
-                "use_snowice_s2", [True, False]
-            ),
-            "use_baresoil_emit": trial.suggest_categorical(
-                "use_baresoil_emit", [True, False]
-            ),
-        }
+    config_lut["rsoil_emit_insitu"] = trial.suggest_categorical(
+        "rsoil_emit_insitu", ["emit", "insitu"]
+    )
+    config_lut["rsoil_fraction"] = 0.1 * trial.suggest_int(
+        "rsoil_fraction_optuna", 1, 10, log=True
+    )
 
-        if config_posthoc["use_baresoil_insitu"]:
-            config_posthoc["n_baresoil_insitu"] = 20 * trial.suggest_int(
-                "n_baresoil_insitu_optuna", 0, 50, log=True
-            )
-        if config_posthoc["use_baresoil_s2"]:
-            config_posthoc["n_baresoil_s2"] = 20 * trial.suggest_int(
-                "n_baresoil_s2_optuna", 0, 50, log=True
-            )
-        if config_posthoc["use_urban_s2"]:
-            config_posthoc["n_urban_s2"] = 20 * trial.suggest_int(
-                "n_urban_s2_optuna", 0, 25, log=True
-            )
-        if config_posthoc["use_water_s2"]:
-            config_posthoc["n_water_s2"] = 20 * trial.suggest_int(
-                "n_water_s2_optuna", 0, 25, log=True
-            )
-        if config_posthoc["use_snowice_s2"]:
-            config_posthoc["n_snowice_s2"] = 20 * trial.suggest_int(
-                "n_snowice_s2_optuna", 0, 25, log=True
-            )
-        if config_posthoc["use_baresoil_emit"]:
-            config_posthoc["n_baresoil_emit"] = 20 * trial.suggest_int(
-                "n_baresoil_emit_optuna", 0, 50, log=True
-            )
-
-    else:
-        config_posthoc = {}
+    config_posthoc = {}
+    config_posthoc["n_baresoil_insitu"] = (
+        20 * trial.suggest_int("n_baresoil_insitu_optuna", 1, 51, log=True) - 20
+    )
+    config_posthoc["n_baresoil_s2"] = (
+        20 * trial.suggest_int("n_baresoil_s2_optuna", 1, 51, log=True) - 20
+    )
+    config_posthoc["n_baresoil_emit"] = (
+        20 * trial.suggest_int("n_baresoil_emit_optuna", 1, 51, log=True) - 20
+    )
+    config_posthoc["n_urban_s2"] = (
+        20 * trial.suggest_int("n_urban_s2_optuna", 1, 26, log=True) - 20
+    )
+    config_posthoc["n_water_s2"] = (
+        20 * trial.suggest_int("n_water_s2_optuna", 1, 26, log=True) - 20
+    )
+    config_posthoc["n_snowice_s2"] = (
+        20 * trial.suggest_int("n_snowice_s2_optuna", 1, 26, log=True) - 20
+    )
 
     if config_training["model"] == "mlp":
         hidden_layers_dict = {
