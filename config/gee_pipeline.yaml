@@ -65,6 +65,7 @@ CLOUD_FILTERING:
   CLOUDY_PIXEL_PERCENTAGE: 70 # max initial cloudy pixel percentage
   CLOUD_SCORE_PLUS_THRESHOLD: 0.65
   CLOUD_SCORE_PLUS_BAND: 'cs' # 'cs' or 'cs_cdf' : see https://medium.com/google-earth/all-clear-with-cloud-score-bd6ee2e2235e
+  MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile
 
 
 GEE_FOLDERS:

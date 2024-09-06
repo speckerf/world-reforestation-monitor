@@ -159,7 +159,9 @@ def groupby_mgrs_orbit_pandas(
     df_sorted = df.sort_values(
         by=["group", "cloud_pheno_image_weight"], ascending=[True, True]
     )
-    df_grouped = df_sorted.groupby("group").head(10)
+    df_grouped = df_sorted.groupby("group").head(
+        CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["MAX_IMAGES_PER_GROUP"]
+    )
 
     logger.debug(f"imgc size after grouping and filtering: {df_grouped.shape[0]}")
 
