@@ -69,7 +69,7 @@ def load_validation_data(return_site=False) -> dict:
     )
 
     # traits = config["PIPELINE_PARAMS"]["TRAITS_TO_PREDICT"]
-    traits = ["lai", "CHL", "CAR", "EWT", "LMA"]
+    traits = ["lai", "CHL", "CAR", "EWT", "LMA", "fapar", "fcover"]
 
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     angles = ["tts", "tto", "psi"]
@@ -122,7 +122,7 @@ def load_validation_data(return_site=False) -> dict:
     }
 
     # divide reflectances by 10000 to get reflectances in the range [0, 1]
-    for trait in traits:
+    for trait in list(validation_sets.keys()):
         validation_sets[trait][bands] = validation_sets[trait][bands] / 10000
         # validation_sets[trait][angles] = convert_angles_to_cosines(
         #     validation_sets[trait][angles], angle_colnames=angles

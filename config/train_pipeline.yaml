@@ -9,7 +9,7 @@ list_ecoids_in_validation:
   EWT: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   LMA: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
 optuna_study_name: "optuna-(TRAIT)-(MODEL)-split-(SPLIT)"
-optuna_storage: "mysql://root@localhost/oemc_v3"
+optuna_storage: "mysql://root@localhost/oemc"
 optuna_distributions:
   fcover: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai'] 
   fapar: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai']

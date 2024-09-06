@@ -246,7 +246,7 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    rerun_and_save_best_optuna_wrapper("fcover", config)
+    rerun_and_save_best_optuna_wrapper("fapar", config)
     # load_model_ensemble("lai")
     # evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")

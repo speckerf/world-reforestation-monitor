@@ -141,14 +141,14 @@ def plot_predicted_vs_true(
             )
 
         if "-lai-" in save_plot_filename:
-            plt.xlim(0, max_val)
-            plt.ylim(0, max_val)
+            plt.xlim(-0.05, max_val + 0.05)
+            plt.ylim(-0.05, max_val + 0.05)
         elif "-fcover-" in save_plot_filename:
-            plt.xlim(0, 1)
-            plt.ylim(0, 1)
+            plt.xlim(-0.05, 1.05)
+            plt.ylim(-0.05, 1.05)
         elif "-fapar-" in save_plot_filename:
-            plt.xlim(0, 1)
-            plt.ylim(0, 1)
+            plt.xlim(-0.05, 1.05)
+            plt.ylim(-0.05, 1.05)
         elif "-CHL-" in save_plot_filename:
             plt.xlim(0, max_val)
             plt.ylim(0, max_val)
