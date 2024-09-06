@@ -195,9 +195,13 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     return predictions_ensemble, y_val
 
 
-def load_model_ensemble(trait: str):
+def load_model_ensemble(trait: str, models: list[str] = ["mlp", "rf"]) -> dict:
     # list study names
-    models = ["mlp", "rf"]
+    if models is not ["mlp", "rf"]:
+        assert models == ["mlp"] or models == [
+            "rf"
+        ], "Only mlp or rf models are allowed"
+
     testsets = [0, 1, 2]
     model_names = [
         f"optuna-{trait}-{model}-testset{testset}"

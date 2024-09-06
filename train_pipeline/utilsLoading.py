@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 
 
@@ -86,11 +87,13 @@ def load_validation_data(return_site=False) -> dict:
             canopy_traits_fapar,
             bands_angles + ["FIPAR_total"] + ["uuid"],
             {"FIPAR_total": "fapar"},
+            return_site,
         ),
         "fcover": create_validation_set(
             canopy_traits_fcover,
             bands_angles + ["FCOVER_total"] + ["uuid"],
             {"FCOVER_total": "fcover"},
+            return_site,
         ),
         "CHL": create_validation_set(
             foliar_traits,
@@ -150,5 +153,29 @@ def load_validation_data(return_site=False) -> dict:
 
 
 if __name__ == "__main__":
-    a = load_validation_data()
+    a = load_validation_data(return_site=True)
     print(list(a.keys()))
+
+    # analyse number of sites, number of samples and number of ecoregions per dataset.
+    fapar = a["fapar"]
+    lai = a["lai"]
+    fcover = a["fcover"]
+
+    # split site column by "_"
+    fapar["SITE_ID"] = fapar["site"].str.split("_").str[0]
+    fapar["PLOT_ID"] = fapar["site"].str.split("_").str[1]
+    len(fapar["SITE_ID"].unique())
+    len(fapar["site"].unique())
+    len(fapar["ECO_ID"].unique())
+
+    lai["SITE_ID"] = lai["site"].str.split("_").str[0]
+    lai["PLOT_ID"] = lai["site"].str.split("_").str[1]
+    len(lai["SITE_ID"].unique())
+    len(lai["site"].unique())
+    len(lai["ECO_ID"].unique())
+
+    fcover["SITE_ID"] = fcover["site"].str.split("_").str[0]
+    fcover["PLOT_ID"] = fcover["site"].str.split("_").str[1]
+    len(fcover["SITE_ID"].unique())
+    len(fcover["site"].unique())
+    len(fcover["ECO_ID"].unique())

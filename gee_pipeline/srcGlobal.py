@@ -181,7 +181,7 @@ def export_ecoregion_per_mgrs_tile(
         gee_preds = {}
         # load model ensemble
         models = load_model_ensemble(
-            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
+            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"], models=["rf"]
         )
         for i, (model_name, model) in enumerate(models.items()):
             imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
@@ -241,7 +241,7 @@ def export_ecoregion_per_mgrs_tile(
         # Export the image
         imgc_folder = (
             CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
-            + f"/{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_predictions_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
+            + f"/{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_predictions-rf_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
         )
 
         task = ee.batch.Export.image.toAsset(
@@ -291,7 +291,7 @@ def global_export_concurrent():
             for eco_id in [
                 *ecoregions_process_single_list,
                 *ecoregions_process_multi_list,
-            ]
+            ][::50]
         ]
         for future in concurrent.futures.as_completed(futures):
             try:
