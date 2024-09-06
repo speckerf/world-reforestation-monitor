@@ -14,6 +14,12 @@ from validation_pipeline.utils import (
 )
 from validation_pipeline.utils_foliar import merge_foliar_files
 
+service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
+credentials = ee.ServiceAccountCredentials(
+    service_account, "auth/gem-eth-analysis-24fe4261f029.json"
+)
+ee.Initialize(credentials, project="ee-speckerfelix")
+
 
 def foliar_directories() -> list:
     return [

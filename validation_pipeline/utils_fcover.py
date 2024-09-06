@@ -57,6 +57,9 @@ def merge_fcover_files(directory, output_filename):
         .apply(lambda x: pd.Timestamp(x).timestamp() * 1000)
         .astype("int")
     )
+
+    combined_data = combined_data.drop_duplicates()
+
     combined_data["uuid"] = [uuid.uuid4() for _ in range(len(combined_data.index))]
 
     # Write to disk

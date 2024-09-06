@@ -13,6 +13,12 @@ from validation_pipeline.utils import (
 )
 from validation_pipeline.utils_lai import merge_lai_files
 
+service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
+credentials = ee.ServiceAccountCredentials(
+    service_account, "auth/gem-eth-analysis-24fe4261f029.json"
+)
+ee.Initialize(credentials, project="ee-speckerfelix")
+
 
 def lai_directories() -> tuple:
     folder_name = "COPERNICUS_GBOV_RM6,7_20240620120826"
