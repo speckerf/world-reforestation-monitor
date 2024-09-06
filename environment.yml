@@ -16,3 +16,4 @@ dependencies:
   - loguru
   - pyyaml
   - hvplot
+  - cartopy

@@ -2,11 +2,11 @@ PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
   YEAR: '2022'
-  OUTPUT_RESOLUTION: 1000 # in meters
+  OUTPUT_RESOLUTION: 10 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'lai'
-  ENSEMBLE_SIZE: 6 # changing here does not change the ensemble size currently
-  VERSION: 'v1'
+  ENSEMBLE_SIZE: 3 # changing here does not change the ensemble size currently
+  VERSION: 'v2'
   EXPORT_EPSG: 'EPSG:4326'
 
 INT16_SCALING: 
