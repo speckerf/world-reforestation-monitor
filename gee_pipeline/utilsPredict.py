@@ -118,8 +118,6 @@ def collapse_to_mean_and_stddev_multi_trait(imgc: ee.ImageCollection) -> ee.Imag
             for t in trait_names
         ]
 
-        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
-
     else:
         images_mean = [imgc.select(t).mean().rename(f"{t}_mean") for t in trait_names]
         images_stdDev = [
@@ -127,7 +125,12 @@ def collapse_to_mean_and_stddev_multi_trait(imgc: ee.ImageCollection) -> ee.Imag
             for t in trait_names
         ]
 
-    img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
+    img_nobs = (
+        imgc.select(trait_names[0])
+        .reduce(ee.Reducer.count())
+        .rename("n_observations")
+        .toUint8()
+    )
     img_to_return = ee.Image([*images_mean, *images_stdDev, img_nobs])
     return img_to_return
 
@@ -189,17 +192,15 @@ def ee_logit_transform(image: ee.Image, trait: str):
 def ee_logit_inverse_transform(image: ee.Image, trait: str):
     # inverse logit transformation of trait
     # 1 / (1 + np.exp(-x))
-    image = image.addBands(
-        image.select(trait).exp().divide(image.select(trait).exp().add(1))
+    return (
+        image.select(trait).expression("1 / (1 + exp(-x))", {"x": image}).rename(trait)
     )
-    return image
 
 
 def ee_log1p_inverse_transform(image: ee.Image, trait: str):
     # inverse log1p transformation of trait
     # np.exp(x) - 1
-    image = image.select(trait).exp().subtract(1)
-    return image
+    return image.select(trait).exp().subtract(1).rename(trait)
 
 
 def eePipelinePredictMap(

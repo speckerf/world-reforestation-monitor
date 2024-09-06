@@ -14,7 +14,7 @@ from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
 from gee_pipeline.utilsPhenology import get_start_end_date_phenology_for_ecoregion
 from gee_pipeline.utilsPredict import (
     add_random_ensemble_assignment,
-    collapse_to_mean_and_stddev,
+    collapse_to_mean_and_stddev_multi_trait,
     eePipelinePredictMap,
 )
 from gee_pipeline.utilsTiles import get_epsg_code_from_mgrs, get_s2_indices_filtered
@@ -178,9 +178,10 @@ def export_ecoregion_per_mgrs_tile(
         # add angles to bands
         imgc = imgc.map(add_angles_from_metadata_to_bands)
 
-        gee_preds = {}
+        imgc_preds = {}
 
         for trait in CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]:
+            gee_preds = {}
             models = load_model_ensemble(trait=trait, models=["mlp"])
             for i, (model_name, model) in enumerate(models.items()):
                 imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
@@ -193,14 +194,21 @@ def export_ecoregion_per_mgrs_tile(
                     min_max_label=model["min_max_label"],
                 )
 
-        # create single imagecollection from all imagecollections using reduce
-        imgc_preds = reduce(lambda x, y: x.merge(y), gee_preds.values())
+            imgc_preds[trait] = reduce(lambda x, y: x.merge(y), gee_preds.values())
+
+        # link the collections if more than one trait
+        if len(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]) > 1:
+            imgc_preds_combined = reduce(
+                lambda x, y: x.combine(y), list(imgc_preds.values())
+            )
+        else:
+            imgc_preds_combined = imgc_preds[trait]
 
         # explicitly cast toFloat
-        imgc_preds = imgc_preds.map(lambda img: img.toFloat())
+        imgc_preds_combined = imgc_preds_combined.map(lambda img: img.toFloat())
 
         # collapse to mean and stddev
-        output_image = collapse_to_mean_and_stddev(imgc_preds)
+        output_image = collapse_to_mean_and_stddev_multi_trait(imgc_preds_combined)
 
         # mask permament water bodies :80: permanent water bodies at 10 meter resolution
         water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v100").first()
@@ -212,11 +220,15 @@ def export_ecoregion_per_mgrs_tile(
         epsg_code = get_epsg_code_from_mgrs(mgrs_tile)
         epsg_code_gee = f"EPSG:{epsg_code}"
         epsg_string = f"epsg-{epsg_code}"
+        if len(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]) == 1:
+            traits_string = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"][0]
+        else:
+            traits_string = "-".join(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"])
         if isinstance(eco_id, int):
-            system_index = f"{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}-{mgrs_tile}_{epsg_string}_{version}"
+            system_index = f"{traits_string}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_id}-{mgrs_tile}_{epsg_string}_{version}"
         elif isinstance(eco_id, list):
             eco_ids_string = "-".join(map(str, eco_id))
-            system_index = f"{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_rtm-ensemble_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}-{mgrs_tile}_{epsg_string}_{version}"
+            system_index = f"{traits_string}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_eco-{eco_ids_string}-{mgrs_tile}_{epsg_string}_{version}"
 
         output_image = (
             output_image.set(
@@ -228,7 +240,6 @@ def export_ecoregion_per_mgrs_tile(
             .set("year", year)
             .set("version", version)
             .set("ecoregion_id", eco_id)
-            .set("trait", CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"])
             .set("system:index", system_index)
             .set("mgrs_tile", mgrs_tile)
         )
@@ -236,7 +247,7 @@ def export_ecoregion_per_mgrs_tile(
         # Export the image
         imgc_folder = (
             CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
-            + f"/{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['TRAIT']}_predictions-rf_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
+            + f"/{traits_string}_predictions-mlp_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
         )
 
         task = ee.batch.Export.image.toAsset(

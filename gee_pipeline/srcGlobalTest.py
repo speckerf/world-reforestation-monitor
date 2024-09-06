@@ -408,7 +408,7 @@ def test_multi_eco():
             output_resolution=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"][
                 "OUTPUT_RESOLUTION"
             ],
-            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"],
+            trait=CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"],
         )
 
     pass
