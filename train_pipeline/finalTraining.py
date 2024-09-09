@@ -32,7 +32,10 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
     if config["model"] == "mlp":
         trials_filtered = [t for t in study.trials if t.value is not None]
 
-        best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
+        if config["optuna_study_name"] == 'optuna-fcover-mlp-split-2':
+            best_trial_filtered = sorted(trials_filtered, key=lambda t: t.value)[6] # some unknown bug: for some reason sum reruns of the best model trials, resulted in models not fitted correctly. 
+        else:
+            best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
         best_trial_number = best_trial_filtered.number
         best_trial_value = best_trial_filtered.value
         best_trial_params = best_trial_filtered.params
@@ -47,6 +50,8 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     testsets = [i for i in range(config["group_k_fold_splits"])]
 
     for testset in testsets:
+        if testset != 2:
+            continue
         study_name = f"optuna-{trait}-{model}-split-{testset}"
 
         config["optuna_study_name"] = study_name
@@ -246,7 +251,7 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    rerun_and_save_best_optuna_wrapper("fapar", config)
+    rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
     # evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")
