@@ -32,8 +32,10 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
     if config["model"] == "mlp":
         trials_filtered = [t for t in study.trials if t.value is not None]
 
-        if config["optuna_study_name"] == 'optuna-fcover-mlp-split-2':
-            best_trial_filtered = sorted(trials_filtered, key=lambda t: t.value)[6] # some unknown bug: for some reason sum reruns of the best model trials, resulted in models not fitted correctly. 
+        if config["optuna_study_name"] == "optuna-fcover-mlp-split-2":
+            best_trial_filtered = sorted(trials_filtered, key=lambda t: t.value)[
+                6
+            ]  # some unknown bug: for some reason sum reruns of the best model trials, resulted in models not fitted correctly.
         else:
             best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
         best_trial_number = best_trial_filtered.number
@@ -171,7 +173,30 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     logger.info(f"Ensemble R2: {r2}")
     logger.info(f"Ensemble RMSE: {rmse}")
 
+    # save the metrics to a file
+    with open(
+        os.path.join(
+            "data",
+            "train_pipeline",
+            "output",
+            "models",
+            f"metrics_{trait}_ensemble.json",
+        ),
+        "w",
+    ) as f:
+        json.dump(
+            {
+                "std_ensemble": std_ensemble,
+                "mae": mae,
+                "r2": r2,
+                "rmse": rmse,
+            },
+            f,
+        )
+
     from train_pipeline.utilsPlotting import plot_predicted_vs_true
+
+    # sample
 
     plot_predicted_vs_true(
         y_val,
@@ -251,9 +276,9 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    rerun_and_save_best_optuna_wrapper("fcover", config)
+    # rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
-    # evaluate_model_ensemble("lai")
+    evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 

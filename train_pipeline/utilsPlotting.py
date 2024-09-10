@@ -26,9 +26,9 @@ def plot_predicted_vs_true(
     if plot_type == "scatter":
         # Create scatter plot
         data = pd.DataFrame({"True": y_true, "Predicted": y_pred})
-        # limit the number of points to 10000
-        if len(data) > 10000:
-            data = data.sample(10000)
+        # limit the number of points to 3000
+        if len(data) > 3000:
+            data = data.sample(3000)
         ax = sns.scatterplot(
             data=data,
             x="True",
@@ -74,9 +74,9 @@ def plot_predicted_vs_true(
             thresh=0,
         )
         data = pd.DataFrame({"True": y_true, "Predicted": y_pred})
-        # limit the number of points to 10000
-        if len(data) > 10000:
-            data = data.sample(10000)
+        # limit the number of points to 3000
+        if len(data) > 3000:
+            data = data.sample(3000)
         sns.scatterplot(
             data=data,
             x="True",
