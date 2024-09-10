@@ -109,7 +109,7 @@ def add_ndvi_weight(image: ee.Image) -> ee.Image:
     ).getNumber("ndvi")
 
     cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
-    ndvi_weight = ee.Number(1).subtract(mean_ndvi)
+    ndvi_weight = ee.Number(1).subtract(mean_ndvi).multiply(2)
     cloud_pheno_weight_combined = cloudy_pixel_percentage.add(ndvi_weight)
 
     return image.set(
