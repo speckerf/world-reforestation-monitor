@@ -99,6 +99,12 @@ def export_ecoregion_per_mgrs_tile(
 
             start_date = datetime.fromtimestamp(average_start_date).strftime("%Y-%m-%d")
             end_date = datetime.fromtimestamp(average_end_date).strftime("%Y-%m-%d")
+            total_days = int(
+                (
+                    datetime.strptime(end_date, "%Y-%m-%d")
+                    - datetime.strptime(start_date, "%Y-%m-%d")
+                ).days
+            )
             start_date = ee.Date(start_date)
             end_date = ee.Date(end_date)
 
