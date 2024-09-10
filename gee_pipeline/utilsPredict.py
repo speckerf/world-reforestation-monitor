@@ -2,6 +2,7 @@ from typing import Optional
 
 import ee
 import numpy as np
+from loguru import logger
 from sklearn.pipeline import Pipeline
 
 from config.config import get_config
@@ -118,20 +119,23 @@ def collapse_to_mean_and_stddev_multi_trait(imgc: ee.ImageCollection) -> ee.Imag
             for t in trait_names
         ]
 
+        images_n_obs = [
+            imgc.select(t).reduce(ee.Reducer.count()).rename(f"{t}_count").toUint8()
+            for t in trait_names
+        ]
+
     else:
         images_mean = [imgc.select(t).mean().rename(f"{t}_mean") for t in trait_names]
         images_stdDev = [
             imgc.select(t).reduce(ee.Reducer.stdDev()).rename(f"{t}_stdDev")
             for t in trait_names
         ]
+        images_n_obs = [
+            imgc.select(t).reduce(ee.Reducer.count()).rename(f"{t}_count").toUint8()
+            for t in trait_names
+        ]
 
-    img_nobs = (
-        imgc.select(trait_names[0])
-        .reduce(ee.Reducer.count())
-        .rename("n_observations")
-        .toUint8()
-    )
-    img_to_return = ee.Image([*images_mean, *images_stdDev, img_nobs])
+    img_to_return = ee.Image([*images_mean, *images_stdDev, *images_n_obs])
     return img_to_return
 
 
@@ -153,11 +157,13 @@ def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
             .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][std_name])
             .toInt16()
         )
-        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations").toUint8()
+        img_nobs = (
+            imgc.reduce(ee.Reducer.count()).rename(f"{trait_name}_count").toUint8()
+        )
     else:
         img_mean = imgc.mean().rename(mean_name)
         img_std = imgc.reduce(ee.Reducer.stdDev()).rename(std_name)
-        img_nobs = imgc.reduce(ee.Reducer.count()).rename("n_observations")
+        img_nobs = imgc.reduce(ee.Reducer.count()).rename(f"{trait_name}_count")
 
     img_to_return = ee.Image([img_mean, img_std, img_nobs])
     return img_to_return

@@ -129,10 +129,12 @@ def export_ecoregion_per_mgrs_tile(
         ) as f:
             s2_indices_filtered = f.read().splitlines()
     else:
+        is_full_year = True if total_days >= 360 else False
         s2_indices_filtered = get_s2_indices_filtered(
             ecoregion_geometry=geometry,
             start_date=start_date,
             end_date=end_date,
+            is_full_year=is_full_year,
         )
         logger.debug(f"Saving s2_indices_filtered to file: {s2_indices_filename}")
         # save s2_indices_filtered for later use
@@ -297,7 +299,7 @@ def global_export_concurrent():
             for eco_id in [
                 *ecoregions_process_single_list,
                 *ecoregions_process_multi_list,
-            ][::50]
+            ][::25]
         ]
         for future in concurrent.futures.as_completed(futures):
             try:

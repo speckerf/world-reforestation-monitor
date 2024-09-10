@@ -16,7 +16,10 @@ CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 
 def get_s2_indices_filtered(
-    ecoregion_geometry, start_date: ee.Date, end_date: ee.Date
+    ecoregion_geometry,
+    start_date: ee.Date,
+    end_date: ee.Date,
+    is_full_year: bool = False,
 ) -> pd.DataFrame:
     # load s2 data
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -43,9 +46,9 @@ def get_s2_indices_filtered(
     # filter imgc by grouping by mgrs tile and orbit number
     s2_indices_filtered = groupby_mgrs_orbit_pandas(
         imgc,
-        center_pheno=True,
         start_pheno=start_date,
         end_pheno=end_date,
+        is_full_year=is_full_year,
     )
     return s2_indices_filtered
 
@@ -92,13 +95,13 @@ def get_epsg_code_from_mgrs(mgrs_zone_number: str):
 
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
-    center_pheno: bool = False,
     start_pheno: ee.Date = None,
     end_pheno: ee.Date = None,
+    is_full_year: bool = False,
 ) -> ee.List:
 
     imgc = imgc.map(add_group)
-    if center_pheno:
+    if not is_full_year:
         imgc = imgc.map(
             lambda img: add_linear_weight(
                 img,
@@ -106,6 +109,18 @@ def groupby_mgrs_orbit_pandas(
                 end_date=end_pheno,
                 total_days=end_pheno.difference(start_pheno, "day"),
             )
+        )
+    else:  # set image.set("cloud_pheno_image_weight", cloud_pheno_weight_combined) to 0.5
+        imgc = imgc.map(
+            lambda img: img.set(
+                "cloud_pheno_image_weight",
+                img.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100),
+            )
+            .set(
+                "cloudy_pixel_percentage",
+                img.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100),
+            )
+            .set("pheno_distance_weight", 0.0)
         )
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
@@ -117,6 +132,8 @@ def groupby_mgrs_orbit_pandas(
                 "s2_index": img.get("system:index"),
                 "group": img.get("group"),
                 "cloud_pheno_image_weight": img.get("cloud_pheno_image_weight"),
+                "cloudy_pixel_percentage": img.getNumber("cloudy_pixel_percentage"),
+                "pheno_distance_weight": img.getNumber("pheno_distance_weight"),
             },
         )
 

@@ -62,4 +62,11 @@ def add_linear_weight(
         .add((ee.Number(1).subtract(weight)).divide(2))
     )
 
-    return image.set("cloud_pheno_image_weight", cloud_pheno_weight_combined)
+    cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
+    pheno_distance_weight = (ee.Number(1).subtract(weight)).divide(2)
+
+    return (
+        image.set("cloud_pheno_image_weight", cloud_pheno_weight_combined)
+        .set("cloudy_pixel_percentage", cloudy_pixel_percentage)
+        .set("pheno_distance_weight", pheno_distance_weight)
+    )

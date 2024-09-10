@@ -2,13 +2,11 @@ PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
   YEAR: '2022'
-  OUTPUT_RESOLUTION: 10 # in meters
+  OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
-  # TRAIT_LIST: ['lai', 'fapar', 'fcover']
-  # TRAIT: 'lai'
-  # TRAITS: ['lai', 'fapar', 'fcover']
-  TRAITS: ['lai', 'fapar', 'fcover']
-  ENSEMBLE_SIZE: 1 
+  TRAITS: ['lai']
+  # TRAITS: ['fapar', 'fcover']
+  ENSEMBLE_SIZE: 5 
   VERSION: 'v3'
   EXPORT_EPSG: 'EPSG:4326'
 
