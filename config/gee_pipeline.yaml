@@ -4,10 +4,11 @@ PIPELINE_PARAMS:
   YEAR: '2022'
   OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
+  # TRAITS: ['lai'] # only use a single trait for now
   TRAITS: ['lai']
-  # TRAITS: ['fapar', 'fcover']
+  # TRAITS: ['fcover']
   ENSEMBLE_SIZE: 5 
-  VERSION: 'v3'
+  VERSION: 'v2'
   EXPORT_EPSG: 'EPSG:4326'
 
 INT16_SCALING: 

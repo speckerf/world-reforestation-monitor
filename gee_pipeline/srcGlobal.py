@@ -37,6 +37,7 @@ def export_ecoregion_per_mgrs_tile(
     year = int(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["YEAR"])
     output_resolution = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"]
 
+    logger.info(f"Exporting ecoregion: {eco_id}")
     # this is used for initial filtering of the imagecollection in GEE, but not for export
     ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017")
 
@@ -299,7 +300,7 @@ def global_export_concurrent():
             for eco_id in [
                 *ecoregions_process_single_list,
                 *ecoregions_process_multi_list,
-            ][::25]
+            ]
         ]
         for future in concurrent.futures.as_completed(futures):
             try:

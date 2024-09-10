@@ -93,6 +93,37 @@ def get_epsg_code_from_mgrs(mgrs_zone_number: str):
     return crs.to_epsg()
 
 
+def add_ndvi_weight(image: ee.Image) -> ee.Image:
+
+    worldcover = ee.ImageCollection("ESA/WorldCover/v100").first()
+    natural_classes = [10, 20, 30, 60, 70, 80, 90, 95, 100]
+    natural_mask = worldcover.remap(
+        natural_classes, ee.List.repeat(1, len(natural_classes)), 0
+    )
+
+    ndvi = image.normalizedDifference(["B8", "B4"]).rename("ndvi")
+    ndvi = ndvi.updateMask(natural_mask)
+
+    mean_ndvi = ndvi.reduceRegion(
+        reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=1000
+    ).getNumber("ndvi")
+
+    cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
+    ndvi_weight = ee.Number(1).subtract(mean_ndvi)
+    cloud_pheno_weight_combined = cloudy_pixel_percentage.add(ndvi_weight)
+
+    return image.set(
+        "cloud_pheno_image_weight",
+        cloud_pheno_weight_combined,
+        "mean_ndvi",
+        mean_ndvi,
+        "ndvi_weight",
+        ndvi_weight,
+        "cloudy_pixel_percentage",
+        cloudy_pixel_percentage,
+    )
+
+
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
     start_pheno: ee.Date = None,
@@ -111,17 +142,7 @@ def groupby_mgrs_orbit_pandas(
             )
         )
     else:  # set image.set("cloud_pheno_image_weight", cloud_pheno_weight_combined) to 0.5
-        imgc = imgc.map(
-            lambda img: img.set(
-                "cloud_pheno_image_weight",
-                img.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100),
-            )
-            .set(
-                "cloudy_pixel_percentage",
-                img.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100),
-            )
-            .set("pheno_distance_weight", 0.0)
-        )
+        imgc = imgc.map(add_ndvi_weight)
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
 
@@ -134,6 +155,8 @@ def groupby_mgrs_orbit_pandas(
                 "cloud_pheno_image_weight": img.get("cloud_pheno_image_weight"),
                 "cloudy_pixel_percentage": img.getNumber("cloudy_pixel_percentage"),
                 "pheno_distance_weight": img.getNumber("pheno_distance_weight"),
+                "mean_ndvi": img.getNumber("mean_ndvi"),
+                "ndvi_weight": img.getNumber("ndvi_weight"),
             },
         )
 
