@@ -8,6 +8,8 @@ library(readr)
 library(dplyr)
 library(magrittr)
 
+set.seed(111)
+
 
 # Function to parse arguments
 parse_args_wrapper <- function() {
