@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.colors import LogNorm
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 
 
 def plot_predicted_vs_true(
@@ -54,7 +55,7 @@ def plot_predicted_vs_true(
         plt.colorbar(label="Count in Bin")
     elif plot_type == "density":
         # Density plot for large datasets
-        sns.kdeplot(
+        ax = sns.kdeplot(
             data=pd.DataFrame({"True": y_true, "Predicted": y_pred}),
             x="True",
             y="Predicted",
@@ -64,7 +65,7 @@ def plot_predicted_vs_true(
         )
     elif plot_type == "density_scatter":
         # Density plot for large datasets
-        sns.kdeplot(
+        ax = sns.kdeplot(
             data=pd.DataFrame({"True": y_true, "Predicted": y_pred}),
             x="True",
             y="Predicted",
@@ -91,7 +92,10 @@ def plot_predicted_vs_true(
         )
 
     # Plot a reference line for perfect prediction
-    max_val = max(np.max(y_true), np.max(y_pred))
+    if "-lai-" in save_plot_filename:
+        max_val = 6.0
+    else:
+        max_val = max(np.max(y_true), np.max(y_pred))
     plt.plot(
         [0, max_val],
         [0, max_val],
@@ -102,43 +106,58 @@ def plot_predicted_vs_true(
     )
 
     if save_plot_filename is not None:
-        if "-lai-" in save_plot_filename:
-            # add line for 20% threshold
-            plt.plot(
-                [2.5, 0.8 * max_val],
-                [2.5 + 0.5, max_val],
-                color="green",
-                linestyle="dashdot",
-                linewidth=1,
-                label="+20% threshold",
-            )
+        # if "-lai-" in save_plot_filename:
+        #     # add line for 20% threshold
+        #     plt.plot(
+        #         [2.5, 0.8 * max_val],
+        #         [2.5 + 0.5, max_val],
+        #         color="green",
+        #         linestyle="dashdot",
+        #         linewidth=1,
+        #         label="+20% threshold",
+        #     )
 
-            plt.plot(
-                [2.5, max_val],
-                [2.5 - 0.5, 0.8 * max_val],
-                color="green",
-                linestyle="dashdot",
-                linewidth=1,
-                label="-20% threshold",
-            )
+        #     plt.plot(
+        #         [2.5, max_val],
+        #         [2.5 - 0.5, 0.8 * max_val],
+        #         color="green",
+        #         linestyle="dashdot",
+        #         linewidth=1,
+        #         label="-20% threshold",
+        #     )
 
-            # Add absolute accuracy threshold line (+0.5 and -0.5)
-            plt.plot(
-                [0, 2.5],
-                [0.5, 2.5 + 0.5],
-                color="green",
-                linestyle="dashed",
-                linewidth=1,
-                label="+0.5 threshold",
-            )
-            plt.plot(
-                [0.5, 2.5],
-                [0, 2.5 - 0.5],
-                color="green",
-                linestyle="dashed",
-                linewidth=1,
-                label="-0.5 threshold",
-            )
+        #     # Add absolute accuracy threshold line (+0.5 and -0.5)
+        #     plt.plot(
+        #         [0, 2.5],
+        #         [0.5, 2.5 + 0.5],
+        #         color="green",
+        #         linestyle="dashed",
+        #         linewidth=1,
+        #         label="+0.5 threshold",
+        #     )
+        #     plt.plot(
+        #         [0.5, 2.5],
+        #         [0, 2.5 - 0.5],
+        #         color="green",
+        #         linestyle="dashed",
+        #         linewidth=1,
+        #         label="-0.5 threshold",
+        #     )
+
+        # add number of points n, rmse, mae, r2
+        n = len(y_true)
+        rmse = root_mean_squared_error(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        r2 = r2_score(y_true, y_pred)
+        plt.text(
+            0.95,
+            0.05,
+            f"n={n}\nRMSE={rmse:.2f}\nMAE={mae:.2f}\nR2={r2:.2f}",
+            horizontalalignment="right",
+            verticalalignment="bottom",
+            transform=ax.transAxes,
+            fontsize=14,
+        )
 
         if "-lai-" in save_plot_filename:
             plt.xlim(-0.05, max_val + 0.05)

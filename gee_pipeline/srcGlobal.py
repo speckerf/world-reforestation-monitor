@@ -1,5 +1,6 @@
 import concurrent.futures
 import os
+import time
 from datetime import datetime
 from functools import reduce
 
@@ -269,6 +270,7 @@ def export_ecoregion_per_mgrs_tile(
             maxPixels=1e11,
         )
         task.start()
+        time.sleep(0.1)
 
 
 def global_export_concurrent():

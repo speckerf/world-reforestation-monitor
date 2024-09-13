@@ -1,15 +1,15 @@
 PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
-  YEAR: '2022'
-  OUTPUT_RESOLUTION: 1000 # in meters
+  YEAR: '2023'
+  OUTPUT_RESOLUTION: 100 # in meters
   CAST_TO_INT16: TRUE
   # TRAITS: ['lai'] # only use a single trait for now
   TRAITS: ['lai']
   # TRAITS: ['fcover']
   ENSEMBLE_SIZE: 5 
   VERSION: 'v2'
-  EXPORT_EPSG: 'EPSG:4326'
+  EXPORT_EPSG: 'EPSG:4326' # not used currently, in GEE everything is exported in native UTM projections, only later when exporting outside of GEE we need to reproject to this EPSG
 
 INT16_SCALING: 
   lai_mean: 1000
