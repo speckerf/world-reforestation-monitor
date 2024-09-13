@@ -1,3 +1,4 @@
+import os
 import random
 import string
 
@@ -10,23 +11,26 @@ from pyproj import CRS
 
 from config.config import get_config
 from gee_pipeline.utils import wait_for_task
+from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
 from gee_pipeline.utilsPhenology import add_linear_weight
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 
 def get_s2_indices_filtered(
-    ecoregion_geometry,
+    ecoregion_boundary: ee.Geometry,
     start_date: ee.Date,
     end_date: ee.Date,
     is_full_year: bool = False,
+    mgrs_tiles: list = None,
 ) -> pd.DataFrame:
     # load s2 data
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     imgc = (
         ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterBounds(ecoregion_geometry)
+        .filterBounds(ecoregion_boundary)
         .filterDate(start_date, end_date)
+        .filter(ee.Filter.inList("MGRS_TILE", mgrs_tiles))
         .filter(
             ee.Filter.lt(
                 "CLOUDY_PIXEL_PERCENTAGE",
@@ -107,6 +111,7 @@ def add_ndvi_weight(image: ee.Image) -> ee.Image:
     mean_ndvi = ndvi.reduceRegion(
         reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=1000
     ).getNumber("ndvi")
+    mean_ndvi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_ndvi, None), -1, mean_ndvi)
 
     cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
     ndvi_weight = ee.Number(1).subtract(mean_ndvi).multiply(2)
@@ -124,6 +129,45 @@ def add_ndvi_weight(image: ee.Image) -> ee.Image:
     )
 
 
+def add_evi_weight(image: ee.Image) -> ee.Image:
+
+    worldcover = ee.ImageCollection("ESA/WorldCover/v100").first()
+    natural_classes = [10, 20, 30, 60, 70, 80, 90, 95, 100]
+    natural_mask = worldcover.remap(
+        natural_classes, ee.List.repeat(1, len(natural_classes)), 0
+    )
+
+    evi = image.expression(
+        "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
+        {
+            "NIR": image.select("B8").divide(10000),
+            "RED": image.select("B4").divide(10000),
+            "BLUE": image.select("B2").divide(10000),
+        },
+    ).rename("evi")
+    evi = evi.updateMask(natural_mask)
+
+    mean_evi = evi.reduceRegion(
+        reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=1000
+    ).getNumber("evi")
+    mean_evi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_evi, None), -1, mean_evi)
+
+    cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
+    evi_weight = ee.Number(1).subtract(mean_evi).multiply(2)
+    cloud_pheno_weight_combined = cloudy_pixel_percentage.add(evi_weight)
+
+    return image.set(
+        "cloud_pheno_image_weight",
+        cloud_pheno_weight_combined,
+        "mean_evi",
+        mean_evi,
+        "evi_weight",
+        evi_weight,
+        "cloudy_pixel_percentage",
+        cloudy_pixel_percentage,
+    )
+
+
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
     start_pheno: ee.Date = None,
@@ -132,17 +176,12 @@ def groupby_mgrs_orbit_pandas(
 ) -> ee.List:
 
     imgc = imgc.map(add_group)
-    if not is_full_year:
-        imgc = imgc.map(
-            lambda img: add_linear_weight(
-                img,
-                start_date=start_pheno,
-                end_date=end_pheno,
-                total_days=end_pheno.difference(start_pheno, "day"),
-            )
-        )
-    else:  # set image.set("cloud_pheno_image_weight", cloud_pheno_weight_combined) to 0.5
-        imgc = imgc.map(add_ndvi_weight)
+
+    # mask out clouds and shadows using cloudscore plus
+    imgc = apply_cloudScorePlus_mask(imgc)
+
+    # add pheno distance weight / new with evi instead of ndvi
+    imgc = imgc.map(add_evi_weight)
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
 
@@ -150,13 +189,15 @@ def groupby_mgrs_orbit_pandas(
         return ee.Feature(
             None,
             {
-                "s2_index": img.get("system:index"),
-                "group": img.get("group"),
-                "cloud_pheno_image_weight": img.get("cloud_pheno_image_weight"),
+                "s2_index": img.getString("system:index"),
+                "group": img.getString("group"),
+                "cloud_pheno_image_weight": img.getNumber("cloud_pheno_image_weight"),
                 "cloudy_pixel_percentage": img.getNumber("cloudy_pixel_percentage"),
                 "pheno_distance_weight": img.getNumber("pheno_distance_weight"),
                 "mean_ndvi": img.getNumber("mean_ndvi"),
                 "ndvi_weight": img.getNumber("ndvi_weight"),
+                "mean_evi": img.getNumber("mean_evi"),
+                "evi_weight": img.getNumber("evi_weight"),
             },
         )
 
@@ -209,202 +250,46 @@ def groupby_mgrs_orbit_pandas(
     return df_grouped["s2_index"].tolist()
 
 
-def groupby_mgrs_orbit_filter_and_export(
-    imgc: ee.ImageCollection,
-    center_pheno: bool = False,
-    start_pheno: ee.Date = None,
-    end_pheno: ee.Date = None,
-) -> ee.List:
-    # Group by orbit and tile using the 'SENSING_ORBIT_NUMBER' and 'MGRS_TILE' properties
+def save_mgrs_tiles_for_ecoregion(eco_id):
+    # get sentinel-2 mgrs tiles in this ecoregion
+    ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017")
+    ecoregion_geometry = ecoregions.filter(ee.Filter.eq("ECO_ID", eco_id)).geometry()
 
-    imgc = imgc.map(add_group)
-    if center_pheno:
-        imgc = imgc.map(
-            lambda img: add_linear_weight(
-                img,
-                start_date=start_pheno,
-                end_date=end_pheno,
-                total_days=end_pheno.difference(start_pheno, "day"),
-            )
-        )
-
-    # Aggregate the groups and filter images within each group
-    all_groups = imgc.aggregate_array("group").distinct()
-
-    def filter_and_select_indices(group):
-        filtered_group = imgc.filter(ee.Filter.eq("group", group)).sort(
-            "CLOUDY_PIXEL_PERCENTAGE"
-        )
-
-        limited_group = filtered_group.limit(10)
-        indices = limited_group.aggregate_array("system:index")
-        return indices
-
-    def filter_and_select_indices_phenoweighting(group):
-        filtered_group = imgc.filter(ee.Filter.eq("group", group)).sort(
-            "cloud_pheno_image_weight"
-        )
-
-        limited_group = filtered_group.limit(10)
-        indices = limited_group.aggregate_array("system:index")
-        return indices
-
-    if center_pheno:
-        filtered_collection = all_groups.map(
-            filter_and_select_indices_phenoweighting
-        ).flatten()
-    else:
-        filtered_collection = all_groups.map(filter_and_select_indices).flatten()
-
-    # Create a FeatureCollection with empty geometries
-    def create_feature(index):
-        return ee.Feature(ee.Geometry.Point([0, 0]), {"s2_index": index})
-
-    feature_collection = ee.FeatureCollection(filtered_collection.map(create_feature))
-
-    # export feature collection with random character name
-    random_name = "".join(random.choices(string.ascii_lowercase, k=20))
-
-    export_task = ee.batch.Export.table.toAsset(
-        collection=feature_collection,
-        description=f"s2 imgc grouped filtering: {random_name}",
-        assetId=f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['TEMP_FOLDER']}/{random_name}",
-    )
-    export_task.start()
-
-    wait_for_task(export_task)
-
-    fc_loaded = ee.FeatureCollection(
-        export_task.config["assetExportOptions"]["earthEngineDestination"]["name"]
+    s2_imgc = (
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+        .filterDate("2023-06-01", "2023-06-30")
+        .filterBounds(ecoregion_geometry)
     )
 
-    return fc_loaded.aggregate_array("s2_index")
+    mgrs_tiles = s2_imgc.aggregate_array("MGRS_TILE").getInfo()
+    unique_mgrs_tiles = list(set(mgrs_tiles))
+
+    # save to csv
+    df = pd.DataFrame(unique_mgrs_tiles, columns=["mgrs_tile"])
+
+    filename = f"mgrs_tiles_ecoregion_{eco_id}.csv"
+    foldername = os.path.join("data", "gee_pipeline", "outputs", "mgrs_tiles")
+
+    os.makedirs(foldername, exist_ok=True)
+
+    with open(os.path.join(foldername, filename), "w") as f:
+        df.to_csv(f, index=False)
+
+
+def save_mgrs_tiles_all_ecoregions():
+    from concurrent.futures import ThreadPoolExecutor
+
+    ecoregions = ee.FeatureCollection("RESOLVE/ECOREGIONS/2017")
+    eco_ids = ecoregions.aggregate_array("ECO_ID").getInfo()
+
+    # Use ThreadPoolExecutor to execute the loop in parallel
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        executor.map(save_mgrs_tiles_for_ecoregion, eco_ids)
 
 
 if __name__ == "__main__":
 
     ee.Initialize(project="ee-speckerfelix")
 
-    small_geometry = ee.Geometry.Polygon(
-        [
-            [
-                [8.035098798771045, 46.12625275000346],
-                [8.035098798771045, 45.59835924137844],
-                [9.221622236271045, 45.59835924137844],
-                [9.221622236271045, 46.12625275000346],
-            ]
-        ],
-        None,
-        False,
-    )
-
-    middle_geometry = ee.Geometry.Polygon(
-        [
-            [
-                [7.035098798771045, 47.12625275000346],
-                [7.035098798771045, 44.59835924137844],
-                [10.221622236271045, 44.59835924137844],
-                [10.221622236271045, 47.12625275000346],
-            ]
-        ],
-        None,
-        False,
-    )
-
-    large_geometry = ee.Geometry.Polygon(
-        [
-            [
-                [6.035098798771045, 53.12625275000346],
-                [6.035098798771045, 42.59835924137844],
-                [13.221622236271045, 42.59835924137844],
-                [13.221622236271045, 53.12625275000346],
-            ]
-        ],
-        None,
-        False,
-    )
-
-    extra_large_geometry = ee.Geometry.Polygon(
-        [
-            [
-                [1.035098798771045, 60.12625275000346],
-                [1.035098798771045, 35.59835924137844],
-                [25.221622236271045, 35.59835924137844],
-                [25.221622236271045, 60.12625275000346],
-            ]
-        ],
-        None,
-        False,
-    )
-
-    # geometry = middle_geometry
-    geometry = extra_large_geometry
-
-    # Define the original ImageCollection
-    imgc = (
-        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterBounds(geometry)
-        .filterDate("2022-04-16", "2022-09-16")
-        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 75))
-    )
-
-    logger.info(f"ImageCollection size: {imgc.size().getInfo()}")
-
-    s2_indices_filtered = groupby_mgrs_orbit_pandas(
-        imgc,
-        center_pheno=True,
-        start_pheno=ee.Date("2022-04-16"),
-        end_pheno=ee.Date("2022-09-16"),
-    )
-
-    del imgc
-    imgc = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filter(
-        ee.Filter.inList("system:index", s2_indices_filtered)
-    )
-
-    logger.info(f"Filtered ImageCollection size: {imgc.size().getInfo()}")
-
-    # to debug here:
-    if False:
-        imgc.filter(ee.Filter.eq("MGRS_TILE", "32TLQ")).aggregate_array(
-            "CLOUDY_PIXEL_PERCENTAGE"
-        ).getInfo()
-
-        a = imgc.filter(ee.Filter.eq("MGRS_TILE", "32TLQ"))
-        cloud_percentages = a.aggregate_array("CLOUDY_PIXEL_PERCENTAGE").getInfo()
-        days_of_image = (
-            a.map(
-                lambda img: ee.Feature(
-                    ee.Geometry.Point([0, 0]), {"date": img.date().format("YYYY-MM-dd")}
-                )
-            )
-            .aggregate_array("date")
-            .getInfo()
-        )
-        import pandas as pd
-
-        df = pd.DataFrame(
-            {"cloud_percentage": cloud_percentages, "date": days_of_image}
-        )
-
-        from datetime import datetime
-
-        df["date"] = df["date"].apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
-        df["start_date"] = datetime.strptime("2022-04-16", "%Y-%m-%d")
-        df["end_date"] = datetime.strptime("2022-09-16", "%Y-%m-%d")
-
-        df["days_from_start"] = (df["date"] - df["start_date"]).dt.days
-        df["days_to_end"] = (df["date"] - df["end_date"]).dt.days.abs()
-        df["min_days_to_start_or_end"] = df[["days_from_start", "days_to_end"]].min(
-            axis=1
-        )
-        df["total_days"] = (df["end_date"] - df["start_date"]).dt.days
-        df["pheno_weight"] = df["min_days_to_start_or_end"] / (df["total_days"] / 2)
-        df["pheno_weight_inverted"] = (1 - df["pheno_weight"]) / 2
-        df["cloud_weight"] = df["cloud_percentage"] / 100
-        df["cloud_pheno_weight_combined"] = (
-            df["cloud_weight"] + df["pheno_weight_inverted"]
-        )
-
-        # pheno_cloud_weight = cloud_percentage/100 + (1 - weight)/2
-        # weight is 1 at the midpoint, 0 at the start and end
+    save_mgrs_tiles_all_ecoregions()
+    # get_s2_indices_filtered(

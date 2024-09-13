@@ -369,7 +369,8 @@ def test_export_global(export_per_mgrs_tile: bool = False):
         #     *ecos_to_process_close_pheno,
         # ]:
         #     continue
-        if eco_id not in [[3, 10, 29]]:
+        # if eco_id not in [1, 39, 43, 51, 8]:
+        if eco_id not in [43, 51, 8]:
             continue
         if export_per_mgrs_tile:
             export_ecoregion_per_mgrs_tile(eco_id=eco_id)

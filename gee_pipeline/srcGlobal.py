@@ -137,12 +137,40 @@ def export_ecoregion_per_mgrs_tile(
         ) as f:
             s2_indices_filtered = f.read().splitlines()
     else:
+        # load all preprocessed lists of mgrs tiles
+        if isinstance(eco_id, int):
+            df = pd.read_csv(
+                os.path.join(
+                    "data",
+                    "gee_pipeline",
+                    "outputs",
+                    "mgrs_tiles",
+                    f"mgrs_tiles_ecoregion_{eco_id}.csv",
+                )
+            )
+            mgrs_tiles = df["mgrs_tile"].tolist()
+        elif isinstance(eco_id, list):
+            mgrs_tiles = []
+            for eco in eco_id:
+                df = pd.read_csv(
+                    os.path.join(
+                        "data",
+                        "gee_pipeline",
+                        "outputs",
+                        "mgrs_tiles",
+                        f"mgrs_tiles_ecoregion_{eco}.csv",
+                    )
+                )
+                mgrs_tiles.extend(df["mgrs_tile"].tolist())
+            mgrs_tiles = list(set(mgrs_tiles))
+
         is_full_year = True if total_days >= 360 else False
         s2_indices_filtered = get_s2_indices_filtered(
-            ecoregion_geometry=geometry,
+            ecoregion_boundary=geometry.bounds(),
             start_date=start_date,
             end_date=end_date,
             is_full_year=is_full_year,
+            mgrs_tiles=mgrs_tiles,
         )
         logger.debug(f"Saving s2_indices_filtered to file: {s2_indices_filename}")
         # save s2_indices_filtered for later use
