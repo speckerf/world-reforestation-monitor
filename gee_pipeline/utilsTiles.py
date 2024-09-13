@@ -21,7 +21,6 @@ def get_s2_indices_filtered(
     ecoregion_boundary: ee.Geometry,
     start_date: ee.Date,
     end_date: ee.Date,
-    is_full_year: bool = False,
     mgrs_tiles: list = None,
 ) -> pd.DataFrame:
     # load s2 data
@@ -50,9 +49,6 @@ def get_s2_indices_filtered(
     # filter imgc by grouping by mgrs tile and orbit number
     s2_indices_filtered = groupby_mgrs_orbit_pandas(
         imgc,
-        start_pheno=start_date,
-        end_pheno=end_date,
-        is_full_year=is_full_year,
     )
     return s2_indices_filtered
 
@@ -148,7 +144,7 @@ def add_evi_weight(image: ee.Image) -> ee.Image:
     evi = evi.updateMask(natural_mask)
 
     mean_evi = evi.reduceRegion(
-        reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=1000
+        reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=500
     ).getNumber("evi")
     mean_evi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_evi, None), -1, mean_evi)
 
@@ -170,9 +166,6 @@ def add_evi_weight(image: ee.Image) -> ee.Image:
 
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
-    start_pheno: ee.Date = None,
-    end_pheno: ee.Date = None,
-    is_full_year: bool = False,
 ) -> ee.List:
 
     imgc = imgc.map(add_group)
@@ -240,8 +233,19 @@ def groupby_mgrs_orbit_pandas(
     df_sorted = df.sort_values(
         by=["group", "cloud_pheno_image_weight"], ascending=[True, True]
     )
+
+    # per group, drop images if their mean_evi is below max(mean_evi) - MAX_EVI_DIFFERENCE
+    df_sorted["mean_evi_diff"] = df_sorted.groupby("group")["mean_evi"].transform(
+        lambda x: x.max() - x
+    )
+    df_sorted = df_sorted[
+        df_sorted["mean_evi_diff"]
+        <= CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["MAX_EVI_DIFFERENCE"]
+    ]
+
+    # from the remaining images, select the top MAX_IMAGES_PER_GROUP images per group
     df_grouped = df_sorted.groupby("group").head(
-        CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["MAX_IMAGES_PER_GROUP"]
+        CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["MAX_IMAGES_PER_GROUP"]
     )
 
     logger.debug(f"imgc size after grouping and filtering: {df_grouped.shape[0]}")

@@ -70,52 +70,8 @@ def export_ecoregion_per_mgrs_tile(
     else:
         raise ValueError("eco_id must be int or list[int]")
 
-    if isinstance(eco_id, int):
-        start_date, end_date, total_days = get_start_end_date_phenology_for_ecoregion(
-            eco_id, year
-        )
-        start_date = ee.Date(start_date)
-        end_date = ee.Date(end_date)
-    elif isinstance(eco_id, list):
-        results = {}
-        for eco in eco_id:
-            results[eco] = get_start_end_date_phenology_for_ecoregion(eco, year)
-
-        # assert all results are the same
-        if len(set(results.values())) != 1:
-            logger.warning(
-                "Phenology dates are not the same for all ecoregions, Average start and end dates will be used"
-            )
-            start_dates = [
-                datetime.strptime(results[eco][0], "%Y-%m-%d").timestamp()
-                for eco in eco_id
-            ]
-            end_dates = [
-                datetime.strptime(results[eco][1], "%Y-%m-%d").timestamp()
-                for eco in eco_id
-            ]
-
-            average_start_date = np.mean(start_dates)
-            average_end_date = np.mean(end_dates)
-
-            start_date = datetime.fromtimestamp(average_start_date).strftime("%Y-%m-%d")
-            end_date = datetime.fromtimestamp(average_end_date).strftime("%Y-%m-%d")
-            total_days = int(
-                (
-                    datetime.strptime(end_date, "%Y-%m-%d")
-                    - datetime.strptime(start_date, "%Y-%m-%d")
-                ).days
-            )
-            start_date = ee.Date(start_date)
-            end_date = ee.Date(end_date)
-
-        else:
-            # assert len(set(results.values())) == 1
-            start_date, end_date, total_days = results[eco_id[0]]
-            start_date = ee.Date(start_date)
-            end_date = ee.Date(end_date)
-    else:
-        raise ValueError("eco_id must be int or list[int]")
+    start_date = ee.Date(f"{year}-01-01")
+    end_date = ee.Date(f"{year}-12-31")
 
     # save s2_indices_filtered for later use
     if isinstance(eco_id, int):
@@ -164,12 +120,10 @@ def export_ecoregion_per_mgrs_tile(
                 mgrs_tiles.extend(df["mgrs_tile"].tolist())
             mgrs_tiles = list(set(mgrs_tiles))
 
-        is_full_year = True if total_days >= 360 else False
         s2_indices_filtered = get_s2_indices_filtered(
             ecoregion_boundary=geometry.bounds(),
             start_date=start_date,
             end_date=end_date,
-            is_full_year=is_full_year,
             mgrs_tiles=mgrs_tiles,
         )
         logger.debug(f"Saving s2_indices_filtered to file: {s2_indices_filename}")
@@ -273,8 +227,6 @@ def export_ecoregion_per_mgrs_tile(
                 "system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis()
             )
             .set("system:time_end", ee.Date.fromYMD(int(year), 12, 31).millis())
-            .set("pheno_start", ee.Date(start_date).millis())
-            .set("pheno_end", ee.Date(end_date).millis())
             .set("year", year)
             .set("version", version)
             .set("ecoregion_id", eco_id)
@@ -329,6 +281,28 @@ def global_export_concurrent():
         *ecoregions_simplifier["same_pheno"],
         *ecoregions_simplifier["close_pheno"],
     ]
+
+    # DEBUG
+    if True:
+        ecoregions_process_multi_list = []
+        ecoregions_process_single_list = [
+            450,
+            451,
+            617,
+            502,
+            527,
+            533,
+            553,
+            14,
+            44,
+            113,
+            62,
+            8,
+            43,
+            51,
+            1,
+            39,
+        ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = [

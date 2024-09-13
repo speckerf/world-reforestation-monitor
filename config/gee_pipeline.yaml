@@ -8,8 +8,11 @@ PIPELINE_PARAMS:
   TRAITS: ['lai']
   # TRAITS: ['fcover']
   ENSEMBLE_SIZE: 5 
-  VERSION: 'v3'
+  VERSION: 'v4'
   EXPORT_EPSG: 'EPSG:4326' # not used currently, in GEE everything is exported in native UTM projections, only later when exporting outside of GEE we need to reproject to this EPSG
+
+  MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile
+  MAX_EVI_DIFFERENCE: 0.25 # max difference in EVI for images, taking all images with MAX_EVI_DIFFERENCE to the highest evi image
 
 INT16_SCALING: 
   lai_mean: 1000
@@ -64,7 +67,6 @@ CLOUD_FILTERING:
   CLOUDY_PIXEL_PERCENTAGE: 70 # max initial cloudy pixel percentage
   CLOUD_SCORE_PLUS_THRESHOLD: 0.65
   CLOUD_SCORE_PLUS_BAND: 'cs' # 'cs' or 'cs_cdf' : see https://medium.com/google-earth/all-clear-with-cloud-score-bd6ee2e2235e
-  MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile
 
 
 GEE_FOLDERS:
