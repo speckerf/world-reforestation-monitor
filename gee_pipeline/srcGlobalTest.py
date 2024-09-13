@@ -370,7 +370,8 @@ def test_export_global(export_per_mgrs_tile: bool = False):
         # ]:
         #     continue
         # if eco_id not in [1, 39, 43, 51, 8]:
-        if eco_id not in [43, 51, 8]:
+        # if eco_id not in [44, 113, 62]:
+        if eco_id not in [450, 451, 617, 502, 527, 533, 553]:
             continue
         if export_per_mgrs_tile:
             export_ecoregion_per_mgrs_tile(eco_id=eco_id)
