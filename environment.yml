@@ -20,3 +20,4 @@ dependencies:
   - optuna
   - optuna-dashboard
   - seaborn
+  - tqdm
