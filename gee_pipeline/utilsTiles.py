@@ -129,72 +129,51 @@ def get_epsg_code_from_mgrs(mgrs_zone_number: str):
     return crs.to_epsg()
 
 
-def add_ndvi_weight(image: ee.Image) -> ee.Image:
-
-    worldcover = ee.ImageCollection("ESA/WorldCover/v100").first()
-    natural_classes = [10, 20, 30, 60, 70, 80, 90, 95, 100]
-    natural_mask = worldcover.remap(
-        natural_classes, ee.List.repeat(1, len(natural_classes)), 0
-    )
-
-    ndvi = image.normalizedDifference(["B8", "B4"]).rename("ndvi")
-    ndvi = ndvi.updateMask(natural_mask)
-
-    mean_ndvi = ndvi.reduceRegion(
-        reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=1000
-    ).getNumber("ndvi")
-    mean_ndvi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_ndvi, None), -1, mean_ndvi)
-
-    cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
-    ndvi_weight = ee.Number(1).subtract(mean_ndvi).multiply(2)
-    cloud_pheno_weight_combined = cloudy_pixel_percentage.add(ndvi_weight)
-
-    return image.set(
-        "cloud_pheno_image_weight",
-        cloud_pheno_weight_combined,
-        "mean_ndvi",
-        mean_ndvi,
-        "ndvi_weight",
-        ndvi_weight,
-        "cloudy_pixel_percentage",
-        cloudy_pixel_percentage,
-    )
-
-
-def add_evi_weight(image: ee.Image) -> ee.Image:
+def add_vegetion_index_weight(image: ee.Image) -> ee.Image:
     # use SCL to mask out all snow and water pixels, also defective pixels: mask out 0, 1, 2, 6, 11
     scl = image.select("SCL")
     scl_mask = scl.remap([0, 1, 2, 6, 11], [0, 0, 0, 0, 0], 1)
 
     # then mask based on esa world cover
-    worldcover = ee.ImageCollection("ESA/WorldCover/v100").first()
+    worldcover = ee.ImageCollection("ESA/WorldCover/v200").first()
     natural_classes = [10, 20, 30, 60, 70, 90, 95, 100]
     natural_mask = worldcover.remap(
         natural_classes, ee.List.repeat(1, len(natural_classes)), 0
     )
 
-    evi = image.expression(
-        "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
-        {
-            "NIR": image.select("B8").divide(10000),
-            "RED": image.select("B4").divide(10000),
-            "BLUE": image.select("B2").divide(10000),
-        },
-    ).rename("evi")
-    # mask out pixels that should not contribute to evi calculation
-    evi = evi.updateMask(natural_mask).updateMask(scl_mask)
+    if CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_INDEX"] == "EVI":
+        vi = image.expression(
+            "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
+            {
+                "NIR": image.select("B8").divide(10000),
+                "RED": image.select("B4").divide(10000),
+                "BLUE": image.select("B2").divide(10000),
+            },
+        ).rename("vegetation_index")
 
-    mean_evi = evi.reduceRegion(
+    elif CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_INDEX"] == "NDVI":
+        vi = image.expression(
+            "(NIR - RED) / (NIR + RED)",
+            {
+                "NIR": image.select("B8").divide(10000),
+                "RED": image.select("B4").divide(10000),
+            },
+        ).rename("vegetation_index")
+    else:
+        raise ValueError("Index not recognized.")
+    # mask out pixels that should not contribute to evi calculation
+    vi = vi.updateMask(natural_mask).updateMask(scl_mask)
+
+    mean_vi = vi.reduceRegion(
         reducer=ee.Reducer.mean(), geometry=image.geometry(), scale=500
-    ).getNumber("evi")
-    mean_evi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_evi, None), -1, mean_evi)
+    ).getNumber("vegetation_index")
+    mean_vi = ee.Algorithms.If(ee.Algorithms.IsEqual(mean_vi, None), -1, mean_vi)
 
     cloudy_pixel_percentage = image.getNumber("CLOUDY_PIXEL_PERCENTAGE").divide(100)
-    evi_weight = ee.Number(1).subtract(mean_evi).multiply(2)
-    cloud_pheno_weight_combined = cloudy_pixel_percentage.add(evi_weight)
+    vi_weight = ee.Number(1).subtract(mean_vi).multiply(2)
+    cloud_pheno_weight_combined = cloudy_pixel_percentage.add(vi_weight)
 
     system_asset_size = image.getNumber("system:asset_size")
-
     water_percentage = image.getNumber("WATER_PERCENTAGE").divide(100)
     snow_ice_percentage = image.getNumber("SNOW_ICE_PERCENTAGE").divide(100)
     vegetation_percentage = image.getNumber("VEGETATION_PERCENTAGE").divide(100)
@@ -202,10 +181,10 @@ def add_evi_weight(image: ee.Image) -> ee.Image:
     return image.set(
         "cloud_pheno_image_weight",
         cloud_pheno_weight_combined,
-        "mean_evi",
-        mean_evi,
-        "evi_weight",
-        evi_weight,
+        "mean_vegetation_index",
+        mean_vi,
+        "vegetation_index_weight",
+        vi_weight,
         "cloudy_pixel_percentage",
         cloudy_pixel_percentage,
         "system_asset_size",
@@ -229,7 +208,7 @@ def groupby_mgrs_orbit_pandas(
     imgc = apply_cloudScorePlus_mask(imgc)
 
     # add pheno distance weight / new with evi instead of ndvi
-    imgc = imgc.map(add_evi_weight)
+    imgc = imgc.map(add_vegetion_index_weight)
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
 
@@ -242,10 +221,8 @@ def groupby_mgrs_orbit_pandas(
                 "cloud_pheno_image_weight": img.getNumber("cloud_pheno_image_weight"),
                 "cloudy_pixel_percentage": img.getNumber("cloudy_pixel_percentage"),
                 "pheno_distance_weight": img.getNumber("pheno_distance_weight"),
-                "mean_ndvi": img.getNumber("mean_ndvi"),
-                "ndvi_weight": img.getNumber("ndvi_weight"),
-                "mean_evi": img.getNumber("mean_evi"),
-                "evi_weight": img.getNumber("evi_weight"),
+                "mean_vegetation_index": img.getNumber("mean_vegetation_index"),
+                "vegetation_index_weight": img.getNumber("vegetation_index_weight"),
                 "system_asset_size": img.getNumber("system_asset_size"),
                 "water_percentage": img.getNumber("water_percentage"),
                 "snow_ice_percentage": img.getNumber("snow_ice_percentage"),
@@ -294,52 +271,35 @@ def groupby_mgrs_orbit_pandas(
     )
 
     # filter out all evi larger than 1.0 and smaller than -1.0
-    df_sorted = df_sorted[
-        (df_sorted["mean_evi"] <= 1.0) & (df_sorted["mean_evi"] > -1.0)
+    df_sorted_1 = df_sorted[
+        (df_sorted["mean_vegetation_index"] <= 1.0)
+        & (df_sorted["mean_vegetation_index"] > -1.0)
     ]
 
-    # filter out all images where snow_ice_percetange - 4*vegetation_percentage is greater than 0.0
-    df_sorted = df_sorted[
-        (df_sorted["snow_ice_percentage"] - 4 * df_sorted["vegetation_percentage"])
-        <= 0.0
-    ]
-
+    df_sorted_3 = df_sorted_1  # legacy code
     # group by group and date of acquisition, only keep largest image (by system_asset_size)
-    df_sorted["acquisition_date"] = df_sorted["s2_index"].str.slice(0, 8)
-    df_sorted = (
-        df_sorted.groupby(["group", "acquisition_date"])
+    df_sorted_3.loc[:, "acquisition_date"] = df_sorted_3["s2_index"].str.slice(0, 8)
+    df_sorted_4 = (
+        df_sorted_3.groupby(["group", "acquisition_date"])
         .apply(lambda x: x.nlargest(1, "system_asset_size"))
         .reset_index(drop=True)
     )
 
-    # get all groups for which no image left after filtering / groups in df but not in df_sorted
-    groups_no_images = set(df["group"]) - set(df_sorted["group"])
-    # for these groups, get them from df, filter by snow_ice_percentage less than 0.9, then add top 2 images with least snow_ice_percentage to df_sorted
-    df_to_add = pd.DataFrame()
-    for group in groups_no_images:
-        df_group = df[df["group"] == group]
-        df_group = df_group[df_group["snow_ice_percentage"] <= 0.9]
-        df_group = df_group.nsmallest(4, "snow_ice_percentage")
-        df_to_add = pd.concat([df_to_add, df_group])
-
-    df_sorted = pd.concat([df_sorted, df_to_add])
-    logger.debug(
-        f"Manually added images for groups with no images: {set(df_to_add['group'])}"
-    )
-
     # per group, drop images if their mean_evi is below 0.9 quantile - MAX_EVI_DIFFERENCE
-    df_sorted["mean_evi_diff"] = df_sorted.groupby("group")["mean_evi"].transform(
-        lambda x: x.quantile(CONFIG_GEE_PIPELINE["S2_FILTERING"]["EVI_MAX_PERCENTILE"])
+    df_sorted_4["mean_vi_diff"] = df_sorted_4.groupby("group")[
+        "mean_vegetation_index"
+    ].transform(
+        lambda x: x.quantile(CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_MAX_PERCENTILE"])
         - x
     )
-    df_sorted = df_sorted[
-        df_sorted["mean_evi_diff"]
-        <= CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_EVI_DIFFERENCE"]
+    df_sorted_5 = df_sorted_4[
+        df_sorted_4["mean_vi_diff"]
+        <= CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_VI_DIFFERENCE"]
     ]
 
     # from the remaining images, select the top MAX_IMAGES_PER_GROUP images per group
-    df_grouped = (
-        df_sorted.groupby("group")
+    df_filtered = (
+        df_sorted_5.groupby("group")
         .apply(
             lambda x: x.nsmallest(
                 CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_IMAGES_PER_GROUP"],
@@ -349,10 +309,10 @@ def groupby_mgrs_orbit_pandas(
         .reset_index(drop=True)
     )
 
-    logger.debug(f"imgc size after grouping and filtering: {df_grouped.shape[0]}")
+    logger.debug(f"imgc size after grouping and filtering: {df_filtered.shape[0]}")
 
     # return list of system:index
-    return df_grouped["s2_index"].tolist()
+    return df_filtered["s2_index"].tolist()
 
 
 def save_mgrs_tiles_for_ecoregion(eco_id):

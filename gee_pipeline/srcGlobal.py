@@ -223,7 +223,7 @@ def global_export_mgrs_tiles():
 
     mgrs_tiles_list = list(set(mgrs_tiles_list) - exclude)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [
             executor.submit(export_mgrs_tile, mgrs_tile)
             for mgrs_tile in mgrs_tiles_list
