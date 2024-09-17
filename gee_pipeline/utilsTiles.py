@@ -312,6 +312,21 @@ def groupby_mgrs_orbit_pandas(
         .reset_index(drop=True)
     )
 
+    # get all groups for which no image left after filtering / groups in df but not in df_sorted
+    groups_no_images = set(df["group"]) - set(df_sorted["group"])
+    # for these groups, get them from df, filter by snow_ice_percentage less than 0.9, then add top 2 images with least snow_ice_percentage to df_sorted
+    df_to_add = pd.DataFrame()
+    for group in groups_no_images:
+        df_group = df[df["group"] == group]
+        df_group = df_group[df_group["snow_ice_percentage"] <= 0.9]
+        df_group = df_group.nsmallest(4, "snow_ice_percentage")
+        df_to_add = pd.concat([df_to_add, df_group])
+
+    df_sorted = pd.concat([df_sorted, df_to_add])
+    logger.debug(
+        f"Manually added images for groups with no images: {set(df_to_add['group'])}"
+    )
+
     # per group, drop images if their mean_evi is below 0.9 quantile - MAX_EVI_DIFFERENCE
     df_sorted["mean_evi_diff"] = df_sorted.groupby("group")["mean_evi"].transform(
         lambda x: x.quantile(CONFIG_GEE_PIPELINE["S2_FILTERING"]["EVI_MAX_PERCENTILE"])

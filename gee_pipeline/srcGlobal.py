@@ -214,6 +214,15 @@ def global_export_mgrs_tiles():
     )
     mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
 
+    # exlcude the following mgrs tiles: 01X - 37X, 21W - 26W, 22V - 24V
+    exclude = set(
+        list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(1, 38), ["X"] * 37))
+        + list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(21, 27), ["W"] * 6))
+        + list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(22, 25), ["V"] * 3))
+    )
+
+    mgrs_tiles_list = list(set(mgrs_tiles_list) - exclude)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=24) as executor:
         futures = [
             executor.submit(export_mgrs_tile, mgrs_tile)
