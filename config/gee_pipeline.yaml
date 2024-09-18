@@ -8,7 +8,7 @@ PIPELINE_PARAMS:
   TRAITS: ['lai']
   # TRAITS: ['fcover']
   ENSEMBLE_SIZE: 5 
-  VERSION: 'v9'
+  VERSION: 'v10'
   EXPORT_EPSG: 'EPSG:4326' # not used currently, in GEE everything is exported in native UTM projections, only later when exporting outside of GEE we need to reproject to this EPSG
 
 S2_FILTERING:
