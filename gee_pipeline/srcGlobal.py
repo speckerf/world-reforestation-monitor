@@ -221,7 +221,10 @@ def global_export_mgrs_tiles():
         + list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(22, 25), ["V"] * 3))
     )
 
-    mgrs_tiles_list = list(set(mgrs_tiles_list) - exclude)
+    include = ["19F", "19E", "20F"]
+
+    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]) - exclude)
+    logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [
