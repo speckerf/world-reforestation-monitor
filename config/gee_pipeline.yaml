@@ -1,15 +1,24 @@
 PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   # CONTINENT: 'EU'
-  YEAR: '2019'
+  YEAR: '2023'
   OUTPUT_RESOLUTION: 100 # in meters
   CAST_TO_INT16: TRUE
   # TRAITS: ['lai'] # only use a single trait for now
-  TRAITS: ['lai']
+  TRAITS: ['fcover']
   # TRAITS: ['fcover']
   ENSEMBLE_SIZE: 5 
+  VERSION: 'v10' # refers to version v1.0 of the pipeline
+
+EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
+  YEAR: '2019'
+  TRAIT: 'lai'
+  BAND: 'mean'
+  RESOLUTION: 100
   VERSION: 'v10'
-  EXPORT_EPSG: 'EPSG:4326' # not used currently, in GEE everything is exported in native UTM projections, only later when exporting outside of GEE we need to reproject to this EPSG
+  EPSG: 'EPSG:4326'
+  NO_DATA_VALUE: -9999
+
 
 S2_FILTERING:
   MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile
@@ -31,25 +40,6 @@ INT16_SCALING:
   fcover_mean: 10000
   fcover_stdDev: 10000
 
-# EPSG_CODES:
-#   AF: "EPSG:27701"
-#   AN: "EPSG:27702"
-#   AS: "EPSG:27703"
-#   EU: "EPSG:27704"
-#   NA: "EPSG:27705"
-#   OC: "EPSG:27706"
-#   SA: "EPSG:27707"
-
-# WKT_STRINGS:
-#   AF: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",5621452.01998],PARAMETER["false_northing",5990638.42298],PARAMETER["central_meridian",21.5],PARAMETER["latitude_of_origin",8.5],UNIT["Meter",1.0]]'
-#   AN: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",3714266.97719],PARAMETER["false_northing",3402016.50625],PARAMETER["central_meridian",0.0],PARAMETER["latitude_of_origin",-90.0],UNIT["Meter",1.0]]' 
-#   AS: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",4340913.84808],PARAMETER["false_northing",4812712.92347],PARAMETER["central_meridian",94.0],PARAMETER["latitude_of_origin",47.0],UNIT["Meter",1.0]]'
-#   EU: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",5837287.81977],PARAMETER["false_northing",2121415.69617],PARAMETER["central_meridian",24.0],PARAMETER["latitude_of_origin",53.0],UNIT["Meter",1.0]]'
-#   NA: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",8264722.17686],PARAMETER["false_northing",4867518.35323],PARAMETER["central_meridian",-97.5],PARAMETER["latitude_of_origin",52.0],UNIT["Meter",1.0]]'
-#   OC: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",6988408.5356],PARAMETER["false_northing",7654884.53733],PARAMETER["central_meridian",131.5],PARAMETER["latitude_of_origin",-19.5],UNIT["Meter",1.0]]'
-#   SA: 'PROJCS["Azimuthal_Equidistant",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.017453292519943295]],PROJECTION["Azimuthal_Equidistant"],PARAMETER["false_easting",7257179.23559],PARAMETER["false_northing",5592024.44605],PARAMETER["central_meridian",-60.5],PARAMETER["latitude_of_origin",-14.0],UNIT["Meter",1.0]]'
-
-
 UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2072-4292/10/1/85
   lai_mean: '[m2/m2]'
   lai_stdDev: '[m2/m2]'
@@ -64,27 +54,28 @@ UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2
   fcover_mean: '[]'
   fcover_stdDev: '[]'
 
-CONDA_PATH: "/Users/remotelogin3/miniconda3/envs/gee_pipeline"
+CONDA_PATH: "/Users/felix/miniconda3/envs/gee_pipeline"
 
 CLOUD_FILTERING:
   CLOUDY_PIXEL_PERCENTAGE: 70 # max initial cloudy pixel percentage
   CLOUD_SCORE_PLUS_THRESHOLD: 0.65
   CLOUD_SCORE_PLUS_BAND: 'cs' # 'cs' or 'cs_cdf' : see https://medium.com/google-earth/all-clear-with-cloud-score-bd6ee2e2235e
 
-
 GEE_FOLDERS:
   ASSET_FOLDER: 'projects/ee-speckerfelix/assets/open-earth'
   TEMP_FOLDER: 'projects/ee-speckerfelix/assets/temp'
   MODEL_RF_LUT: projects/ee-speckerfelix/assets/open-earth/random_forest_models_and_data
-  # MISC_FOLDER: 'projects/crowtherlab/felix/open-earth/misc'
-  # CLOUDFREE_FOLDER: 'projects/crowtherlab/felix/open-earth/s2_cloudfree'
-  # PREDICTIONS_COLLECTION: 'projects/ee-speckerfelix/assets/open-earth/'
-  # S2_ANGLE_COLLECTION: 'projects/ee-speckerfelix/assets/open-earth/s2_angles'
-  # VALIDATION_TEST: 'projects/ee-speckerfelix/assets/open-earth/s2_validation_test'
-  # PREDICTIONS_TEST: 'projects/ee-speckerfelix/assets/test'
 
 GCLOUD_FOLDERS:
   TEMP_FOLDER: 'gs://felixspecker/open-earth/temp/'
+  BUCKET: 'felixspecker'
+  EXPORT_FOLDER_INTERMEDIATE: 'open-earth/trait_maps/intermediate'
+  EXPORT_FOLDER_FINAL: 'open-earth/trait_maps/merged'
+  EXPORT_FOLDER_FINAL_PUBLIC: 'gs://felixspecker-public/open-earth/trait_maps'
+
+LOCAL_FOLDERS:
+  EXPORT_FOLDER_INTERMEDIATE: 'data-local/trait_maps/intermediate'
+  EXPORT_FOLDER_FINAL: 'data-local/trait_maps/merged'
 
   # BUCKET: 'felixspecker'
   # LOCAL_RAW_FOLDER: '../data_shared/gee_exports/data_raw'
