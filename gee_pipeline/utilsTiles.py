@@ -1,3 +1,4 @@
+import ast
 import os
 import random
 import string
@@ -218,6 +219,8 @@ def groupby_mgrs_orbit_pandas(
             {
                 "s2_index": img.getString("system:index"),
                 "group": img.getString("group"),
+                "mgrs_tile": img.getString("MGRS_TILE"),
+                "orbit": img.getNumber("SENSING_ORBIT_NUMBER"),
                 "cloud_pheno_image_weight": img.getNumber("cloud_pheno_image_weight"),
                 "cloudy_pixel_percentage": img.getNumber("cloudy_pixel_percentage"),
                 "pheno_distance_weight": img.getNumber("pheno_distance_weight"),
@@ -264,6 +267,31 @@ def groupby_mgrs_orbit_pandas(
 
     # convert feature collection to pandas dataframe # drop geometry column
     df = gpd.GeoDataFrame.from_features(fc_concat).drop(columns="geometry")
+    # # cast orbit to int (not np.int64)
+    df["orbit"] = df["orbit"].astype(int)
+
+    # filter each mgrs tile by the relevant orbits
+    relevant_orbits_df = (
+        pd.read_csv(
+            os.path.join(
+                "data", "gee_pipeline", "outputs", "s2_orbits_per_mgrs_tile_merged.csv"
+            ),
+        )
+        .drop(columns=["system:index", ".geo"])
+        .rename(columns={"MGRS_TILE": "mgrs_tile"})
+    )
+    # Parse the columns as lists
+    list_columns = ["ORBITS_TO_KEEP", "ALL_ORBITS", "ORBIT_MEAN_NODATA_PERCENTAGE"]
+    for col in list_columns:
+        relevant_orbits_df[col] = relevant_orbits_df[col].apply(
+            lambda x: ast.literal_eval(x) if isinstance(x, str) else x
+        )
+
+    # merge the two dataframes
+    df = df.merge(relevant_orbits_df, on="mgrs_tile")
+
+    # Filter rows where the 'orbit' is in the 'ORBITS_TO_KEEP' list for each row
+    df = df[df.apply(lambda row: row["orbit"] in row["ORBITS_TO_KEEP"], axis=1)]
 
     # filter by group and sort by cloud_pheno_image_weight, limit to 10 images per group
     df_sorted = df.sort_values(
