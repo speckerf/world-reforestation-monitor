@@ -50,6 +50,17 @@ class rtm_simulator:
                 distributions[parm] = self.get_truncated_normal_sampler(
                     mean=p["mean"], sd=p["std"], low=p["min"], upp=p["max"]
                 )
+            elif p["distribution"] == "OPTUNA_truncnorm":
+                assert f"{parm}_min" in self.config, f"{parm}_min not in config"
+                assert f"{parm}_max" in self.config, f"{parm}_max not in config"
+                assert f"{parm}_mean" in self.config, f"{parm}_mean not in config"
+                assert f"{parm}_std" in self.config, f"{parm}_std not in config"
+                distributions[parm] = self.get_truncated_normal_sampler(
+                    mean=self.config[f"{parm}_mean"],
+                    sd=self.config[f"{parm}_std"],
+                    low=self.config[f"{parm}_min"],
+                    upp=self.config[f"{parm}_max"],
+                )
             elif p["distribution"] == "normal":
                 distributions[parm] = self.get_normal_sampler(
                     mean=p["mean"], sd=p["std"]
@@ -155,6 +166,7 @@ class rtm_simulator:
                 "normal",
                 "uniform",
                 "constant",
+                "OPTUNA_truncnorm",
             ]:
                 np.random.seed(42)
                 InputPROSAIL[parm] = sampler(size=number_of_samples)
@@ -193,6 +205,17 @@ class rtm_simulator:
                 InputPROSAIL[parm] = sampler(
                     size=number_of_samples, base_values=base_values[base_param]
                 )
+
+        if "EWT" not in InputPROSAIL.columns:
+            assert (
+                "Cw_rel" in InputPROSAIL.columns
+            ), f"Cw_rel not in InputPROSAIL.columns"
+            # InputPROSAIL$EWT <- ((InputPROSAIL$LMA)/(1-InputPROSAIL$Cw_rel))-InputPROSAIL$LMA
+            InputPROSAIL["EWT"] = (
+                InputPROSAIL["LMA"] / (1 - InputPROSAIL["Cw_rel"])
+            ) - InputPROSAIL["LMA"]
+            # remove column Cw_rel
+            InputPROSAIL = InputPROSAIL.drop(columns=["Cw_rel"])
 
         return InputPROSAIL
 
@@ -434,12 +457,13 @@ def helper_apply_posthoc_modifications(single_df, trait, config):
 def apply_posthoc_modifications(df: pd.DataFrame, trait: str, config: dict):
     angles = ["tts", "tto", "psi"]
 
-    df_baresoil_insitu = get_baresoil_insitu(n=config["n_baresoil_insitu"])
-    df_baresoil_s2 = get_baresoil_s2(n=config["n_baresoil_s2"])
-    df_baresoil_emit = get_baresoil_emit(n=config["n_baresoil_emit"])
-    df_urban_s2 = get_urban_s2(n=config["n_urban_s2"])
-    df_water_s2 = get_water_s2(n=config["n_water_s2"])
-    df_snowice_s2 = get_snowice_s2(n=config["n_snowice_s2"])
+    df_baresoil_insitu = get_baresoil_insitu(
+        n=int(len(df) * config["p_baresoil_insitu"])
+    )
+    df_baresoil_s2 = get_baresoil_s2(n=int(len(df) * config["p_baresoil_s2"]))
+    df_baresoil_emit = get_baresoil_emit(n=int(len(df) * config["p_baresoil_emit"]))
+    df_urban_s2 = get_urban_s2(n=int(len(df) * config["p_urban_s2"]))
+    df_snowice_s2 = get_snowice_s2(n=int(len(df) * config["p_snowice_s2"]))
 
     df_posthoc_additions = pd.concat(
         [
@@ -447,7 +471,6 @@ def apply_posthoc_modifications(df: pd.DataFrame, trait: str, config: dict):
             df_baresoil_s2,
             df_baresoil_emit,
             df_urban_s2,
-            df_water_s2,
             df_snowice_s2,
         ],
         ignore_index=True,
@@ -460,6 +483,11 @@ def apply_posthoc_modifications(df: pd.DataFrame, trait: str, config: dict):
 
     # set trait to zero
     df_posthoc_additions[trait] = 0
+
+    # # add small random positive noise to the added trait values
+    # df_posthoc_additions[trait] = df_posthoc_additions[trait] + np.abs(
+    #     np.random.rand(len(df_posthoc_additions)) * 1e-3
+    # )
 
     # add the posthoc additions to the original dataframe
     df = pd.concat([df, df_posthoc_additions], ignore_index=True)

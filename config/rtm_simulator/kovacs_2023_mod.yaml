@@ -34,9 +34,10 @@ prosail_params:
     distribution: 'constant'
     value: 0.0
   lai: 
-    distribution: 'uniform'
-    min: 0.0
-    max: 7.0
+    distribution: 'OPTUNA_truncnorm'
+  #   distribution: 'uniform'
+  #   min: 0.0
+  #   max: 7.0
   LIDFa: 
     distribution: 'uniform'
     min: 40.0

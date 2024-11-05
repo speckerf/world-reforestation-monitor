@@ -53,13 +53,13 @@ def optuna_init_config(trial):
     if trait == "fapar":
         config_transform_target = {
             "transform_target": trial.suggest_categorical(
-                "transform_target", ["logit", "None"]
+                "transform_target", ["logit", "log1p", "None"]
             ),
         }
     elif trait == "fcover":
         config_transform_target = {
             "transform_target": trial.suggest_categorical(
-                "transform_target", ["logit", "None"]
+                "transform_target", ["logit", "log1p", "None"]
             ),
         }
     elif trait == "lai":
@@ -86,9 +86,12 @@ def optuna_init_config(trial):
 
     config_lut = {
         # "add_noise": True,
-        "num_spectra": 2500 * trial.suggest_int("num_spectra_optuna", 1, 20, log=True),
-        # "num_spectra": 1000,
-        "parameter_setup": trial.suggest_categorical(
+        "num_spectra": 2500
+        * trial.suggest_int("num_spectra_optuna", 1, 20, log=True),
+    }
+
+    if trait == "lai":
+        config_lut["parameter_setup"] = trial.suggest_categorical(
             "parameter_setup",
             [
                 "estevez_2022",
@@ -97,9 +100,78 @@ def optuna_init_config(trial):
                 "snap_atbd",
                 "wan_2024_lai",
             ],
-        ),
-        # "parameter_setup": "foliar_codistribution",
-    }
+        )
+    # use modified versions for fapar and fcover to let the model learn the range of LAI itsef (because this is decisive for the upper bound of simulated fapar/fcover)
+    elif trait == "fapar":
+        parameter_setup = trial.suggest_categorical(
+            "parameter_setup",
+            [
+                "estevez_2022_mod",
+                "foliar_codistribution_mod",
+                "kovacs_2023_mod",
+                "snap_atbd_mod",
+                "wan_2024_lai_mod",
+            ],
+        )
+        config_lut["parameter_setup"] = parameter_setup
+        if parameter_setup != "snap_atbd":
+            config_lut["lai_min"] = 0.0
+            config_lut["lai_max"] = 15.0
+            config_lut["lai_mean"] = trial.suggest_float("lai_mean", 0.0, 5.0, step=0.2)
+            config_lut["lai_std"] = trial.suggest_float("lai_std", 0.2, 5.0, step=0.2)
+
+    elif trait == "fcover":
+        parameter_setup = trial.suggest_categorical(
+            "parameter_setup",
+            [
+                "estevez_2022_mod",
+                "foliar_codistribution_mod",
+                "kovacs_2023_mod",
+                "snap_atbd_mod",
+                "wan_2024_lai_mod",
+            ],
+        )
+        config_lut["parameter_setup"] = parameter_setup
+        if parameter_setup != "snap_atbd":
+            config_lut["lai_min"] = 0.0
+            config_lut["lai_max"] = 15.0
+            config_lut["lai_mean"] = trial.suggest_float("lai_mean", 0.0, 5.0, step=0.2)
+            config_lut["lai_std"] = trial.suggest_float("lai_std", 0.0, 5.0, step=0.2)
+
+    # other foliar traits
+    elif trait == "CHL":
+        config_lut["parameter_setup"] = trial.suggest_categorical(
+            "parameter_setup",
+            [
+                "estevez_2022",
+                "foliar_codistribution",
+                "kovacs_2023",
+                "snap_atbd",
+                "wan_2024_chl",
+            ],
+        )
+    elif trait == "EWT":
+        config_lut["parameter_setup"] = trial.suggest_categorical(
+            "parameter_setup",
+            [
+                "foliar_codistribution",
+                "kovacs_2023",
+                "snap_atbd",
+                "wan_2024_lai",
+                "custom_ewt",
+            ],
+        )
+    elif trait == "LMA":
+        config_lut["parameter_setup"] = trial.suggest_categorical(
+            "parameter_setup",
+            [
+                "foliar_codistribution",
+                "kovacs_2023",
+                "snap_atbd",
+                "wan_2024_lai",
+                "custom_lma",
+            ],
+        )
 
     config_lut["additive_noise"] = (
         0.005 * trial.suggest_int("additive_noise_optuna", 1, 7) - 0.005
@@ -116,53 +188,25 @@ def optuna_init_config(trial):
     )
 
     config_posthoc = {}
-    config_posthoc["n_baresoil_insitu"] = (
-        20 * trial.suggest_int("n_baresoil_insitu_optuna", 1, 51, log=True) - 20
+    config_posthoc["p_baresoil_insitu"] = (
+        0.01 * trial.suggest_int("p_baresoil_insitu_optuna", 1, 11, log=True) - 0.01
     )
-    config_posthoc["n_baresoil_s2"] = (
-        20 * trial.suggest_int("n_baresoil_s2_optuna", 1, 51, log=True) - 20
+    config_posthoc["p_baresoil_s2"] = (
+        0.01 * trial.suggest_int("p_baresoil_s2_optuna", 1, 11, log=True) - 0.01
     )
-    config_posthoc["n_baresoil_emit"] = (
-        20 * trial.suggest_int("n_baresoil_emit_optuna", 1, 51, log=True) - 20
+    config_posthoc["p_baresoil_emit"] = (
+        0.01 * trial.suggest_int("p_baresoil_emit_optuna", 1, 11, log=True) - 0.01
     )
-    config_posthoc["n_urban_s2"] = (
-        20 * trial.suggest_int("n_urban_s2_optuna", 1, 26, log=True) - 20
+    config_posthoc["p_urban_s2"] = (
+        0.005 * trial.suggest_int("p_urban_s2_optuna", 1, 11, log=True) - 0.005
     )
-    config_posthoc["n_water_s2"] = (
-        20 * trial.suggest_int("n_water_s2_optuna", 1, 26, log=True) - 20
+    # config_posthoc["n_water_s2"] = (
+    #     20 * trial.suggest_int("n_water_s2_optuna", 1, 26, log=True) - 20
+    # )
+    config_posthoc["p_snowice_s2"] = (
+        0.005 * trial.suggest_int("p_snowice_s2_optuna", 1, 11, log=True) - 0.005
     )
-    config_posthoc["n_snowice_s2"] = (
-        20 * trial.suggest_int("n_snowice_s2_optuna", 1, 26, log=True) - 20
-    )
+    # config_posthoc["n_water_s2"] = 0
 
-    if config_training["model"] == "mlp":
-        hidden_layers_dict = {
-            "5": (5,),
-            "10": (10,),
-            "5_5": (5, 5),
-            "10_5": (10, 5),
-        }
-
-        config_ml = {
-            "hidden_layers_optuna": trial.suggest_categorical(
-                "hidden_layers",
-                [
-                    "5",
-                    "10",
-                    "5_5",
-                    "10_5",
-                ],
-            ),
-            "activation": trial.suggest_categorical("activation", ["relu", "tanh"]),
-            "alpha": 10 ** trial.suggest_int("alpha_optuna_exp", -4, 0, step=1),
-            "learning_rate": trial.suggest_categorical(
-                "learning_rate", ["constant", "adaptive"]
-            ),
-            # suggest values between 1000 and 10000, but log scale
-            "max_iter": trial.suggest_int("max_iter_optuna", 1, 10, log=True) * 1000,
-        }
-        config_ml["hidden_layers"] = hidden_layers_dict[
-            config_ml["hidden_layers_optuna"]
-        ]
-    config = merge_dicts_safe(config_general, config_ml, config_posthoc, config_lut)
+    config = merge_dicts_safe(config_general, config_posthoc, config_lut)
     return config

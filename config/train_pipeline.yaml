@@ -8,16 +8,11 @@ list_ecoids_in_validation:
   CHL: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   EWT: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   LMA: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
-optuna_study_name: "optuna-(TRAIT)-(MODEL)-split-(SPLIT)"
+optuna_study_name: "optuna-debug-(TRAIT)-(MODEL)-split-(SPLIT)"
 optuna_storage: "mysql://root@localhost/oemc"
 optuna_distributions:
-  fcover: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai'] 
-  fapar: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai']
-  lai: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai']
-  CHL: ['estevez_2022', 'foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_chl']
-  EWT: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_ewt']
-  LMA: ['foliar_codistribution', 'kovacs_2023', 'snap_atbd', 'wan_2024_lai', 'custom_lma']
-
+  NULL
+  # PLACEHOLDER: see train_pipeline/utilsOptuna.py -> optuna_init_config
 # these are rmse reporting thresholds to increase visability o optuna plots
 optuna_report_thresh:
   fcover: 2.0
@@ -26,6 +21,15 @@ optuna_report_thresh:
   CHL: 100
   EWT: 1.0
   LMA: 1.0
+
+mlp_grid:
+  hidden_layer_sizes: ['5', '10', '5_5', '10_5']
+  activation: ['tanh', 'relu']
+  learning_rate: ['constant', 'adaptive']
+  alpha: [0.0001, 0.001, 0.01, 0.1]
+  max_iter: [5000]
+
+
 
 # optuna_save_model_thresh:
 #   fcover: 0.50
@@ -36,5 +40,5 @@ optuna_report_thresh:
 #   LMA: 0.05
 
 group_k_fold_splits: 5
-group_k_fold_current_split: 4 # from 0 to group_k_fold_splits-1
+group_k_fold_current_split: 0 # from 0 to group_k_fold_splits-1
 model: 'mlp'

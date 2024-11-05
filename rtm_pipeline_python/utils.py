@@ -9,46 +9,51 @@ from loguru import logger
 
 
 def predefined_prosail_params(descriptor: str) -> dict:
-    assert descriptor in [
-        "wan_2024_lai",
-        "snap_atbd",
-        "foliar_codistribution",
-        "kovacs_2023",
-        "estevez_2022",
-        "wan_2024_chl",
-        "custom_ewt",
-        "custom_lma",
-    ], f"Unknown descriptor: {descriptor}"
+    # assert that file exists in directory
+    assert os.path.exists(
+        os.path.join("config", "rtm_simulator", f"{descriptor}.yaml")
+    ), f"File {descriptor}.yaml not found in directory 'config/rtm_simulator'."
 
-    if descriptor == "wan_2024_lai":
-        with open(
-            os.path.join("config", "rtm_simulator", "wan_2024_lai.yaml"),
-            "r",
-        ) as file:
-            prosail_config = yaml.safe_load(file)
-    elif descriptor == "snap_atbd":
-        with open(
-            os.path.join("config", "rtm_simulator", "snap_atbd.yaml"), "r"
-        ) as file:
-            prosail_config = yaml.safe_load(file)
-    elif descriptor == "foliar_codistribution":
-        with open(
-            os.path.join("config", "rtm_simulator", "foliar_codistribution.yaml"),
-            "r",
-        ) as file:
-            prosail_config = yaml.safe_load(file)
-    elif descriptor == "kovacs_2023":
-        with open(
-            os.path.join("config", "rtm_simulator", "kovacs_2023.yaml"),
-            "r",
-        ) as file:
-            prosail_config = yaml.safe_load(file)
-    elif descriptor == "estevez_2022":
-        with open(
-            os.path.join("config", "rtm_simulator", "estevez_2022.yaml"),
-            "r",
-        ) as file:
-            prosail_config = yaml.safe_load(file)
+    with open(
+        os.path.join("config", "rtm_simulator", f"{descriptor}.yaml"), "r"
+    ) as file:
+        prosail_config = yaml.safe_load(file)
+
+    # if descriptor == "wan_2024_lai":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "wan_2024_lai.yaml"),
+    #         "r",
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
+    # elif descriptor == "snap_atbd":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "snap_atbd.yaml"), "r"
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
+    # elif descriptor == "foliar_codistribution":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "foliar_codistribution.yaml"),
+    #         "r",
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
+    # elif descriptor == "foliar_codistribution_2":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "foliar_codistribution_2.yaml"),
+    #         "r",
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
+    # elif descriptor == "kovacs_2023":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "kovacs_2023.yaml"),
+    #         "r",
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
+    # elif descriptor == "estevez_2022":
+    #     with open(
+    #         os.path.join("config", "rtm_simulator", "estevez_2022.yaml"),
+    #         "r",
+    #     ) as file:
+    #         prosail_config = yaml.safe_load(file)
     return prosail_config
 
 
