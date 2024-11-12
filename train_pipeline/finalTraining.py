@@ -32,12 +32,7 @@ def rerun_and_save_best_optuna(config: dict, study=None) -> None:
     if config["model"] == "mlp":
         trials_filtered = [t for t in study.trials if t.value is not None]
 
-        if config["optuna_study_name"] == "optuna-fcover-mlp-split-2":
-            best_trial_filtered = sorted(trials_filtered, key=lambda t: t.value)[
-                6
-            ]  # some unknown bug: for some reason sum reruns of the best model trials, resulted in models not fitted correctly.
-        else:
-            best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
+        best_trial_filtered = min(trials_filtered, key=lambda t: t.value)
         best_trial_number = best_trial_filtered.number
         best_trial_value = best_trial_filtered.value
         best_trial_params = best_trial_filtered.params
@@ -52,9 +47,7 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     testsets = [i for i in range(config["group_k_fold_splits"])]
 
     for testset in testsets:
-        if testset != 2:
-            continue
-        study_name = f"optuna-{trait}-{model}-split-{testset}"
+        study_name = f"optuna-v11-{trait}-{model}-split-{testset}"
 
         config["optuna_study_name"] = study_name
         config["model"] = model
@@ -136,6 +129,45 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
 #             logger.info(f"Model {model_name} predict GEE translation was successful")
 
 
+def check_icos_targets():
+    pass
+    # check if the accuracy is within 2-sigma thresholds defined by ICOS
+    # if trait == "lai":
+    #     # threshold: 20% for values >0.5, 0.1 for values <0.5
+    #     threshold = 0.5
+    #     preds_list = predictions_ensemble.squeeze().tolist()
+    #     y_val_list = y_val.squeeze().tolist()
+
+    #     smaller_than_threshold = [
+    #         (pred, y_val)
+    #         for pred, y_val in zip(preds_list, y_val_list)
+    #         if y_val < threshold
+    #     ]
+
+    #     greater_than_threshold = [
+    #         (pred, y_val)
+    #         for pred, y_val in zip(preds_list, y_val_list)
+    #         if y_val >= threshold
+    #     ]
+
+    #     # check if the accuracy is within 2-sigma thresholds defined by ICOS
+    #     smaller_ok = [
+    #         True if abs(pred - y_val) < 0.1 else False
+    #         for pred, y_val in smaller_than_threshold
+    #     ]
+    #     greater_ok = [
+    #         True if pred / y_val < 1.2 and pred / y_val > 0.8 else False
+    #         for pred, y_val in greater_than_threshold
+    #     ]
+
+    #     # count percentage of correct predictions
+    #     correct = sum(smaller_ok) + sum(greater_ok)
+    #     total = len(smaller_than_threshold) + len(greater_than_threshold)
+    #     logger.info(
+    #         f"Correct predictions: {correct}/{total} ({correct/total*100:.2f}%)"
+    #     )
+
+
 def evaluate_model_ensemble(trait: str) -> tuple:
     """
     Evaluate the model ensemble for the given trait
@@ -167,11 +199,38 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     mae = mean_absolute_error(y_val, predictions_ensemble)
     r2 = r2_score(y_val, predictions_ensemble)
     rmse = root_mean_squared_error(y_val, predictions_ensemble)
+    me = np.mean(y_val.values - predictions_ensemble)
 
     logger.info(f"Ensemble std: {std_ensemble}")
     logger.info(f"Ensemble MAE: {mae}")
     logger.info(f"Ensemble R2: {r2}")
     logger.info(f"Ensemble RMSE: {rmse}")
+
+    # stack out-of-sample predictions to get r2_oos
+
+    predictions_oos = {}
+    true_values_oos = {}
+    validation_data_sites = load_validation_data(return_site=True)[trait]
+    for model_name, model in models.items():
+        # predict the validation data
+        validation_data_sites = load_validation_data(return_site=True)[trait]
+
+        val_ecos_test = model["split"]["val_ecos_test"]
+
+        val_temp = validation_data_sites.loc[
+            validation_data_sites["ECO_ID"].isin(val_ecos_test)
+        ]
+        X_val_temp, y_val_temp = val_temp[features], val_temp[trait]
+
+        predictions_oos_temp = model["pipeline"].predict(X_val_temp)
+        predictions_oos[model_name] = predictions_oos_temp.squeeze()
+        true_values_oos[model_name] = y_val_temp
+
+    # stack to single array
+    predictions_oos_stack = np.concatenate(list(predictions_oos.values()))
+    true_values_oos_stack = np.concatenate(list(true_values_oos.values()))
+
+    r2_stacked = r2_score(true_values_oos_stack, predictions_oos_stack)
 
     # save the metrics to a file
     with open(
@@ -190,6 +249,8 @@ def evaluate_model_ensemble(trait: str) -> tuple:
                 "mae": mae,
                 "r2": r2,
                 "rmse": rmse,
+                "me": me,
+                "r2_stacked": r2_stacked,
             },
             f,
         )
@@ -207,9 +268,27 @@ def evaluate_model_ensemble(trait: str) -> tuple:
             "output",
             "plots",
             trait,
-            f"{'-'.join(model_name.split('-')[0:3])}_ensemble.png",
+            f"{'-'.join(model_name.split('-')[0:3])}-ensemble.png",
         ),
         plot_type="density_scatter",
+        x_label=f"{trait} - reference measurement",
+        y_label=f"{trait} - S2 prediction",
+    )
+
+    plot_predicted_vs_true(
+        true_values_oos_stack,
+        predictions_oos_stack,
+        save_plot_filename=os.path.join(
+            "data",
+            "train_pipeline",
+            "output",
+            "plots",
+            trait,
+            f"{'-'.join(model_name.split('-')[0:3])}-stacked_oos.png",
+        ),
+        plot_type="density_scatter",
+        x_label=f"{trait} - reference measurement",
+        y_label=f"{trait} - S2 prediction",
     )
 
     return predictions_ensemble, y_val
@@ -221,7 +300,7 @@ def load_model_ensemble(trait: str, models: list[str] = ["mlp"]) -> dict:
 
     testsets = list(range(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"]))
     model_names = [
-        f"optuna-{trait}-{model}-split-{testset}"
+        f"optuna-v11-{trait}-{model}-split-{testset}"
         for model in models
         for testset in testsets
     ]
@@ -260,8 +339,8 @@ def load_model_ensemble(trait: str, models: list[str] = ["mlp"]) -> dict:
                     "min_max_bands": json.load(open(path["min_max_bands"], "r")),
                     "min_max_label": json.load(open(path["min_max_label"], "r")),
                     "split": json.load(open(path["split"], "r")),
-                    "df_val_train": pd.read_csv(path["df_val_train"]),
-                    "df_val_test": pd.read_csv(path["df_val_test"]),
+                    # "df_val_train": pd.read_csv(path["df_val_train"]),
+                    # "df_val_test": pd.read_csv(path["df_val_test"]),
                 }
 
     return models

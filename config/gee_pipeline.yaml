@@ -1,24 +1,25 @@
 PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
-  # CONTINENT: 'EU'
-  YEAR: '2023'
-  OUTPUT_RESOLUTION: 100 # in meters
+  YEAR: '2020'
+  OUTPUT_RESOLUTION: 1000 # in meters
   CAST_TO_INT16: TRUE
-  # TRAITS: ['lai'] # only use a single trait for now
-  TRAITS: ['fcover']
-  # TRAITS: ['fcover']
+  TRAIT: 'fcover'
   ENSEMBLE_SIZE: 5 
-  VERSION: 'v10' # refers to version v1.0 of the pipeline
+  VERSION: 'v01' # refers to version v1 of the pipeline
 
-EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
-  YEAR: '2019'
-  TRAIT: 'lai'
-  BAND: 'mean'
-  RESOLUTION: 100
-  VERSION: 'v10'
-  EPSG: 'EPSG:4326'
-  NO_DATA_VALUE: -9999
+# EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
+#   YEAR: '2023'
+#   TRAIT: 'fcover'
+#   BAND: 'mean'
+#   RESOLUTION: 100
+#   VERSION: 'v10'
+#   EPSG: 'EPSG:4326'
+#   NO_DATA_VALUE: -9999
 
+SET_NEGATIVE_VALUES_TO_ZERO: 
+  lai: TRUE
+  fapar: TRUE
+  fcover: TRUE
 
 S2_FILTERING:
   MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile

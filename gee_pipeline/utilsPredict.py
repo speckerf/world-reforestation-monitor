@@ -94,51 +94,6 @@ def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     return img_to_return
 
 
-def collapse_to_mean_and_stddev_multi_trait(imgc: ee.ImageCollection) -> ee.Image:
-    # trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
-    # mean_name = f"{trait_name}_mean"
-    # std_name = f"{trait_name}_stdDev"
-    trait_names = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]
-
-    if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
-        images_mean = [
-            imgc.select(t)
-            .mean()
-            .rename(f"{t}_mean")
-            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{t}_mean"])
-            .toInt16()
-            for t in trait_names
-        ]
-
-        images_stdDev = [
-            imgc.select(t)
-            .reduce(ee.Reducer.stdDev())
-            .rename(f"{t}_stdDev")
-            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{t}_stdDev"])
-            .toInt16()
-            for t in trait_names
-        ]
-
-        images_n_obs = [
-            imgc.select(t).reduce(ee.Reducer.count()).rename(f"{t}_count").toUint8()
-            for t in trait_names
-        ]
-
-    else:
-        images_mean = [imgc.select(t).mean().rename(f"{t}_mean") for t in trait_names]
-        images_stdDev = [
-            imgc.select(t).reduce(ee.Reducer.stdDev()).rename(f"{t}_stdDev")
-            for t in trait_names
-        ]
-        images_n_obs = [
-            imgc.select(t).reduce(ee.Reducer.count()).rename(f"{t}_count").toUint8()
-            for t in trait_names
-        ]
-
-    img_to_return = ee.Image([*images_mean, *images_stdDev, *images_n_obs])
-    return img_to_return
-
-
 def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
     mean_name = f"{trait_name}_mean"
@@ -164,6 +119,10 @@ def collapse_to_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
         img_mean = imgc.mean().rename(mean_name)
         img_std = imgc.reduce(ee.Reducer.stdDev()).rename(std_name)
         img_nobs = imgc.reduce(ee.Reducer.count()).rename(f"{trait_name}_count")
+
+    # set negative values to zero:
+    if CONFIG_GEE_PIPELINE["SET_NEGATIVE_VALUES_TO_ZERO"][trait_name]:
+        img_mean = img_mean.max(0)
 
     img_to_return = ee.Image([img_mean, img_std, img_nobs])
     return img_to_return
@@ -289,69 +248,7 @@ def eePipelinePredictMap(
         )
 
     if min_max_label is not None:
-        min_max_label_masker = MinMaxRangeMasker(min_max_label)
+        min_max_label_masker = MinMaxRangeMasker(min_max_label, tolerance=0.02)
         imgc = imgc.map(min_max_label_masker.ee_mask)
 
     return imgc
-
-
-# def eePipelinePredict(
-#     pipeline: Pipeline, image: ee.Image, trait: str, trial_config_dict: dict
-# ):
-#     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
-#     angles = ["tts", "tto", "psi"]
-
-#     if trial_config_dict["nirv_norm"]:
-#         image = ee_nirv_normalisation(image)
-#     if trial_config_dict["use_angles_for_prediction"]:
-#         features = bands + angles
-#         image = ee_angle_transformer(image)
-#         image = image.select(features)
-#     else:
-#         features = bands
-#         image = image.select(bands)
-
-#     # always apply standard scaler
-#     band_scaler = (
-#         pipeline.named_steps["preprocessor"]
-#         .named_transformers_["band_transformer"]
-#         .named_steps["scaler"]
-#     )
-#     # TODO: import eeStandardScaler
-#     ee_band_scaler = eeStandardScaler(band_scaler)
-#     image = ee_band_scaler.transform_image(image)
-
-#     # apply model:
-#     if trial_config_dict["model"] == "mlp":
-#         # IMPORTANT: .regressor_ refers to the actual model, while .regressor only refers to the untrained model
-#         ee_model = eeMLPRegressor(
-#             pipeline.named_steps["regressor"].regressor_, trait_name=trait
-#         )
-#     elif trial_config_dict["model"] == "rf":
-#         ee_model = eeRandomForestRegressor(
-#             pipeline.named_steps["regressor"].regressor_,
-#             feature_names=features,
-#             trait_name=trait,
-#         )
-
-#     image = ee_model.predict(image)
-
-#     # apply inverse transformations
-#     if trial_config_dict["transform_target"] == "log1p":
-#         image = ee_log1p_inverse_transform(image, trait)
-#     elif trial_config_dict["transform_target"] == "logit":
-#         image = ee_logit_inverse_transform(image, trait)
-#     elif trial_config_dict["transform_target"] == "standard":
-#         target_scaler = pipeline.named_steps["regressor"].transformer_
-#         target_ee_scaler = eeStandardScaler(
-#             target_scaler, feature_names=[trait]
-#         )  # must be a list
-#         image = target_ee_scaler.inverse_transform_column(image, trait)
-#     elif trial_config_dict["transform_target"] == "None":
-#         image = image
-#     else:
-#         raise ValueError(
-#             f"Unknown target transformation: {trial_config_dict['transform_target']}"
-#         )
-
-#     return image

@@ -11,7 +11,6 @@ def plot_predicted_vs_true(
     y_pred: np.array,
     plot_type="scatter",
     save_plot_filename: str = None,
-    title: str = "Predicted vs True Values",
     x_label: str = "True Values",
     y_label: str = "Predicted Values",
 ):
@@ -181,7 +180,6 @@ def plot_predicted_vs_true(
     # Set plot labels and title
     plt.xlabel(f"{x_label}", fontsize=14, weight="bold")
     plt.ylabel(f"{y_label}", fontsize=14, weight="bold")
-    plt.title(f"{title}", fontsize=16, weight="bold")
 
     # Improve plot aesthetics
     plt.grid(True, which="both", linestyle="--", linewidth=0.7)

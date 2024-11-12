@@ -16,7 +16,7 @@ from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
 from gee_pipeline.utilsPhenology import get_start_end_date_phenology_for_ecoregion
 from gee_pipeline.utilsPredict import (
     add_random_ensemble_assignment,
-    collapse_to_mean_and_stddev_multi_trait,
+    collapse_to_mean_and_stddev,
     eePipelinePredictMap,
 )
 from gee_pipeline.utilsTiles import get_epsg_code_from_mgrs, get_s2_indices_filtered
@@ -37,6 +37,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VERSION"]
     year = int(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["YEAR"])
     output_resolution = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"]
+    trait = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
 
     logger.info(f"Exporting mgrs_tile: {mgrs_tile}")
     start_date = ee.Date(f"{year}-01-01")
@@ -125,41 +126,36 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     # add angles to bands
     imgc = imgc.map(add_angles_from_metadata_to_bands)
 
-    imgc_preds = {}
-
-    for trait in CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]:
-        gee_preds = {}
-        models = load_model_ensemble(trait=trait, models=["mlp"])
-        for i, (model_name, model) in enumerate(models.items()):
-            imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
-            gee_preds[model_name] = eePipelinePredictMap(
-                pipeline=model["pipeline"],
-                imgc=imgc_i,
-                trait=trait,
-                model_config=model["config"],
-                min_max_bands=model["min_max_bands"],
-                min_max_label=model["min_max_label"],
-            )
-
-        imgc_preds[trait] = reduce(lambda x, y: x.merge(y), gee_preds.values())
-
-    # link the collections if more than one trait
-    if len(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]) > 1:
-        imgc_preds_combined = reduce(
-            lambda x, y: x.combine(y), list(imgc_preds.values())
+    gee_preds = {}
+    models = load_model_ensemble(trait=trait, models=["mlp"])
+    for i, (model_name, model) in enumerate(models.items()):
+        imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
+        gee_preds[model_name] = eePipelinePredictMap(
+            pipeline=model["pipeline"],
+            imgc=imgc_i,
+            trait=trait,
+            model_config=model["config"],
+            min_max_bands=model["min_max_bands"],
+            min_max_label=None,
         )
-    else:
-        imgc_preds_combined = imgc_preds[trait]
+
+    imgc_preds = reduce(lambda x, y: x.merge(y), gee_preds.values())
 
     # explicitly cast toFloat
-    imgc_preds_combined = imgc_preds_combined.map(lambda img: img.toFloat())
+    imgc_preds = imgc_preds.map(lambda img: img.toFloat())
 
     # collapse to mean and stddev
-    output_image = collapse_to_mean_and_stddev_multi_trait(imgc_preds_combined)
+    output_image = collapse_to_mean_and_stddev(imgc_preds)
 
     # mask permament water bodies :80: permanent water bodies at 10 meter resolution
-    water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v100").first()
+    water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v200").first()
     output_image = output_image.updateMask(water_mask_2020.neq(80))
+
+    # mask out all rock and ice pixels: ECO_ID = 0 ("Rock and Ice")
+    ecoregions = ee.Image(
+        "projects/crowtherlab/Composite/CrowtherLab_bioComposite_30ArcSec"
+    ).select("Resolve_Ecoregion")
+    output_image = output_image.updateMask(ecoregions.neq(0))
 
     # Set export parameters
     year_start_string = str(year) + "0101"
@@ -167,12 +163,8 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     epsg_code = get_epsg_code_from_mgrs(mgrs_tile)
     epsg_code_gee = f"EPSG:{epsg_code}"
     epsg_string = f"epsg-{epsg_code}"
-    if len(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"]) == 1:
-        traits_string = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"][0]
-    else:
-        traits_string = "-".join(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAITS"])
 
-    system_index = f"{traits_string}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{version}"
+    system_index = f"{trait}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{version}"
 
     output_image = (
         output_image.set("system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis())
@@ -186,7 +178,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     # Export the image
     imgc_folder = (
         CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
-        + f"/{traits_string}_predictions-mlp_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
+        + f"/{trait}_predictions-mlp_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
     )
 
     task = ee.batch.Export.image.toAsset(
@@ -214,16 +206,9 @@ def global_export_mgrs_tiles():
     )
     mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
 
-    # exlcude the following mgrs tiles: 01X - 37X, 21W - 26W, 22V - 24V
-    exclude = set(
-        list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(1, 38), ["X"] * 37))
-        + list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(21, 27), ["W"] * 6))
-        + list(f"{str(a).zfill(2)}{b}" for a, b in zip(range(22, 25), ["V"] * 3))
-    )
-
     include = ["19F", "19E", "20F"]
 
-    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]) - exclude)
+    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
     logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
@@ -243,4 +228,6 @@ def global_export_mgrs_tiles():
 
 
 if __name__ == "__main__":
+    # wait 1 hour
+    # time.sleep(3 * 3600)
     global_export_mgrs_tiles()

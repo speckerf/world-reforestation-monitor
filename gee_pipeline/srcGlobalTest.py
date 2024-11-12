@@ -32,7 +32,10 @@ ee.Initialize(credentials, project="ee-speckerfelix")
 
 
 def test_export_global():
-    mgrs_tile_list = ["45S"]
+    mgrs_tile_list = ["25W"]
+    # 29Q to 35 Q
+    mgrs_tile_list = ["29Q", "30Q", "31Q", "32Q", "33Q", "34Q", "35Q"]
+    # mgrs_tile_list = ["44S", "45S", "46S", "44T", "45T", "46T"]
     for mgrs_tile in mgrs_tile_list:
         export_mgrs_tile(mgrs_tile)
 
