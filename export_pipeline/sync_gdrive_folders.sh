@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Set the target directory where Google Drive folders will be synced locally
-# TARGET_DIR="/Users/felix/Coding_Playground/gdrive_tutorial" # Local
+# TARGET_DIR="/Users/felix/Coding_Playground/gdrive_tutorial/exports_gdrive" # Local
 TARGET_DIR="/Volumes/RAID/felix_oemc/world-reforestation-monitor"
 
 # Define Google Drive remote name (set in `rclone config`)

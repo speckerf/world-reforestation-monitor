@@ -5,7 +5,12 @@ from config.config import get_config
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
-ee.Initialize()
+service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
+credentials = ee.ServiceAccountCredentials(
+    service_account, "auth/gem-eth-analysis-24fe4261f029.json"
+)
+ee.Initialize(credentials, project="ee-speckerfelix")
+# ee.Initialize()
 
 
 def load_imgcollection(
@@ -27,13 +32,20 @@ def export_to_gcs(
         f"Exporting to GCS - trait: {trait}, year: {year}, version: {version}, resolution: {resolution}, band: {band}"
     )
     output_crs = CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["EPSG"]
-    no_data_val = CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["NO_DATA_VALUE"]
+    if band == "mean":
+        no_data_val = CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["NO_DATA_VALUE_MEAN"]
+    elif band == "stdDev":
+        no_data_val = CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["NO_DATA_VALUE_STDDEV"]
+    elif band == "count":
+        no_data_val = CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["NO_DATA_VALUE_COUNT"]
+    else:
+        raise ValueError(f"Band {band} not supported")
 
     imgc = load_imgcollection(
         trait=trait, year=year, version=version, resolution=resolution
     ).select(f"{trait}_{band}")
 
-    output_image = imgc.mosaic()
+    output_image = imgc.mosaic().unmask(no_data_val)
 
     position_prob_dict = {
         "mean": "mean",
@@ -54,31 +66,68 @@ def export_to_gcs(
     filename_vertical = "s"  # 'b': below ground, 'a': above ground, 's': surface
     filename_version_code = f"{version}"
 
-    # export
+    # export to DRIVE
     filename = f"{filename_trait}_{filename_method}_{filename_position_probability}_{filename_resolution}_{filename_vertical}_{filename_day_start}_{filename_day_end}_{filename_extent}_{filename_crs}_{filename_version_code}"
-    export_task = ee.batch.Export.image.toCloudStorage(
+    # gdrive_folder = CONFIG_GEE_PIPELINE["GDRIVE_FOLDERS"]["TEMP_FOLDER"]
+    gdrive_folder = (
+        f"{trait}-{position_prob_dict[band]}_predictions-mlp_{resolution}m_{version}"
+    )
+    # foldername = f"{filename_trait}_predictions-mlp_{filename_resolution}_{filename_version_code}"
+
+    export_task = ee.batch.Export.image.toDrive(
         image=output_image,
         description=f"Export {filename}",
-        region=ee.Geometry.BBox(-180, -88, 180, 99),
-        bucket=CONFIG_GEE_PIPELINE["GCLOUD_FOLDERS"]["BUCKET"],
+        folder=f"{gdrive_folder}",
+        fileNamePrefix=f"{filename}",
         scale=resolution,
+        region=ee.Geometry.BBox(-180, -60, 180, 85),
         crs=output_crs,
-        fileNamePrefix=f"{CONFIG_GEE_PIPELINE['GCLOUD_FOLDERS']['EXPORT_FOLDER_INTERMEDIATE']}/{filename}/",
         maxPixels=1e12,
-        formatOptions={"cloudOptimized": False, "noData": no_data_val},
+        fileFormat="GeoTIFF",
+        formatOptions={"cloudOptimized": True, "noData": no_data_val},
     )
     export_task.start()
 
-    logger.info(f"Export task started: {export_task.id}")
+    # filename = f"{filename_trait}_{filename_method}_{filename_position_probability}_{filename_resolution}_{filename_vertical}_{filename_day_start}_{filename_day_end}_{filename_extent}_{filename_crs}_{filename_version_code}"
+    # bucket = CONFIG_GEE_PIPELINE["GCLOUD_FOLDERS"]["BUCKET"]
+    # subfoldername = f"{filename_trait}_predictions-mlp_{filename_resolution}_{filename_version_code}"
+    # filename_full_path = f"{CONFIG_GEE_PIPELINE['GCLOUD_FOLDERS']['EXPORT_FOLDER_INTERMEDIATE']}/{subfoldername}/{filename}"
+
+    # export_task = ee.batch.Export.image.toCloudStorage(
+    #     image=output_image,
+    #     description=f"Export {filename}",
+    #     region=ee.Geometry.BBox(-180, -60, 180, 85),
+    #     bucket=bucket,
+    #     scale=resolution,
+    #     crs=output_crs,
+    #     fileNamePrefix=filename_full_path,
+    #     maxPixels=1e12,
+    #     formatOptions={"cloudOptimized": True, "noData": no_data_val},
+    # )
+    # export_task.start()
+
+    # logger.info(f"Export task started: {export_task.id}")
 
 
 if __name__ == "__main__":
-    image_specs = {
-        "trait": CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["TRAIT"],
-        "year": int(CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["YEAR"]),
-        "resolution": int(CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["RESOLUTION"]),
-        "version": CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["VERSION"],
-        "band": CONFIG_GEE_PIPELINE["EXPORT_PARAMS"]["BAND"],
-    }
-
-    export_to_gcs(**image_specs)
+    years = ["2019", "2020", "2021", "2022", "2023", "2024"]
+    # years = [2020]
+    traits = ["fapar", "fcover"]
+    # traits = ["lai", "fapar", "fcover"]
+    # traits = ["lai"]
+    resolution = 1000
+    version = "v01"
+    # band = "mean"
+    # bands = ["stdDev", "count"]
+    bands = ["mean", "stdDev", "count"]
+    for band in bands:
+        for trait in traits:
+            for year in years:
+                image_specs = {
+                    "trait": trait,
+                    "year": int(year),
+                    "resolution": resolution,
+                    "version": version,
+                    "band": band,
+                }
+                export_to_gcs(**image_specs)

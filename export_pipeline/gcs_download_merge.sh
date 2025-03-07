@@ -13,6 +13,7 @@ GCS_REPO_PATH=$1
 FILENAME=$2
 SCALING_FACTOR=$3
 LOCAL_TEMP_FOLDER="data-local/trait_maps/intermediate"
+LOCAL_PROCESSING_FOLDER="data-local/trait_maps/processing"
 LOCAL_OUTPUT_FOLDER="data-local/trait_maps/output"
 
 # Logging function for cleaner logs
@@ -37,8 +38,8 @@ sync_gcs_to_local() {
     log "Syncing from GCS: $GCS_REPO_PATH/ to $LOCAL_TEMP_FOLDER"
     
     # Perform rsync from GCS to local, -m enables parallel transfer, -d removes extraneous files from local
-    # gcloud storage rsync --delete-unmatched-destination-objects -r --dry-run "$GCS_REPO_PATH/" "$LOCAL_TEMP_FOLDER"
-    gcloud storage rsync --delete-unmatched-destination-objects -r "$GCS_REPO_PATH/" "$LOCAL_TEMP_FOLDER"
+    gcloud storage rsync --delete-unmatched-destination-objects -r --dry-run "$GCS_REPO_PATH/" "$LOCAL_TEMP_FOLDER"
+    # gcloud storage rsync --delete-unmatched-destination-objects -r "$GCS_REPO_PATH/" "$LOCAL_TEMP_FOLDER"
     
     log "Sync completed successfully."
 }
@@ -55,7 +56,7 @@ merge_tifs() {
     fi
     
     # Merge the files into a single output TIFF
-    gdal_merge.py -co BIGTIFF=IF_SAFER  -co COMPRESS=DEFLATE -o "$LOCAL_TEMP_FOLDER/$FILENAME.tif" $FILES
+    gdal_merge.py -co BIGTIFF=IF_SAFER  -co COMPRESS=DEFLATE -o "$LOCAL_PROCESSING_FOLDER/$FILENAME.tif" $FILES
     
     log "TIFF merge completed."
 }
@@ -67,7 +68,7 @@ edit_metadata() {
     log "Adding metadata with scale: $SCALE and offset: $OFFSET"
     
     # Edit the metadata of the merged file
-    gdal_edit.py -scale $SCALE -offset $OFFSET -a_nodata 0 "$LOCAL_TEMP_FOLDER/$FILENAME.tif"
+    gdal_edit.py -scale $SCALE -offset $OFFSET -a_nodata 0 "$LOCAL_PROCESSING_FOLDER/$FILENAME.tif"
     
     log "Metadata added successfully."
 }
@@ -78,12 +79,12 @@ convert_to_cog() {
     
     # Use gdal_translate to create a COG
     gdal_translate -of COG -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER \
-        "$LOCAL_TEMP_FOLDER/$FILENAME.tif" "$LOCAL_OUTPUT_FOLDER/$FILENAME.tif"
+        "$LOCAL_PROCESSING_FOLDER/$FILENAME.tif" "$LOCAL_OUTPUT_FOLDER/$FILENAME.tif"
     
     log "Conversion to COG completed."
     
     # Remove the non-COG file
-    rm "$LOCAL_TEMP_FOLDER/$FILENAME.tif"
+    rm "$LOCAL_PROCESSING_FOLDER/$FILENAME.tif"
     log "Non-COG file removed."
 }
 
