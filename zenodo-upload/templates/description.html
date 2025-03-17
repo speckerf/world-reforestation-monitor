@@ -1,0 +1,66 @@
+<h3>Disclaimer</h3>
+<p >This dataset is currently being under revision. For more detailed information, please refer to the preprint available at XXX.</p>
+
+<h3>Abstract</h3>
+<p >Restoration projects are crucial for recovering ecosystems and conserving biodiversity but monitoring them on a large scale poses significant challenges. Public satellite missions like Sentinel-2 have great potential to transform ecosystem monitoring due to their high spatial and temporal resolution when linked to ecosystem characteristics. Here, we present global, annual, high-resolution maps for three vegetation traits and biophysical vegetation properties, including leaf area index (LAI), fraction of absorbed photosynthetically active radiation (FAPAR), and fractional vegetation cover (FCOVER). We utilize a hybrid inversion approach of the mechanistic radiative transfer model PROSAIL to directly estimate biophysical variables from multispectral Sentinel-2 images, considering multiple observations during the peak growing season. All predictions are aggregated into mean values, standard deviations, and the number of observations taken during this period. The maps are available at 20m, 100m, and 1000m spatial resolution for the years 2019 to 2024, totalling approximately 20TB of analysis-ready data, and are validated using in-situ ground-based observations. The high temporal and spatial resolution of these maps provides new opportunities for biodiversity and ecosystem monitoring, enabling more effective assessments of restoration efforts and contributing to the development of standardized global monitoring frameworks.</p>
+
+<h3>Description</h3>
+<!-- <p >This dataset is part of the World-reforestation monitor which is conducted under the EU-funded Open-Earth Monitor Cyberinfrastructure project. </p> -->
+<p >This data set includes:</p>
+<ul >
+	<li><strong>Annual Leaf Area Index (LAI) (2019 - 2024):</strong><br />
+        Includes annual mean (mean of predictions), variation (standard deviation of predictions) and count (number of cloud-free observations) for LAI at 1000-, and 100-meter resolution.</li>
+	<li><strong>Annual Fractional Vegetation Cover (FCOVER) (2019 - 2024):</strong><br />
+        Includes annual mean (mean of predictions), variation (standard deviation of predictions) and count (number of cloud-free observations) for FCOVER at 1000-, and 100-meter resolution.</li>
+	<li><strong>Annual fraction of absorbed photosynthetically activate radiation (FAPAR) (2019 - 2024):</strong><br />
+        Includes annual mean (mean of predictions), variation (standard deviation of predictions) and count (number of cloud-free observations) for FCOVER at 1000-, and 100-meter resolution.</li>
+</ul>
+<p>Higher-resolution 20-meter maps are only available on Google Earth Engine (see <a href="https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps" target="_blank">this link</a>).</p>
+
+
+<h3>Data Format and Scaling</h3>
+<ul>
+    <li><strong>Data Types:</strong> Mean and standard deviation maps are stored as <code>int16</code>. Count maps are stored as <code>uint8</code>.</li>
+    <li><strong>NoData Values:</strong> 
+        <ul>
+            <li>Mean and standard deviation maps: <code>-9999</code></li>
+            <li>Count maps: <code>255</code></li>
+        </ul>
+    </li>
+    <li><strong>Scaling Factors (applies only for <code>int16</code> maps):</strong> 
+        <ul>
+            <li>FAPAR and FCOVER: <code>0.0001</code></li>
+            <li>LAI: <code>0.001</code></li>
+        </ul>
+    </li>
+</ul>
+
+<h3>Related datasets</h3>
+<div id="related-doi-links">ADD_RELATED_DOI_LINKS</div>
+<!-- <ul >
+	<li><a href="{soiltypes_cls}">WRB soil types classification and relative entropy</a></li>
+	<li><a href="{soiltypes_p1}">WRB soil types probabilities (part 1)</a></li>
+	<li><a href="{soiltypes_p2}">WRB soil types probabilities (part 2)</a></li>
+</ul> -->
+
+<h3>Code</h3>
+<p >The code used to generate the data is available at ADD_DOI_CODE_REPO.</p>
+
+<h3>Naming Convention</h3>
+<p >To ensure consistency and ease of use across and within the projects, we follow the standard Open-Earth-Monitor file-naming convention. The convention works with 10 fields that describe important properties of the data. In this way, users can search files, prepare data analysis etc, without needing to open files. The fields are: </p>
+<ul>
+	<li><strong>Variable name:</strong> <i >[lai, fapar, fcover]</i></li>
+	<li><strong>Method:</strong> <i >rtm.mlp</i> (Radiative transfer model inversion, using multi-layer perceptron regression model)</li>
+	<li><strong>Position in probability distribution:</strong> <i >[mean, std, count]</i> </li>
+	<li><strong>Spatial resolution:</strong> <i >[20m, 100m, 1000]</i></li>
+	<li><strong>Depth reference or depth interval</strong> <i >s</i> ("s": surface)</li>
+	<li><strong>Time reference begin:</strong> <i >20190101</i></li>
+	<li><strong>Time reference end:</strong> <i >20191231</i></li>
+    <li><strong>Bounding box:</strong> <i >go</i> (global land without Antarctica)</li>
+	<li><strong>Coordinate reference system:</strong> <i >epsg.4326</i> World Geodetic System 1984 (WGS 84)</li>
+	<li><strong>Version Code:</strong> <i >v1</i></li>
+</ul>
+
+<h3>Contact</h3>
+<p >Felix Specker: felix.specker@usys.ethz.ch / speckerfelix@gmail.com</p>
+
