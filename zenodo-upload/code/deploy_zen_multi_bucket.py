@@ -72,7 +72,7 @@ def main():
 
     base_json_path = DEPOSITION_METADATA_PATH
     base_ds = LocalFiles(
-        sorted([*local_file_paths, *local_file_paths_selected_previews]),
+        sorted([*local_file_paths, *local_file_paths_selected_previews], reverse=True),
         dataset_path=base_json_path,
     )
 
@@ -150,7 +150,7 @@ def main():
         local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "data-local/previews"), local_file_paths_children))
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_children, *local_file_paths_children_previews]),
+            sorted([*local_file_paths_children, *local_file_paths_children_previews], reverse=True),
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-mean.json"
             ),
@@ -205,7 +205,7 @@ def main():
 
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_std_count, *local_file_paths_children_previews]),
+            sorted([*local_file_paths_std_count, *local_file_paths_children_previews], reverse=True),
             # template=base_template_100m,
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-std-count.json"
