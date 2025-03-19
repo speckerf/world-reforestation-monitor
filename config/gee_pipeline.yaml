@@ -1,20 +1,17 @@
 PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
-  YEAR: '2020'
-  OUTPUT_RESOLUTION: 1000 # in meters
+  YEAR: '2024'
+  OUTPUT_RESOLUTION: 20 # in meters
   CAST_TO_INT16: TRUE
-  TRAIT: 'fcover'
+  TRAIT: 'fapar'
   ENSEMBLE_SIZE: 5 
   VERSION: 'v01' # refers to version v1 of the pipeline
 
-# EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
-#   YEAR: '2023'
-#   TRAIT: 'fcover'
-#   BAND: 'mean'
-#   RESOLUTION: 100
-#   VERSION: 'v10'
-#   EPSG: 'EPSG:4326'
-#   NO_DATA_VALUE: -9999
+EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
+  EPSG: 'EPSG:4326'
+  NO_DATA_VALUE_MEAN: -9999
+  NO_DATA_VALUE_STDDEV: -9999
+  NO_DATA_VALUE_COUNT: 255
 
 SET_NEGATIVE_VALUES_TO_ZERO: 
   lai: TRUE
@@ -65,20 +62,7 @@ CLOUD_FILTERING:
 GEE_FOLDERS:
   ASSET_FOLDER: 'projects/ee-speckerfelix/assets/open-earth'
   TEMP_FOLDER: 'projects/ee-speckerfelix/assets/temp'
-  MODEL_RF_LUT: projects/ee-speckerfelix/assets/open-earth/random_forest_models_and_data
 
-GCLOUD_FOLDERS:
-  TEMP_FOLDER: 'gs://felixspecker/open-earth/temp/'
-  BUCKET: 'felixspecker'
-  EXPORT_FOLDER_INTERMEDIATE: 'open-earth/trait_maps/intermediate'
-  EXPORT_FOLDER_FINAL: 'open-earth/trait_maps/merged'
-  EXPORT_FOLDER_FINAL_PUBLIC: 'gs://felixspecker-public/open-earth/trait_maps'
-
-LOCAL_FOLDERS:
-  EXPORT_FOLDER_INTERMEDIATE: 'data-local/trait_maps/intermediate'
-  EXPORT_FOLDER_FINAL: 'data-local/trait_maps/merged'
-
-  # BUCKET: 'felixspecker'
-  # LOCAL_RAW_FOLDER: '../data_shared/gee_exports/data_raw'
-  # LOCAL_MERGED_FOLDER: '../data_shared/gee_exports/data_merged'
+GDRIVE_FOLDERS:
+  TEMP_FOLDER: 'felix_oemc_exports'
 

@@ -65,8 +65,8 @@ The repo is structure in different modules:
 - data is stored in data folder and tracked using dvc (data version control). This means the data folder actually only contains pointers to the actual version controlled data stored as a hash table in .dvc/cache/files
 - the remote repository for the data is at: gs://felixspecker/open-earth/world-reforestation-monitor-remote
 - if you change update any data in the data repo and want to track that:
-    - dvc add data
-    - git add data.dvc
-    - git commit
-    - dvc push
+    - `dvc add data`
+    - `git add data.dvc`
+    - `git commit`
+    - `dvc push`
 
