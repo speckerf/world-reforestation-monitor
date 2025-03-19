@@ -1,13 +1,13 @@
 # Global vegetation trait maps
 
 **Setup:**
-- create environment from environment.yaml
+- create environment from `environment.yaml`
 - To export: ensure that both gcloud and earthengine-api are installed and authenticated. 
 - Data repository is tracked using data version control:
     - Data is stored in a private bucket on google cloud storage / access needs to be manually granted. 
-    - After that: pull the data using: 'dvc pull'
+    - After that: pull the data using: `dvc pull`
 - usually, all files need to be run as a module from the root of the directory:
-    - e.g. python -m training_pipeline.optunaTraining
+    - e.g. `python -m training_pipeline.optunaTraining`
     - if used in vscode in debug-mode: add the following to your launch.json file:
         - {
                 "version": "0.2.0",
@@ -44,11 +44,6 @@ The repo is structure in different modules:
     
 - ee_translator: 
     - stores some helper classes that translate the functionalities of sklearn-type classes, to GEE server side operations on type: ee.Image
-
-- phenology_pipeline: 
-    - contains code to obtain the growing season period for every ecoregion on earth. 
-    - automated growing season determinaiton based oon historical EVI product
-    - then applies several manual adjustements necessary to improve the consistency of the resulting maps
 
 - config:
     - holds a configuration yaml file for most modules
