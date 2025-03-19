@@ -4,9 +4,6 @@ import yaml
 with open("config/train_pipeline.yaml", "r") as file:
     config_train_pipeline = yaml.safe_load(file)
 
-with open("config/validation_pipeline.yaml", "r") as file:
-    config_validation_pipeline = yaml.safe_load(file)
-
 with open("config/gee_pipeline.yaml", "r") as file:
     config_gee_pipeline = yaml.safe_load(file)
 
@@ -25,7 +22,5 @@ def get_config(instance: str) -> dict:
             .replace("(MODEL)", config_train_pipeline["model"])
         )
         return config_train_pipeline
-    elif instance == "validation_pipeline":
-        return config_validation_pipeline
     else:
         raise ValueError(f"Unknown config instance: {instance}")

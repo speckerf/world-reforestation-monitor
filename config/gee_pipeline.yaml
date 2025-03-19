@@ -1,7 +1,7 @@
 PIPELINE_PARAMS:
   SINGLE_ECOREGION: Null
   YEAR: '2024'
-  OUTPUT_RESOLUTION: 20 # in meters
+  OUTPUT_RESOLUTION: 10000 # in meters
   CAST_TO_INT16: TRUE
   TRAIT: 'fapar'
   ENSEMBLE_SIZE: 5 
@@ -51,8 +51,6 @@ UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2
   fapar_stdDev: '[]'
   fcover_mean: '[]'
   fcover_stdDev: '[]'
-
-CONDA_PATH: "/Users/felix/miniconda3/envs/gee_pipeline"
 
 CLOUD_FILTERING:
   CLOUDY_PIXEL_PERCENTAGE: 70 # max initial cloudy pixel percentage

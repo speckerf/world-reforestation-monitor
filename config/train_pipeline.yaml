@@ -8,8 +8,8 @@ list_ecoids_in_validation:
   CHL: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   EWT: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
   LMA: [331, 344, 352, 353, 366, 367, 386, 390, 392, 393, 396, 399, 402, 405, 416, 423, 428, 430, 435, 543, 623, 636]
-optuna_study_name: "optuna-debug-(TRAIT)-(MODEL)-split-(SPLIT)"
-optuna_storage: "mysql://root@localhost/oemc"
+optuna_study_name: "optuna-TESETESTSET-(TRAIT)-(MODEL)-split-(SPLIT)"
+optuna_storage: "mysql://root@localhost/oemc-test"
 # these are rmse reporting thresholds to increase visability o optuna plots
 optuna_report_thresh:
   fcover: 2.0
