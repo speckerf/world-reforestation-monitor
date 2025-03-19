@@ -1,0 +1,38 @@
+Site,Abbr,Network,Eco_ID,Biome,# Plots
+Bartlett Experimental Forest,BART,NEON,338,4,23
+Bilos,FR-Bil,ICOS,648,4,23
+Blandy Experimental Farm,BLAN,NEON,331,4,22
+Brasschaat,BE-Bra,FluxNet,664,4,25
+Central Plains Experimental Range,CPER,NEON,402,8,23
+Dead Lake,DELA,NEON,399,8,21
+Disney Wilderness Preserve,DSNY,NEON,399,8,3
+Fontainebleau-Barbeau,FR-Fon,ICOS,664,4,24
+Guanica Forest,GUAN,NEON,543,2,3
+Hainich,HAIN,FluxNet,686,4,15
+Harvard Forest,HARV,NEON,338,4,3
+Hohes Holz,DE-HoH,ICOS,654,4,5
+Hyltemossa,SE-Htm,ICOS,647,4,4
+Hyytiala,FI-Hyy,SM,717,6,24
+Jones Ecological Research Center,JERC,NEON,399,8,20
+Jornada,JORN,NEON,428,13,17
+Konza Prairie Biological Station,KONA,NEON,392,8,23
+Lajas Experimental Station,LAJA,NEON,543,2,3
+Lower Teakettle,TEAK,NEON,366,5,16
+Moab,MOAB,NEON,429,13,21
+Niwot Ridge Mountain Research Station,NIWO,NEON,353,5,21
+North Sterling,STER,NEON,402,8,18
+Oak Ridge,ORNL,NEON,331,4,21
+Onaqui Ault,ONAQ,NEON,430,13,21
+Ordway Swisher Biological Station,OSBS,NEON,399,8,23
+San Rossore2,IT-SR2,ICOS,795,12,21
+Santa Rita,SRER,NEON,428,13,19
+Smithsonian Conservation Biology Institute,SCBI,NEON,331,4,9
+Smithsonian Environmental Research Center,SERC,NEON,399,8,23
+Soaproot Saddle,SOAP,NEON,366,5,3
+Steigerwaldt Land Services,STEI,NEON,344,4,11
+Talladega National Forest,TALL,NEON,399,8,17
+Tumbarumba,TUMB,FluxNet,193,10,8
+Underc,UNDE,NEON,344,4,23
+Valencia Anchor Station,VALE,SM,793,12,5
+Vielsalm,BE-Vie,ICOS,686,4,23
+Woodworth,WOOD,NEON,396,8,23
