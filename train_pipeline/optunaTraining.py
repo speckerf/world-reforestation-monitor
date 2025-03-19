@@ -1,9 +1,5 @@
 import json
 import os
-import random
-import string
-import subprocess
-import tempfile
 from pickle import dump as pickle_dump
 
 import ee
@@ -21,7 +17,6 @@ from sklearn.model_selection import (GroupKFold, HalvingGridSearchCV,
 from sklearn.pipeline import Pipeline
 
 from config.config import get_config
-from gee_pipeline.utils import wait_for_task, wait_for_task_id
 from rtm_pipeline_python.classes import (helper_apply_posthoc_modifications,
                                          rtm_simulator)
 from train_pipeline.utilsLoading import load_validation_data
@@ -91,38 +86,6 @@ def transform_X_y(
     else:
         df_transformed = pd.concat([df_X_transformed, df_y_transformed], axis=1)
     return df_transformed
-
-
-def upload_to_ee_via_gcs(df: pd.DataFrame, asset_name: str) -> str:
-    gcs_folder_name = CONFIG_GEE_PIPELINE["GCLOUD_FOLDERS"]["TEMP_FOLDER"]
-    random_string = "".join(
-        random.choices(string.ascii_lowercase + string.digits, k=10)
-    )  # avoid unnecessary filename collisions
-    filename_gcs = os.path.join(gcs_folder_name, f"{random_string}.csv")
-
-    # save df to temp dir locally
-    with tempfile.NamedTemporaryFile(suffix=".csv") as temp:
-        df.to_csv(temp.name, index=False)
-        subprocess.run(
-            f"gsutil cp {temp.name} {filename_gcs}",
-            shell=True,
-            check=True,
-        )
-
-    asset_id = f"{CONFIG_GEE_PIPELINE['GEE_FOLDERS']['MODEL_RF_LUT']}/{asset_name.removesuffix('.csv')}"
-    output = subprocess.run(
-        f"{CONFIG_GEE_PIPELINE['CONDA_PATH']}/bin/earthengine upload table --asset_id={asset_id} {filename_gcs}",
-        shell=True,
-        check=True,
-        capture_output=True,
-    )
-
-    # extract task id from output
-    task_id = output.stdout.decode("utf-8").split("ID: ")[1].strip()
-
-    wait_for_task_id(task_id)
-
-    return asset_id
 
 
 def initialize_configuration(trial):
