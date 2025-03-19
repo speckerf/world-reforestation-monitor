@@ -7,7 +7,6 @@ from sklearn.pipeline import Pipeline
 
 from config.config import get_config
 from ee_translator.ee_mlp_regressor import eeMLPRegressor
-from ee_translator.ee_random_forest_regressor import eeRandomForestRegressor
 from ee_translator.ee_standard_scaler import eeStandardScaler
 from gee_pipeline.utilsOOD import MinMaxRangeMasker
 
