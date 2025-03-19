@@ -91,11 +91,11 @@ To setup to environment, please follow these steps:
         - run `python -m train_pipeline.optunaTraining` and observe the training progress using `optuna-dashboard` (e.g. optuna-dashboard mysql://root@localhost/oemc)
 
 5. Running Scripts: 
-    - Most scripts need to be run as modules from the root directory, e.g.: 
-        ```
-        python -m train_pipeline.optunaTraining
-        ```
-    - You can setup a `launch.json` in `/.vscode/` in order to run and debug a specific file as a module, see e.g.:
+- Most scripts need to be run as modules from the root directory, e.g.: 
+```bash
+python -m train_pipeline.optunaTraining
+```
+- You can setup a `launch.json` in `/.vscode/` in order to run and debug a specific file as a module, see e.g.:
 ```yaml
     {
         "version": "0.2.0",
@@ -113,7 +113,7 @@ To setup to environment, please follow these steps:
             ]
     }
 ```
-    - Please refer to the module-specific readme.md files in order to get more information on how to execute the given code. 
+- Please refer to the module-specific readme.md files in order to get more information on how to execute the given code. 
 
 
 ## Repository Structure
