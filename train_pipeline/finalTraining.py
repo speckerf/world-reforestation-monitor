@@ -1,6 +1,5 @@
 import json
 import os
-import random
 from glob import glob
 from pickle import load as pickle_load
 
@@ -9,12 +8,12 @@ import numpy as np
 import optuna
 import pandas as pd
 from loguru import logger
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (mean_absolute_error, r2_score,
+                             root_mean_squared_error)
 
 from config.config import get_config
 from train_pipeline.optunaTraining import objective
 from train_pipeline.utilsLoading import load_validation_data
-from train_pipeline.utilsPlotting import plot_predicted_vs_true
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
@@ -66,108 +65,6 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
         # run and save best model
         rerun_and_save_best_optuna(config, study=study)
 
-
-# def test_gee_pipeline_predict(trait: str):
-#     """
-#     Test the eePipelinePredict function:
-#     with constant image, see if same predictions are made
-#     """
-#     models = load_model_ensemble(trait)
-
-#     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
-#     angles = ["tts", "tto", "psi"]
-#     features = bands + angles
-
-#     # create dummy image with constant values:
-#     random_reflectances = [random.random() for _ in range(len(bands))]
-#     random_angles = [random.random() * 10 for _ in range(len(angles))]
-#     random_angles[0] = random_angles[0] * 4
-#     random_angles[1] = random_angles[1] * 1
-#     random_angles[2] = random_angles[2] * 18
-
-#     img = (
-#         ee.ImageCollection(
-#             [
-#                 *[ee.Image(v).rename(n) for n, v in zip(bands, random_reflectances)],
-#                 *[ee.Image(v).rename(n) for n, v in zip(angles, random_angles)],
-#             ]
-#         )
-#         .toBands()
-#         .rename(features)
-#     )
-
-#     # sample point from image
-#     point = ee.Geometry.Point([0, 0])
-#     img.sample(point).first().getInfo()
-
-#     # loop over all models
-#     for model_name, model in models.items():
-#         # if model is rf, continue
-#         # if model_name.split("-")[-2] == "rf":
-#         #     continue
-#         # predict the image
-#         img_pred = eePipelinePredict(model["pipeline"], img, trait, model["config"])
-#         img_pred_gee = img_pred.sample(point).first().getInfo()["properties"][trait]
-
-#         # predict locally
-#         X = np.array([*random_reflectances, *random_angles]).reshape(1, -1)
-#         # convert to dataframe
-#         X = pd.DataFrame(X, columns=features)
-#         y_pred_sklearn = model["pipeline"].predict(X)
-
-#         logger.debug(
-#             f"Model {model_name} sklearn_pred: {y_pred_sklearn[0][0]}, GEE_pred: {img_pred_gee}"
-#         )
-#         if not np.isclose(img_pred_gee, y_pred_sklearn[0][0], rtol=1e-5):
-#             logger.error(
-#                 f"Model {model_name} prediction is not the same: Difference: {img_pred_gee - y_pred_sklearn[0][0]}"
-#             )
-#             raise ValueError(
-#                 f"Model {model_name} prediction is not the same, Please recheck the eePipelinePredict model conversion."
-#             )
-#         else:
-#             logger.info(f"Model {model_name} predict GEE translation was successful")
-
-
-def check_icos_targets():
-    pass
-    # check if the accuracy is within 2-sigma thresholds defined by ICOS
-    # if trait == "lai":
-    #     # threshold: 20% for values >0.5, 0.1 for values <0.5
-    #     threshold = 0.5
-    #     preds_list = predictions_ensemble.squeeze().tolist()
-    #     y_val_list = y_val.squeeze().tolist()
-
-    #     smaller_than_threshold = [
-    #         (pred, y_val)
-    #         for pred, y_val in zip(preds_list, y_val_list)
-    #         if y_val < threshold
-    #     ]
-
-    #     greater_than_threshold = [
-    #         (pred, y_val)
-    #         for pred, y_val in zip(preds_list, y_val_list)
-    #         if y_val >= threshold
-    #     ]
-
-    #     # check if the accuracy is within 2-sigma thresholds defined by ICOS
-    #     smaller_ok = [
-    #         True if abs(pred - y_val) < 0.1 else False
-    #         for pred, y_val in smaller_than_threshold
-    #     ]
-    #     greater_ok = [
-    #         True if pred / y_val < 1.2 and pred / y_val > 0.8 else False
-    #         for pred, y_val in greater_than_threshold
-    #     ]
-
-    #     # count percentage of correct predictions
-    #     correct = sum(smaller_ok) + sum(greater_ok)
-    #     total = len(smaller_than_threshold) + len(greater_than_threshold)
-    #     logger.info(
-    #         f"Correct predictions: {correct}/{total} ({correct/total*100:.2f}%)"
-    #     )
-
-
 def evaluate_model_ensemble(trait: str) -> tuple:
     """
     Evaluate the model ensemble for the given trait
@@ -199,7 +96,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     mae = mean_absolute_error(y_val, predictions_ensemble)
     r2 = r2_score(y_val, predictions_ensemble)
     rmse = root_mean_squared_error(y_val, predictions_ensemble)
-    me = np.mean(y_val.values - predictions_ensemble)
+    me = np.mean(predictions_ensemble - y_val.values)
 
     logger.info(f"Ensemble std: {std_ensemble}")
     logger.info(f"Ensemble MAE: {mae}")
@@ -231,6 +128,13 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     true_values_oos_stack = np.concatenate(list(true_values_oos.values()))
 
     r2_stacked = r2_score(true_values_oos_stack, predictions_oos_stack)
+    mae_stacked = mean_absolute_error(true_values_oos_stack, predictions_oos_stack)
+    rmse_stacked = root_mean_squared_error(true_values_oos_stack, predictions_oos_stack)
+
+    # create dict with model_name and number of predictions
+    model_name_count = {k: len(v) for k, v in predictions_oos.items()}
+
+    logger.info(f"N predictions: {model_name_count}")
 
     # save the metrics to a file
     with open(
@@ -251,13 +155,13 @@ def evaluate_model_ensemble(trait: str) -> tuple:
                 "rmse": rmse,
                 "me": me,
                 "r2_stacked": r2_stacked,
+                "mae_stacked": mae_stacked,
+                "rmse_stacked": rmse_stacked,
             },
             f,
         )
 
     from train_pipeline.utilsPlotting import plot_predicted_vs_true
-
-    # sample
 
     plot_predicted_vs_true(
         y_val,
@@ -271,8 +175,8 @@ def evaluate_model_ensemble(trait: str) -> tuple:
             f"{'-'.join(model_name.split('-')[0:3])}-ensemble.png",
         ),
         plot_type="density_scatter",
-        x_label=f"{trait} - reference measurement",
-        y_label=f"{trait} - S2 prediction",
+        x_label=f"{trait.upper()} - reference measurement",
+        y_label=f"{trait.upper()} - S2 prediction",
     )
 
     plot_predicted_vs_true(
@@ -287,8 +191,8 @@ def evaluate_model_ensemble(trait: str) -> tuple:
             f"{'-'.join(model_name.split('-')[0:3])}-stacked_oos.png",
         ),
         plot_type="density_scatter",
-        x_label=f"{trait} - reference measurement",
-        y_label=f"{trait} - S2 prediction",
+        x_label=f"{trait.upper()} - reference measurement",
+        y_label=f"{trait.upper()} - S2 prediction",
     )
 
     return predictions_ensemble, y_val
@@ -339,8 +243,6 @@ def load_model_ensemble(trait: str, models: list[str] = ["mlp"]) -> dict:
                     "min_max_bands": json.load(open(path["min_max_bands"], "r")),
                     "min_max_label": json.load(open(path["min_max_label"], "r")),
                     "split": json.load(open(path["split"], "r")),
-                    # "df_val_train": pd.read_csv(path["df_val_train"]),
-                    # "df_val_test": pd.read_csv(path["df_val_test"]),
                 }
 
     return models
@@ -355,15 +257,13 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    # rerun_and_save_best_optuna_wrapper("fcover", config)
+    rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
-    evaluate_model_ensemble("fcover")
+    # evaluate_model_ensemble("lai")
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 
 
 if __name__ == "__main__":
     ee.Initialize()
-
-    # loop over all 6 studies:
     main()

@@ -4,40 +4,32 @@ import random
 import string
 import subprocess
 import tempfile
-import time
 from pickle import dump as pickle_dump
-from pickle import load as pickle_load
-from typing import Optional
 
 import ee
 import numpy as np
 import optuna
 import pandas as pd
-from geemap import df_to_ee, ml
 from loguru import logger
 from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
 from sklearn.experimental import enable_halving_search_cv  # noqa
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
-from sklearn.model_selection import GroupKFold, HalvingGridSearchCV, train_test_split
+from sklearn.metrics import (mean_absolute_error, r2_score,
+                             root_mean_squared_error)
+from sklearn.model_selection import (GroupKFold, HalvingGridSearchCV,
+                                     train_test_split)
 from sklearn.pipeline import Pipeline
 
 from config.config import get_config
 from gee_pipeline.utils import wait_for_task, wait_for_task_id
-from rtm_pipeline_python.classes import (
-    helper_apply_posthoc_modifications,
-    rtm_simulator,
-)
+from rtm_pipeline_python.classes import (helper_apply_posthoc_modifications,
+                                         rtm_simulator)
 from train_pipeline.utilsLoading import load_validation_data
 from train_pipeline.utilsOptuna import log_splits, optuna_init_config
 from train_pipeline.utilsPlotting import plot_predicted_vs_true
-from train_pipeline.utilsTraining import (
-    get_model,
-    get_pipeline,
-    limit_prediction_range,
-    merge_dicts_safe,
-    r2_score_oos,
-)
+from train_pipeline.utilsTraining import (get_model, get_pipeline,
+                                          limit_prediction_range,
+                                          merge_dicts_safe, r2_score_oos)
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 

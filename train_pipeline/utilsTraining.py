@@ -1,16 +1,10 @@
-import copy
-import sys
-from typing import Self, Union
+from typing import Union
 
 import numpy as np
 import pandas as pd
-from geemap import ml
 from loguru import logger
-from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.feature_selection import SelectKBest, f_regression
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -18,13 +12,6 @@ from sklearn.preprocessing import StandardScaler
 
 def get_model(config):
     if config["model"] == "mlp":
-        # model = MLPRegressor(
-        #     hidden_layer_sizes=config["hidden_layers"],
-        #     activation=config["activation"],
-        #     alpha=config["alpha"],
-        #     learning_rate=config["learning_rate"],
-        #     max_iter=config["max_iter"],
-        # )
         model = MLPRegressor(random_state=42)
     else:
         raise ValueError(f"Unknown model: {config['model']}")

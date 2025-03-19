@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import pandas as pd
 
 
@@ -124,20 +123,8 @@ def load_validation_data(return_site=False) -> dict:
     # divide reflectances by 10000 to get reflectances in the range [0, 1]
     for trait in list(validation_sets.keys()):
         validation_sets[trait][bands] = validation_sets[trait][bands] / 10000
-        # validation_sets[trait][angles] = convert_angles_to_cosines(
-        #     validation_sets[trait][angles], angle_colnames=angles
-        # )
-
-    # set maximum for inclusion in validation set:
-    # ewt: 0.1
-    # chl: 100
-    # lma: 0.05
-    # lai: 10
-    # validation_sets["EWT"]["EWT"] = np.minimum(validation_sets["EWT"]["EWT"], 0.1)
-    # validation_sets["CHL"]["CHL"] = np.minimum(validation_sets["CHL"]["CHL"], 100)
-    # validation_sets["LMA"]["LMA"] = np.minimum(validation_sets["LMA"]["LMA"], 0.05)
-
-    # instead: discard values above these thresholds
+        
+    # discard values above threshold
     validation_sets["EWT"] = validation_sets["EWT"][
         validation_sets["EWT"]["EWT"] <= 0.1
     ]
