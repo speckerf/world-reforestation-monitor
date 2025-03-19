@@ -33,15 +33,6 @@ def add_angles_from_metadata_to_properties(image: ee.Image) -> ee.Image:
     """
     Enhances the given satellite image with additional bands derived from its metadata angles.
 
-    This function extracts the solar and view angles from the metadata of the satellite image.
-    The solar azimuth and zenith angles are directly obtained from the metadata, while the view
-    azimuth and zenith angles are calculated as the mean of angles corresponding to various bands.
-    These angles are then transformed to cosine values, and the relative azimuth angle is calculated
-    as the absolute difference between the view and solar azimuth angles.
-
-    The function also scales the image values by dividing them by 10000, converting them to reflectance values.
-    Finally, the transformed angles are added as new bands to the image.
-
     Parameters:
     - image (ee.Image): The input satellite image which contains metadata from which the angles are extracted.
 
@@ -81,25 +72,7 @@ def add_angles_from_metadata_to_properties(image: ee.Image) -> ee.Image:
         .get([0])
     )
 
-    # Transform angles to cosine values and calculate relative azimuth angle.
-    transformed_angles = {
-        "solar_zenith_cos": solar_zenith.multiply(ee.Number(math.pi / 180)).cos(),
-        "view_zenith_cos": view_zenith.multiply(ee.Number(math.pi / 180)).cos(),
-        "relative_azimuth_cos": view_azimuth.subtract(solar_azimuth)
-        .abs()
-        .multiply(ee.Number(math.pi / 180))
-        .cos(),
-        "solar_zenith_rad": solar_zenith.multiply(ee.Number(math.pi / 180)),
-        "view_zenith_rad": view_zenith.multiply(ee.Number(math.pi / 180)),
-        "relative_azimuth_rad": view_azimuth.subtract(solar_azimuth)
-        .abs()
-        .multiply(ee.Number(math.pi / 180)),
-        "solar_azimuth_rad": solar_azimuth.multiply(ee.Number(math.pi / 180)),
-        "view_azimuth_rad": view_azimuth.multiply(ee.Number(math.pi / 180)),
-    }
-
     # # Convert image values to reflectance values.
-    # image = image.divide(10000).toFloat() # SUPERSEDED
     logger.trace(
         "Image values are not converted to reflectance values inside add_angles_from_metadata_to_bands, make sure to do this elsewhere."
     )
@@ -108,13 +81,6 @@ def add_angles_from_metadata_to_properties(image: ee.Image) -> ee.Image:
     image = image.set("sza", solar_zenith)
     image = image.set("vza", view_zenith)
     image = image.set("phi", view_azimuth.subtract(solar_azimuth).abs())
-
-    # add radians
-    # image = image.set('sza_rad', transformed_angles['solar_zenith_rad'])
-    # image = image.set('vza_rad', transformed_angles['view_zenith_rad'])
-    # image = image.set('phi_rad', transformed_angles['relative_azimuth_rad'])
-    # image = image.set('saa_rad', transformed_angles['solar_azimuth_rad'])
-    # image = image.set('vaa_rad', transformed_angles['view_azimuth_rad'])
 
     return image
 

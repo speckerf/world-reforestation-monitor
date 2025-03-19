@@ -6,25 +6,6 @@ import ee
 import pandas as pd
 from loguru import logger
 
-# def convert_lai_table_to_gee_featurecollection(df: pd.DataFrame, lat_col: str = 'lat', lon_col: str = 'lon', date_col: str = 'date') -> ee.FeatureCollection:
-#     df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d %H:%M:%S')
-#     df['year'] = df['date'].dt.year
-
-#     # Convert DataFrame to FeatureCollection
-#     features = []
-#     for i, row in df.iterrows():
-#         feature = ee.Feature(ee.Geometry.Point([row[lon_col], row[lat_col]]), {
-#             'GBOV_ID': row['GBOV_ID'],
-#             'PLOT_ID': row['PLOT_ID'],
-#             'Site': row['Site'],
-#             'year': row['year']
-#         })
-#         ee_date = ee.Date(row[date_col].strftime('%Y-%m-%d'))
-#         feature = feature.set('system:time_start', ee_date)
-#         features.append(feature)
-#     fc = ee.FeatureCollection(features)
-#     return fc
-
 
 def merge_lai_files(directory, output_filename):
     # List all CSV files in the directory
