@@ -24,46 +24,46 @@ of standardized global monitoring frameworks.
 Maps are available at resolutions: 
 
 **1000m**
-- **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
+- **Source**: GEE (see below) or [Zenodo](TODO)
 - **Projection**: Single COGs in `EPSG:4325`
 
 
 **100m**
-- **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
+- **Source**: GEE (see below) or multi-bucket deposition at [Zenodo](TODO)
 - **Projection**: Single COGs in `EPSG:4325`
 
 **20m**: 
 - **App**: [Global Trait Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
 - **Assets**: 
-        ```js
-         ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
-        ```
+```js
+ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
+```
 - **Projection**: Local UTM Projection (native Sentinel-2 projection, requires mosaicing)
 - **Visualization Code** [View in GEE Code Editor](https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450)
 - **Example: Mosaicking / Scaling / Filtering Code** [Open in GEE Code Editor](https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763)
-        ```js
-            var resolution = '100m' // 1000m / 100m / 20m
+```js
+    var resolution = '100m' // 1000m / 100m / 20m
 
-            // Trait-specific scaling factors
-            var scalingFactors = {
-            'fapar': 10000,
-            'fcover': 10000,
-            'lai': 1000
-            };
+    // Trait-specific scaling factors
+    var scalingFactors = {
+    'fapar': 10000,
+    'fcover': 10000,
+    'lai': 1000
+    };
 
-            // Function to retrieve the image collection based on trait, version, and year
-            function get_yearly_image(trait, year) {
-                var collectionPath = 'projects/ee-speckerfelix/assets/open-earth/' + trait + '_predictions-mlp_' + resolution + '_v01';
-                var image = ee.ImageCollection(collectionPath).filterDate(year + '-01-01', year + '-12-31').mosaic();
-                var mean_band = trait + '_mean'
-                var std_band = trait + '_stdDev'
-                var count_band = trait + '_count'
-                image = image.select([mean_band, std_band]).divide(scalingFactors[trait]).addBands(image.select([count_band]))
-                return image;
-            }
+    // Function to retrieve the image collection based on trait, version, and year
+    function get_yearly_image(trait, year) {
+        var collectionPath = 'projects/ee-speckerfelix/assets/open-earth/' + trait + '_predictions-mlp_' + resolution + '_v01';
+        var image = ee.ImageCollection(collectionPath).filterDate(year + '-01-01', year + '-12-31').mosaic();
+        var mean_band = trait + '_mean'
+        var std_band = trait + '_stdDev'
+        var count_band = trait + '_count'
+        image = image.select([mean_band, std_band]).divide(scalingFactors[trait]).addBands(image.select([count_band]))
+        return image;
+    }
 
-            var lai_2019 = get_yearly_image('lai', 2019)`
-        ```
+    var lai_2019 = get_yearly_image('lai', 2019)`
+```
 
 ## Setup Environment
 
