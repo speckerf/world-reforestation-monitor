@@ -9,6 +9,7 @@ This repository contains scripts for generating the validation data. Performs fi
     - Load, filter and clean the GBOV reference measurements for the variable of interest. 
     - Uses GEE to find closest cloud-free Sentinel-2 observation and export the results to Google Cloud Storage. 
         -  Exports are performed per site. 
+    - make sure the change the export destination in `src_lai.py`, `src_fapar.py`, `src_fcover.py` to your cloud storage bucket and folder. 
     
 2. Then, download the exported results from Google Cloud Storage and merge to obtain a single csv file. 
     - Run `merge_fapar_sites.py`, `merge_fcover_sites.py`, `merge_lai_sites.py`
@@ -18,4 +19,3 @@ This repository contains scripts for generating the validation data. Performs fi
     - LAI: `data/validation_pipeline/output/lai/merged_lai_COPERNICUS_GBOV_RM6,7_20240620120826.csv`
     - FAPAR: `data/validation_pipeline/output/fapar/merged_FIPAR_COPERNICUS_GBOV_RM6,7_20240620120826.csv`
 
-    
