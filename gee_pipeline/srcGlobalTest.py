@@ -1,25 +1,7 @@
-import concurrent.futures
-import os
-from datetime import datetime
-from functools import reduce
-
 import ee
-import numpy as np
-import pandas as pd
-from loguru import logger
 
 from config.config import get_config
 from gee_pipeline.srcGlobal import export_mgrs_tile
-from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
-from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-from gee_pipeline.utilsPhenology import get_start_end_date_phenology_for_ecoregion
-from gee_pipeline.utilsPredict import (
-    add_random_ensemble_assignment,
-    collapse_to_mean_and_stddev,
-    eePipelinePredictMap,
-)
-from gee_pipeline.utilsTiles import get_s2_indices_filtered
-from train_pipeline.finalTraining import load_model_ensemble
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
@@ -32,17 +14,24 @@ ee.Initialize(credentials, project="ee-speckerfelix")
 
 
 def test_export_global():
-    mgrs_tile_list = ["25W"]
+    # not global export: only subset of mgrs tiles: see https://hls.gsfc.nasa.gov/products-description/tiling-system/
+    # mgrs_tile_list = ["25W"]
     # 29Q to 35 Q
-    mgrs_tile_list = ["29Q", "30Q", "31Q", "32Q", "33Q", "34Q", "35Q"]
+    # mgrs_tile_list = ["29Q", "30Q", "31Q", "32Q", "33Q", "34Q", "35Q"]
+
+    # mgrs_tile_list = ["10T", "10S", "15Q", "16Q", "34N", "55G", "31T", "24L", ]  # for figures
+    # mgrs_tile_list = ["24L", "36N", "50L"]
+    # mgrs_tile_list = ["36N", "50L"]
+    # mgrs_tile_list = ["18U", "19U"]
+    mgrs_tile_list = ["18F"]
+    # mgrs_tile_list = ["29Q", "30Q", "31Q"]  # for figures
+    # mgrs_tile_list = ["31T"]  # catalnuy
+    # mgrs_tile_list = mgrs_tiles_for_figures
+    # mgrs_tile_list = mgrs_tiles_for_figures
     # mgrs_tile_list = ["44S", "45S", "46S", "44T", "45T", "46T"]
     for mgrs_tile in mgrs_tile_list:
         export_mgrs_tile(mgrs_tile)
 
 
 if __name__ == "__main__":
-    # export_continent()
-    # export_helper()
     test_export_global()
-    # test_multi_eco()
-    pass

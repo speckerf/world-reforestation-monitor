@@ -1,19 +1,15 @@
 import ast
 import os
-import random
 import string
 
 import ee
-import geemap
 import geopandas as gpd
 import pandas as pd
 from loguru import logger
 from pyproj import CRS
 
 from config.config import get_config
-from gee_pipeline.utils import wait_for_task
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-from gee_pipeline.utilsPhenology import add_linear_weight
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 

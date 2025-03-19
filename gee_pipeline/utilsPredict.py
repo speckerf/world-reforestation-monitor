@@ -13,7 +13,6 @@ from gee_pipeline.utilsOOD import MinMaxRangeMasker
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
-
 # Calculate weights based on linear distance from the midpoint, allowing weights to reach 0
 def calculate_linear_weight(
     image: ee.Image, start_date: ee.Date, end_date: ee.Date, total_days: ee.Number
@@ -38,7 +37,6 @@ def add_random_ensemble_assignment(imgc: ee.ImageCollection) -> ee.ImageCollecti
             .add(1),
         )
     )
-
 
 def collapse_to_weighted_mean_and_stddev(imgc: ee.ImageCollection) -> ee.Image:
     trait_name = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]

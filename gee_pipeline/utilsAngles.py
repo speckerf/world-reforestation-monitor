@@ -1,5 +1,3 @@
-import math
-
 import ee
 from loguru import logger
 

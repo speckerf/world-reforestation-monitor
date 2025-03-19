@@ -1,11 +1,9 @@
 import concurrent.futures
 import os
 import time
-from datetime import datetime
 from functools import reduce
 
 import ee
-import numpy as np
 import pandas as pd
 from loguru import logger
 from tqdm import tqdm
@@ -13,23 +11,22 @@ from tqdm import tqdm
 from config.config import get_config
 from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-from gee_pipeline.utilsPhenology import get_start_end_date_phenology_for_ecoregion
-from gee_pipeline.utilsPredict import (
-    add_random_ensemble_assignment,
-    collapse_to_mean_and_stddev,
-    eePipelinePredictMap,
-)
-from gee_pipeline.utilsTiles import get_epsg_code_from_mgrs, get_s2_indices_filtered
+from gee_pipeline.utilsPredict import (add_random_ensemble_assignment,
+                                       collapse_to_mean_and_stddev,
+                                       eePipelinePredictMap)
+from gee_pipeline.utilsTiles import (get_epsg_code_from_mgrs,
+                                     get_s2_indices_filtered)
 from train_pipeline.finalTraining import load_model_ensemble
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
-
+# Comment out the following lines to use the default GEE credentials
 service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
 credentials = ee.ServiceAccountCredentials(
     service_account, "auth/gem-eth-analysis-24fe4261f029.json"
 )
 ee.Initialize(credentials, project="ee-speckerfelix")
+# ee.Initialize()
 
 
 def export_mgrs_tile(mgrs_tile: str) -> None:
@@ -206,8 +203,8 @@ def global_export_mgrs_tiles():
     )
     mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
 
-    include = ["19F", "19E", "20F"]
-
+    include = ["19F", "19E", "18X"]
+    # mgrs_tiles_list = include
     mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
     logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
 
