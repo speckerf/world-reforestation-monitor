@@ -62,7 +62,27 @@ def main():
     # DATA_FOLDER_1000m = "data-local/results_1000m/"
     DATA_FOLDER_1000m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
     # DATA_FOLDER_100m = "data-local/results_1000m/"
-    DATA_FOLDER_100m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
+    DATA_FOLDER_100m = "/Volumes/OEMC/world-reforestation-monitor/results_100m/"
+    doi_prefix = "https://doi.org/"
+
+    creators_list = [
+        {"name": "Felix Specker", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-9398-9975"},
+        {"name": "Anna K. Schweiger", "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States", "orcid": "0000-0002-5567-4200"},
+        {"name": "Jean-Baptiste Féret", "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France", "orcid": "0000-0002-0151-1334"},
+        {"name": "Thomas Lauber", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-3118-432X"},
+        {"name": "AUTHORS GBOV", "affiliation": "Misc"},
+        {"name": "Thomas W. Crowther", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-5674-8913"},
+        {"name": "Johan van den Hoogen", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-6624-8461"},
+    ]
+    keywords_list = [
+        "Vegetation traits",
+        "Biodiversity",
+        "Sentinel-2",
+        "LAI",
+        "FAPAR",
+        "FCOVER",
+        "PROSAIL",
+    ]
 
 
     local_file_paths = grep_filenames(
@@ -88,25 +108,9 @@ def main():
         "description": base_description,
         "upload_type": "dataset",
         "publication_type": "article",
-        "keywords": [
-            "Vegetation traits",
-            "Biodiversity",
-            "Sentinel-2",
-            "LAI",
-            "FAPAR",
-            "FCOVER",
-            "PROSAIL",
-        ],
+        "keywords": keywords_list,
         "license": "cc-by-4.0",
-        "creators": [
-            {"name": "Felix Specker", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-9398-9975"},
-            {"name": "Anna K. Schweiger", "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States", "orcid": "0000-0002-5567-4200"},
-            {"name": "Jean-Baptiste Féret", "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France", "orcid": "0000-0002-0151-1334"},
-            {"name": "Thomas Lauber", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-3118-432X"},
-            {"name": "AUTHORS GBOV", "affiliation": "Misc"},
-            {"name": "Thomas W. Crowther", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-5674-8913"},
-            {"name": "Johan van den Hoogen", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-6624-8461"},
-        ],
+        "creators": creators_list,
         "grants": [
             {"id": "101059548"},
         ],
@@ -127,7 +131,93 @@ def main():
 
     # upload the files
     base_ds.update_metadata()
-    base_ds.upload()
+    # base_ds.upload()
+
+    """
+    Create Code/Data deposition, containing the code and data used for model training/prediction
+    """
+    data_file_zipped = "data.tar.gz"
+    code_file_zipped = "world-reforestation-monitor-main.zip"
+
+    code_data_description = """
+    <p>This deposition contains the code and data used for training and prediction of the PROSAIL model to predict LAI, FAPAR, and FCOVER.</p>
+
+    <p>The code is available on GitHub: 
+        <a href="https://github.com/speckerf/world-reforestation-monitor" target="_blank">
+            world-reforestation-monitor
+        </a>
+    </p>
+
+    <p>To use this deposition, please follow these steps:</p>
+    <ol>
+        <li>Download both the code archive (<code>world-reforestation-monitor-main.zip</code>) and the data archive (<code>data.tar.gz</code>).</li>
+        <li>Unpack the code archive first, which will create a folder named <code>world-reforestation-monitor</code>.</li>
+        <li>Unpack the data archive inside the <code>world-reforestation-monitor</code> folder. This will ensure the data is placed correctly for use with the provided scripts.</li>
+    </ol>
+
+    <p>Please refer to the base deposition for the uploaded generated maps and a complete description: 
+        <a href="{doi_prefix}{doi}" target="_blank">{doi}</a>
+    </p>
+    """.format(doi_prefix=doi_prefix, doi=base_ds_doi)
+
+    code_data_metadata = {
+        "title": "Advancing Ecosystem Monitoring: Code and Data for Model Training and Prediction",
+        "description": code_data_description,
+        "upload_type": "software",
+        "keywords": keywords_list,
+        "license": "cc-by-4.0",
+        "creators": creators_list,
+        "grants": [
+            {"id": "101059548"},
+        ],
+        "communities": [
+            {"identifier": "oemc-project"},
+        ],
+    }
+
+    code_data_ds = LocalFiles(
+        [data_file_zipped, code_file_zipped],
+        dataset_path=DEPOSITION_METADATA_PATH.replace(
+            ".json", "-code-data.json"
+        ),
+    )
+
+    code_data_ds.set_deposition(
+        api=zen,
+        create_if_not_exists=True,
+        metadata=code_data_metadata,
+    )
+
+    # add related identifiers to base deposition: isSupplementTo
+    code_data_ds.deposition.metadata.related_identifiers.add(
+        **{
+            "relation": "isSupplementTo",
+            "identifier": base_ds.deposition.doi,
+            "resource_type": "dataset",
+        }
+    )
+
+    code_data_ds.save()
+    code_data_ds.upload()
+    code_data_ds.update_metadata()
+
+    # update base deposition with related identifiers to code/data deposition
+    base_ds.deposition.metadata.related_identifiers.add(
+        **{
+            "relation": "isSupplementedBy",
+            "identifier": code_data_ds.deposition.doi,
+            "resource_type": "software",
+        }
+    )
+    # update to description: the link to DOI of code/data deposition
+    base_ds.deposition.metadata.description = base_ds.deposition.metadata.description.replace(
+        "ADD_DOI_CODE_REPO", f'<a href="{doi_prefix}{code_data_ds.deposition.doi}" target="_blank">{code_data_ds.deposition.doi}</a>'
+    )
+    base_ds.update_metadata()
+
+    """
+    Create children depositions with 100m resolution files.
+    """
 
     # now create children depositions: assert each is less than 50 GB
     traits = ["LAI", "FAPAR", "FCOVER"]
@@ -141,7 +231,7 @@ def main():
         child_metadata = base_metadata.copy()
         # child_metadata["description"] = f"{trait} deposition with {len(base_ds)} files"
         child_metadata["description"] = (
-            f'<h3>Subdataset: {trait} {year} [mean] </h3> Mean {trait} predictions for {year} at 100m resolution. See base depositions for more information: <a href="{base_ds.deposition.doi}" target="_blank">{base_ds_doi}</a>'
+            f'<h3>Subdataset: {trait} {year} [mean] </h3> Mean {trait} predictions for {year} at 100m resolution. See base depositions for more information: <a href="{doi_prefix}{base_ds.deposition.doi}" target="_blank">{base_ds_doi}</a>'
         )
         # child_metadata["keywords"].append(trait)
         child_metadata["related_identifiers"] = [
@@ -309,14 +399,14 @@ def main():
     base_ds.deposition.metadata.description = base_dep_description_updated
     base_ds.deposition.update()
 
-    # cleanup - delete all depositions
-    base_ds.deposition.discard()
-    for ds in children_ds.values():
-        ds.deposition.discard()
+    # # cleanup - delete all depositions
+    # base_ds.deposition.discard()
+    # for ds in children_ds.values():
+    #     ds.deposition.discard()
 
-    # delete all files in zenodo-upload/depositions/test/.json
-    for f in glob.glob("zenodo-upload/depositions/test/*.json"):
-        os.remove(f)
+    # # delete all files in zenodo-upload/depositions/test/.json
+    # for f in glob.glob("zenodo-upload/depositions/test/*.json"):
+    #     os.remove(f)
 
 def get_cms(trait, variable):
     assert trait in ["lai", "fapar", "fcover"]
