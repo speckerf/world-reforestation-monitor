@@ -9,11 +9,10 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
-from loguru import logger
 
 from zen import LocalFiles, Zenodo
 
-FINAL_DEPOSITION = False
+FINAL_DEPOSITION = True
 # parse zenodo token from auth.zenodo_sandbox.txt
 if not FINAL_DEPOSITION:
     with open("auth/zenodo_sandbox.txt", "r") as f:
@@ -22,7 +21,7 @@ if not FINAL_DEPOSITION:
             "zenodo-upload/depositions/test/test-deposition-base.json"
         )
 else:
-    raise ValueError("Final deposition not implemented yet.")
+    # raise ValueError("Final deposition not implemented yet.")
     with open("auth/zenodo.txt", "r") as f:
         ZENODO_ACCESS_TOKEN = f.read().strip()
         DEPOSITION_METADATA_PATH = (
@@ -55,11 +54,15 @@ def main():
     """
     Create base deposition with all 1000m resolution files.
     """
+    if FINAL_DEPOSITION:
+        zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+    else:
+        zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
 
-    zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
-
-    DATA_FOLDER_1000m = "data-local/results_1000m/"
-    DATA_FOLDER_100m = "data-local/results_1000m/"
+    # DATA_FOLDER_1000m = "data-local/results_1000m/"
+    DATA_FOLDER_1000m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
+    # DATA_FOLDER_100m = "data-local/results_1000m/"
+    DATA_FOLDER_100m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
 
 
     local_file_paths = grep_filenames(
@@ -68,11 +71,11 @@ def main():
         contains=["_1000m"]
     )
     selected_preview_files = [f for f in local_file_paths if "1000m_s_20200101_20201231" in f]
-    local_file_paths_selected_previews = list(map(lambda x: get_preview_file(x, "data-local/previews"), selected_preview_files))
+    local_file_paths_selected_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), selected_preview_files))
 
     base_json_path = DEPOSITION_METADATA_PATH
     base_ds = LocalFiles(
-        sorted([*local_file_paths, *local_file_paths_selected_previews], reverse=True),
+        sorted([*local_file_paths, *local_file_paths_selected_previews], reverse=False, key=lambda x: os.path.basename(x)),
         dataset_path=base_json_path,
     )
 
@@ -107,6 +110,9 @@ def main():
         "grants": [
             {"id": "101059548"},
         ],
+        "communities": [
+            {"identifier": "oemc-project"},
+        ],
     }
 
     base_ds.set_deposition(api=zen, create_if_not_exists=True, metadata=base_metadata)
@@ -120,8 +126,8 @@ def main():
     dep = base_ds.deposition
 
     # upload the files
-    base_ds.upload()
     base_ds.update_metadata()
+    base_ds.upload()
 
     # now create children depositions: assert each is less than 50 GB
     traits = ["LAI", "FAPAR", "FCOVER"]
@@ -147,10 +153,10 @@ def main():
             suffix=".tif",
             contains=[trait.lower(), "mean", str(year)],
         )
-        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "data-local/previews"), local_file_paths_children))
+        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), local_file_paths_children))
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_children, *local_file_paths_children_previews], reverse=True),
+            sorted([*local_file_paths_children, *local_file_paths_children_previews], reverse=True, key=lambda x: os.path.basename(x)),
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-mean.json"
             ),
@@ -201,11 +207,11 @@ def main():
             contains=[trait.lower(), "count", str(year)],
         )
         local_file_paths_std_count = std_files + count_files
-        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "data-local/previews"), local_file_paths_std_count))
+        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), local_file_paths_std_count))
 
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_std_count, *local_file_paths_children_previews], reverse=True),
+            sorted([*local_file_paths_std_count, *local_file_paths_children_previews], reverse=True, key=lambda x: os.path.basename(x)),
             # template=base_template_100m,
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-std-count.json"
@@ -394,14 +400,32 @@ def generate_low_res_preview(tif_path):
         cbar.set_label(f"{trait.capitalize()} {variable.capitalize()}")
 
         preview_filename = path.replace(".tif", "_preview.png")
+        # add prefix for auto-sorting in zenodo: 00_ for mean, 01_ for std, 02_ for count
+        if variable == 'mean':
+            preview_filename = '00_' + preview_filename
+        elif variable == 'std':
+            preview_filename = '01_' + preview_filename
+        elif variable == 'count':
+            preview_filename = '02_' + preview_filename
+    
         # get second dir in tif_path: results_1000m
-        save_dir = os.path.join(tif_path.split('/')[0], 'previews')
+        # save_dir = os.path.join(tif_path.split('/')[0], 'previews')
+        if 'results_1000m' in tif_path:
+            save_dir = os.path.split(tif_path)[0].replace('results_1000m', 'previews')
+        elif 'results_100m' in tif_path:
+            save_dir = os.path.split(tif_path)[0].replace('results_100m', 'previews')
+        else:
+            raise ValueError(f"Path {tif_path} not recognized.")
         save_filename = os.path.join(save_dir, preview_filename)
         plt.savefig(save_filename, bbox_inches="tight")
 
 def wrapper_lowres_preview():
     # get all tif files in data-local/results_1000m/
-    tif_files = glob.glob("data-local/results_1000m/*.tif")
+    tif_files = glob.glob("/Volumes/OEMC/world-reforestation-monitor/results_1000m/*.tif")
+    for tif in tif_files:
+        generate_low_res_preview(tif)
+
+    tif_files = glob.glob("/Volumes/OEMC/world-reforestation-monitor/results_100m/*.tif")
     for tif in tif_files:
         generate_low_res_preview(tif)
 
@@ -410,15 +434,24 @@ def zenodo_cleanup():
     for f in glob.glob("zenodo-upload/depositions/test/*.json"):
         os.remove(f)
 
-    zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+    for f in glob.glob("zenodo-upload/depositions/deploy/*.json"):
+        os.remove(f)
+
+    if FINAL_DEPOSITION:
+        zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+    else:
+        zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
     current_deps = zen.depositions.list()
+
+    # filter for string: 'Advancing Ecosystem Monitoring' in title
+    current_deps = [dep for dep in current_deps if 'Advancing Ecosystem Monitoring' in dep.title]
     # delete all depositions
     for dep in current_deps:
         dep.discard()
 
 
 if __name__ == "__main__":
-    test_tif_path = "data-local/results_1000m/lai_rtm.mlp_mean_1000m_s_20190101_20191231_go_epsg.4326_v01.tif"
+    # test_tif_path = "data-local/results_1000m/lai_rtm.mlp_mean_1000m_s_20190101_20191231_go_epsg.4326_v01.tif"
     # wrapper_lowres_preview()
     # generate_low_res_preview(test_tif_path)
     zenodo_cleanup()

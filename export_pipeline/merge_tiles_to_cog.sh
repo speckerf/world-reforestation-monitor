@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Define paths
-SOURCE="/Users/felix/Coding_Playground/gdrive_tutorial/exports_gdrive" # local
-WORKDIR="/Users/felix/Coding_Playground/gdrive_tutorial/workdir" # local
-DESTINATION="/Users/felix/Coding_Playground/gdrive_tutorial/results" # local
+# SOURCE="/Users/felix/Coding_Playground/gdrive_tutorial/exports_gdrive" # local
+# WORKDIR="/Users/felix/Coding_Playground/gdrive_tutorial/workdir" # local
+# DESTINATION="/Users/felix/Coding_Playground/gdrive_tutorial/results" # local
 
 # Alternative remote paths (commented out)
-# SOURCE="/Volumes/RAID/felix_oemc/world-reforestation-monitor" # remote
-# WORKDIR="/Users/remotelogin3/Documents/felix/temp-workdir" # remote
-# DESTINATION="/Volumes/RAID/felix_oemc/results" # remote
+SOURCE="/Volumes/RAID/felix_oemc/world-reforestation-monitor" # remote
+WORKDIR="/Users/remotelogin3/Documents/felix/temp-workdir" # remote
+DESTINATION="/Volumes/RAID/felix_oemc/results" # remote
 
 # Ensure the work directory is clean
 rm -rf "$WORKDIR"/*
@@ -16,9 +16,28 @@ rm -rf "$WORKDIR"/*
 # Ensure the destination directory exists
 mkdir -p "$DESTINATION"
 
-# List all directories inside SOURCE
+# Find directories containing "_1000m_"
 echo "Finding directories in $SOURCE..."
-DIRS=$(find "$SOURCE" -mindepth 1 -maxdepth 1 -type d)
+DIRS=$(find "$SOURCE" -mindepth 1 -maxdepth 1 -type d -name '*_100m_*')
+
+# If no directories found, exit
+if [[ -z "$DIRS" ]]; then
+    echo "No directories matching '_100m_' found. Exiting."
+    exit 1
+fi
+
+# Display matched directories
+echo "Matched directories:"
+echo "$DIRS"
+
+# # Ask for confirmation
+# read -p "Do you want to proceed with processing these directories? (y/n): " CONFIRM
+# if [[ "$CONFIRM" != "y" ]]; then
+#     echo "Operation canceled."
+#     exit 0
+# fi
+
+echo "Proceeding with processing..."
 
 # Define colors using `tput`
 GREEN=$(tput setaf 2)
@@ -68,15 +87,74 @@ for DIR in $DIRS; do
 
         # Determine scale factor based on filename
         if [[ "$OUTPUT_FILE" == *"count"* ]]; then
-            # Merge the tiles into a single GeoTIFF
-            gdal_merge.py -o "$OUTPUT_FILE" -of GTiff -ot UInt8 \
-                -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
-                -co BIGTIFF=YES --config GDAL_NUM_THREADS ALL_CPUS -a_nodata 255 *"$YEAR"*.tif
+            # continue
+            # Find all matching .tif files for the given YEAR
+            TIFF_FILES=("$DIR"/*"$YEAR"*.tif)
+            NUM_TIFF_FILES=${#TIFF_FILES[@]}
+
+            if [[ $NUM_TIFF_FILES -gt 1 ]]; then
+                echo "Multiple TIFF files found for $YEAR. Merging..."
+                
+                # # Merge multiple tiles into a single GeoTIFF
+                # gdal_merge.py -o "$OUTPUT_FILE" -of GTiff -ot Byte -oo NUM_THREADS=ALL_CPUS -co NUM_THREADS=ALL_CPUS \
+                #     -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+                #     -co BIGTIFF=YES -a_nodata 255 "$DIR"/*"$YEAR"*.tif
+                
+                gdal_merge.py -of GTiff -ot Byte -co BIGTIFF=IF_SAFER -co TILED=YES -co COMPRESS=DEFLATE -a_nodata 255 -o "../local-merge/$OUTPUT_FILE" ${TIFF_FILES[@]}
+                # gdalwarp -wm 32G -multi -ot Byte -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+                #     -co NUM_THREADS=ALL_CPUS -overwrite -r near -srcnodata 255 -dstnodata 255 \
+                #     "${TIFF_FILES[@]}" "../local-merge/$OUTPUT_FILE"
+
+            elif [[ $NUM_TIFF_FILES -eq 1 ]]; then
+                echo "Only one TIFF file found for $YEAR. Using gdal_translate..."
+                
+                # Use gdal_translate for a single file
+                gdal_translate -of GTiff -ot Byte -oo NUM_THREADS=ALL_CPUS -co NUM_THREADS=ALL_CPUS \
+                    -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+                    -co BIGTIFF=YES -a_nodata 255 "${TIFF_FILES[0]}" "../local-merge/$OUTPUT_FILE"
+            else
+                echo "No TIFF files found for $YEAR in $DIR. Skipping..."
+            fi
+            # continue
+            # # Merge the tiles into a single GeoTIFF
+            # gdal_merge.py -o "$OUTPUT_FILE" -of GTiff -ot UInt8 \
+            #     -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+            #     -co BIGTIFF=YES --config GDAL_NUM_THREADS ALL_CPUS -a_nodata 255 *"$YEAR"*.tif
         else
-            # Merge the tiles into a single GeoTIFF
-            gdal_merge.py -o "$OUTPUT_FILE" -of GTiff -ot Int16 \
-                -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
-                -co BIGTIFF=YES --config GDAL_NUM_THREADS ALL_CPUS -a_nodata -29999 *"$YEAR"*.tif
+            # continue
+            # Find all matching .tif files for the given YEAR
+            TIFF_FILES=("$DIR"/*"$YEAR"*.tif)
+            NUM_TIFF_FILES=${#TIFF_FILES[@]}
+
+            if [[ $NUM_TIFF_FILES -gt 1 ]]; then
+                # continue
+                echo "Multiple TIFF files found for $YEAR. Merging "${TIFF_FILES[@]}""
+                
+                # Merge multiple tiles into a single GeoTIFF
+                gdal_merge.py -of GTiff -ot Int16 -co BIGTIFF=IF_SAFER -co TILED=YES -co COMPRESS=DEFLATE -a_nodata -9999 -o "../local-merge/$OUTPUT_FILE" "${TIFF_FILES[@]}"
+                # gdalwarp -wm 32G -multi -ot Int16 -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+                #     -co NUM_THREADS=ALL_CPUS -overwrite -r near -srcnodata -9999 -dstnodata -9999 \
+                #     "${TIFF_FILES[@]}" "../local-merge/$OUTPUT_FILE"
+
+            elif [[ $NUM_TIFF_FILES -eq 1 ]]; then
+                # continue
+                echo "Only one TIFF file found for $YEAR. Using gdal_translate..."
+                
+                # Use gdal_translate for a single file
+                gdal_translate -of GTiff -ot Int16 -oo NUM_THREADS=ALL_CPUS -co NUM_THREADS=ALL_CPUS \
+                    -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+                    -co BIGTIFF=YES -a_nodata -9999 "${TIFF_FILES[0]}" "../local-merge/$OUTPUT_FILE"
+            else
+                echo "No TIFF files found for $YEAR in $DIR. Skipping..."
+            fi
+
+            # if [[ "$OUTPUT_FILE" == *"mean"* ]]; then   
+            #     continue
+            # fi
+            # # Merge the tiles into a single GeoTIFF
+            # gdal_merge.py -o "$OUTPUT_FILE" -of GTiff -ot Int16 \
+            #     -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=IF_SAFER \
+            #     -co BIGTIFF=YES -a_nodata -29999 *"$YEAR"*.tif
         fi
 
         # Determine scale factor based on filename
@@ -90,14 +168,14 @@ for DIR in $DIRS; do
         fi
 
         echo "Applying scale factor: $SCALE to $OUTPUT_FILE"
-        gdal_edit.py -oo IGNORE_COG_LAYOUT_BREAK=YES -scale "$SCALE" "$OUTPUT_FILE"
+        gdal_edit.py -oo IGNORE_COG_LAYOUT_BREAK=YES -scale "$SCALE" "../local-merge/$OUTPUT_FILE"
 
         # Convert to Cloud-Optimized GeoTIFF
         echo "Finalizing as Cloud-Optimized GeoTIFF..."
-        rio cogeo create "$OUTPUT_FILE" "$OUTPUT_FILE"
+        rio cogeo create "../local-merge/$OUTPUT_FILE" "../local-cog/$OUTPUT_FILE" --co NUM_THREADS=ALL_CPUS 
 
         # Run validation and capture output
-        VALIDATION_OUTPUT=$(rio cogeo validate "$OUTPUT_FILE")
+        VALIDATION_OUTPUT=$(rio cogeo validate "../local-cog/$OUTPUT_FILE")
 
         # Print output with colors
         if [[ $VALIDATION_OUTPUT == *"is a valid cloud optimized GeoTIFF"* ]]; then
@@ -109,7 +187,9 @@ for DIR in $DIRS; do
         fi
 
         # Move the final file to the destination folder
-        mv "$OUTPUT_FILE" "$DESTINATION"/
+        mv "../local-cog/$OUTPUT_FILE" "$DESTINATION"/
+        # sleep 3m
+        rm "../local-merge/$OUTPUT_FILE"
 
         echo "Completed processing for: $YEAR in $DIR"
     done
