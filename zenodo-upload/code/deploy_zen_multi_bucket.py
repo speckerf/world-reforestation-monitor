@@ -131,7 +131,7 @@ def main():
 
     # upload the files
     base_ds.update_metadata()
-    # base_ds.upload()
+    base_ds.upload()
 
     """
     Create Code/Data deposition, containing the code and data used for model training/prediction
