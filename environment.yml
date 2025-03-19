@@ -1,23 +1,30 @@
 name: gee_pipeline
 channels:
   - conda-forge
+  - defaults
 dependencies:
-  - python=3.12
-  - earthengine-api
-  - gsutil
-  - gdal
-  - pandas
-  - numpy
-  - geopandas
-  - scikit-learn
-  - jupyterlab
+  - python=3.12.5
+  - cartopy=0.24.1
+  - geemap=0.35.3
+  - geopandas=1.0.1
+  - google-api-python-client=2.164.0
+  - hvplot=0.11.2
   - loguru
-  - pyyaml
-  - geemap
-  - cartopy
-  - dvc
-  - dvc-gs
-  - optuna
+  - matplotlib=3.10.1
+  - numpy=2.2.4
+  - optuna=4.2.1
   - optuna-dashboard
-  - seaborn
-  - tqdm
+  - pandas=2.2.3
+  - pillow=11.1.0
+  - protobuf
+  - pyproj=3.7.1
+  - pyyaml=6.0.2
+  - rasterio=1.4.3
+  - scikit-learn=1.6.1
+  - scipy=1.15.2
+  - seaborn=0.13.2
+  - tqdm=4.66.5
+  - mysqlclient
+  - pip
+  - pip:
+    - git+https://github.com/Open-Earth-Monitor/zen#egg=zen
