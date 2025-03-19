@@ -24,23 +24,23 @@ of standardized global monitoring frameworks.
 Maps are available at resolutions: 
 
 **1000m**
-    - **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
-    - **Projection**: Single COGs in `EPSG:4325`
+- **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
+- **Projection**: Single COGs in `EPSG:4325`
 
 
 **100m**
-    - **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
-    - **Projection**: Single COGs in `EPSG:4325`
+- **Source**: GEE (see below) or [Zenodo (TODO: link)](TODO)
+- **Projection**: Single COGs in `EPSG:4325`
 
 **20m**: 
-    - **App**: [Global Trait Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
-    - **Assets**: 
+- **App**: [Global Trait Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
+- **Assets**: 
         ```js
          ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
         ```
-    - **Projection**: Local UTM Projection (native Sentinel-2 projection, requires mosaicing)
-    - **Visualization Code** [View in GEE Code Editor](https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450)
-    - **Example: Mosaicking / Scaling / Filtering Code** [Open in GEE Code Editor](https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763)
+- **Projection**: Local UTM Projection (native Sentinel-2 projection, requires mosaicing)
+- **Visualization Code** [View in GEE Code Editor](https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450)
+- **Example: Mosaicking / Scaling / Filtering Code** [Open in GEE Code Editor](https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763)
         ```js
             var resolution = '100m' // 1000m / 100m / 20m
 
@@ -82,7 +82,7 @@ To setup to environment, please follow these steps:
         - Specifically, the fork modifies the function `prosail::Generate_LUT_PROSAIL` and adds the possibility of using custom soil spectra. 
         - open `RStudio`
         - execute the following two lines:
-            - `library(devtools)`mysql
+            - `library(devtools)`
             - `devtools::install_github("speckerf/prosail")`
     2. Setup OPTUNA Hyperparameter tuning framework
         - Install `mysql` (or other SQL database)
