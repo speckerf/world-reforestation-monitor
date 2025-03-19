@@ -74,7 +74,7 @@ To setup to environment, please follow these steps:
     - `conda env create -f environment.yml`
 
 3. Download `data` repository. 
-    - The folder `data` is not directly stored in the GitHub repository due to the large storage size. However, it is tracked using data-version-control. The obtain a snapshot of the data folder, download the file `data.tar.gz` from zenodo and uncompress locally. Move it in the root directory of the project, such that all relative paths work. 
+    - The folder `data` is not directly stored in the GitHub repository due to the large storage size. However, it is tracked using data-version-control. The obtain a snapshot of the data folder, download the file `data.tar.gz` from zenodo [Code and Data Repository: TODO](TODO) and uncompress locally. Move it in the root directory of the project, such that all relative paths work. 
     - Alternatively, the remote location of the dev-tracked data folder is stored in a private Google Cloud Storage bucket / but access needs to be manually granted. 
 
 4. \[Optional: Only required for model training\]: 
@@ -96,23 +96,23 @@ To setup to environment, please follow these steps:
         python -m train_pipeline.optunaTraining
         ```
     - You can setup a `launch.json` in `/.vscode/` in order to run and debug a specific file as a module, see e.g.:
-                ```
-                    {
-                        "version": "0.2.0",
-                            "configurations": [
-                                {
-                                    "name": "Python: Debug Current Script as Module",
-                                    "type": "debugpy",
-                                    "request": "launch",
-                                    "module": "train_pipeline.optunaTraining",
-                                    "console": "integratedTerminal",
-                                    "justMyCode": true,
-                                    "args": [],
-                                    "cwd": "${workspaceFolder}"
-                                }
-                            ]
-                    }
-                ```
+```yaml
+    {
+        "version": "0.2.0",
+            "configurations": [
+                {
+                    "name": "Python: Debug Current Script as Module",
+                    "type": "debugpy",
+                    "request": "launch",
+                    "module": "train_pipeline.optunaTraining",
+                    "console": "integratedTerminal",
+                    "justMyCode": true,
+                    "args": [],
+                    "cwd": "${workspaceFolder}"
+                }
+            ]
+    }
+```
     - Please refer to the module-specific readme.md files in order to get more information on how to execute the given code. 
 
 
