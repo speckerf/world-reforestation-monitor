@@ -150,7 +150,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
 
     # mask out all rock and ice pixels: ECO_ID = 0 ("Rock and Ice")
     ecoregions = ee.Image(
-        "projects/crowtherlab/Composite/CrowtherLab_bioComposite_30ArcSec"
+        "projects/ee-speckerfelix/assets/open-earth/resolve_ecoregions_2017_rasterized"
     ).select("Resolve_Ecoregion")
     output_image = output_image.updateMask(ecoregions.neq(0))
 

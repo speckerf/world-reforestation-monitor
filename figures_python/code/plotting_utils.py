@@ -74,14 +74,9 @@ def plot_gee_image(
     )
     print(predictedImage.getInfo())
 
-    # predicted_imgc = ee.ImageCollection(
-    #     f"projects/ee-speckerfelix/assets/open-earth/{trait}_predictions-mlp_1000m_v01"
-    # ).filterDate("2022-01-01", "2022-12-31")
-    # predictedImage = predicted_imgc.mosaic()  # .select(f"{trait}_mean").divide(scaling)
-
     # Image mask
     CGIAR_PET = ee.Image(
-        "projects/crowtherlab/Composite/CrowtherLab_Composite_30ArcSec"
+        "projects/ee-speckerfelix/assets/open-earth/cgiar_pet"
     ).select("CGIAR_PET")
 
     # Robinson projection
