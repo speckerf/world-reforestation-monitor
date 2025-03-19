@@ -3,16 +3,16 @@ outs:
   path: data
   files:
   - relpath: .DS_Store
-    md5: c400866a7cf067a869aec6ff47dda9f8
+    md5: 900e53f6ff1f98402f8d9fc8c2cd781f
     size: 8196
   - relpath: gee_pipeline/.DS_Store
-    md5: c6b48ed86706cb935220d8da107dc2b7
+    md5: e0b6aa7ac9b394a707d3ac3df0f9f7ea
     size: 6148
   - relpath: gee_pipeline/inputs/.DS_Store
     md5: 7223d31c42c9d1a147195a7011702fb1
   - relpath: gee_pipeline/outputs/.DS_Store
-    md5: 5f70f4cdb908c84880f6908c41cbb103
-    size: 6148
+    md5: 63a4cd9c81e9343960cd08080e14e102
+    size: 8196
   - relpath: gee_pipeline/outputs/mgrs_tiles/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: gee_pipeline/outputs/mgrs_tiles/merge_mgrs_tiles.py
@@ -17357,6 +17357,9 @@ outs:
     md5: 01cc5870fe3825ccfcbb417aa46da513
   - relpath: gee_pipeline/outputs/s2_orbits_per_mgrs_tile_merged.csv
     md5: 53fbba5104b94de6c9fc81940f46b254
+  - relpath: geometries/Ecoregions2017.zip
+    md5: 5d568e0d7b25602a12bba18baf0b03ba
+    size: 149248653
   - relpath: misc/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
     size: 6148
@@ -17368,14 +17371,16 @@ outs:
     md5: c585c2ab954f6c732b5056525e0e9bf2
     size: 6148
   - relpath: rtm_pipeline/input/.DS_Store
-    md5: 72364a393a4b35dc78940da2eac7e187
+    md5: 792b31e90f854c9413f37fcbb9876cbc
     size: 6148
   - relpath: rtm_pipeline/input/Sentinel_2_Spectral_Response.csv
     md5: 167df9eb2c4cda7451dcd8254797c629
   - relpath: rtm_pipeline/input/emit_hyperspectral/.DS_Store
-    md5: f1ec483522dc80c2d566a625e38a075d
+    md5: d42d5db746bcef0499f0a90b2c02afaa
+    size: 6148
   - relpath: rtm_pipeline/input/emit_hyperspectral/point_data/.DS_Store
-    md5: 5d13c20508a53b15c68783e73e7d9518
+    md5: 8ed3f5c20ab16c842eb8bbcc980b0dc6
+    size: 10244
   - relpath: 
       rtm_pipeline/input/emit_hyperspectral/point_data/1d55e9e3-8e05-4952-bffc-abf492647c40/README.md
     md5: 81ae12e828599ce8fe795cbb593ecc3b
@@ -17551,7 +17556,8 @@ outs:
   - relpath: rtm_pipeline/input/prosail_atbd/atbd_inputs.csv
     md5: 0f0f9ee2c9fa4999eb037a0c69729df5
   - relpath: rtm_pipeline/input/s2_reflectances/.DS_Store
-    md5: c389b6c1f2e628514e56ddd0e2998e94
+    md5: c1d26454be024b3ab64acba6662534b5
+    size: 6148
   - relpath: rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_1.csv
@@ -21547,10 +21553,11 @@ outs:
       rtm_pipeline/input/s2_reflectances/reflectances_angles_ecoregion_level_with_lulc/s2_reflectances_5000.0_eco_88.csv
     md5: 41b91d3388d139acfe0e657f34731f10
   - relpath: rtm_pipeline/output/.DS_Store
-    md5: 2fc5d9b73498626b051b138a41303703
+    md5: 96aad312beba25c2723c2c8cea816814
     size: 6148
   - relpath: rtm_pipeline/output/emit_hyperspectral/.DS_Store
-    md5: 740444e6fb2028b641439a9fa3869cfd
+    md5: cec3710ed98a436255e700a1c2567d91
+    size: 6148
   - relpath: 
       rtm_pipeline/output/emit_hyperspectral/global-baresoil-random-points-small_sample_hyperspectral.csv
     md5: 3edb570eda5b80df0dc7f2c890f97e25
@@ -23758,12 +23765,14 @@ outs:
   - relpath: rtm_pipeline/output/s2_reflectances/s2_reflectances_water.csv
     md5: 80c6fd8ab141b34a6818f0b20b6ae796
   - relpath: train_pipeline/.DS_Store
-    md5: eeed16ff59b2ee3e349b58a7235ce5b9
+    md5: 9f214153dbfec7108d177c0b2c344ab4
     size: 6148
   - relpath: train_pipeline/output/.DS_Store
-    md5: c10c41b73f861a1fb449afa2981ac191
+    md5: 7c891b23643d592b0d1955516f872b0a
+    size: 10244
   - relpath: train_pipeline/output/models/.DS_Store
-    md5: 1fcb676762e1f02a93ecc21541973868
+    md5: b318949ebdb9013ca1c0a5f4d280b531
+    size: 8196
   - relpath: train_pipeline/output/models/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/models/fapar/lut_optuna-v11-fapar-mlp-split-0.csv
@@ -24035,7 +24044,8 @@ outs:
     md5: 11416ee5051b8b3c583c3317d4d67352
     size: 249
   - relpath: train_pipeline/output/plots/.DS_Store
-    md5: 67cb470bf0c791d2dd8c723a0d73b159
+    md5: a0e895b7975a5d433fee878346a87d79
+    size: 6148
   - relpath: train_pipeline/output/plots/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/plots/fapar/optuna-fapar-mlp_ensemble.png
@@ -24435,7 +24445,7 @@ outs:
       train_pipeline/output/plots/lai/predicted_vs_true_val_train_model_optuna-v11-lai-mlp-split-4.png
     md5: a5e6afaf6c76a5c00edec0a0893669d1
   - relpath: validation_pipeline/.DS_Store
-    md5: 96b6e9c9188724fca3c3e079aab21ec5
+    md5: 7ef58fd444228f31c7adfacd28b1eef9
     size: 6148
   - relpath: validation_pipeline/input/.DS_Store
     md5: c2f36f06073526ed6c2b6867a05bcadc
@@ -40144,7 +40154,7 @@ outs:
   - relpath: validation_pipeline/input/traits_NEON/UofWyomingSIF_CNiso_20220909.pdf
     md5: 2c0a350006e745665c742547fb98c158
   - relpath: validation_pipeline/output/.DS_Store
-    md5: 3c9c52134bcb0ee46218bdcdd811e75a
+    md5: 6a18400969f04c20a39eac8870e01bf5
     size: 6148
   - relpath: validation_pipeline/output/bootstrap_metrics.csv
     md5: fc3fedc784d23beaef75694976efdfbd
