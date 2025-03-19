@@ -53,17 +53,6 @@ class eeStandardScaler:
 
         return image_to_return
 
-    def inverse_transform(self, image: ee.Image) -> ee.Image:
-        # TODO: Implement for multiple columns, so far only one column can be backtansformed.
-        raise NotImplementedError
-        image = image.multiply(self.ee_scale_.get([0]))
-        image = image.add(self.ee_mean_.get([0]))
-        try:
-            image.getInfo()
-        except:
-            raise ValueError
-        return image
-
     def inverse_transform_column(self, image: ee.Image, column: str) -> ee.Image:
         if not column in self.feature_names_:
             raise ValueError(
