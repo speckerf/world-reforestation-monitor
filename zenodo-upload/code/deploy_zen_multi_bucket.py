@@ -275,23 +275,26 @@ def main():
     # update Base depositions description: add section with links to children / replace line: <p >ADD_RELATED_DOI_LINKS</p> with: 
     base_dep_description = base_ds.deposition.metadata.description
     doi_prefix = "https://doi.org/"
-    html_string = "Maps:"
+    html_string = "<h3>Related DOI Links</h3><ul>"
 
     for trait in traits:
-        html_string += f"<li>{trait}:<ul>"
+        html_string += f"<li><strong>{trait}</strong><ul>"
         
         for var in ["mean", "stdcount"]:
-            html_string += f"<li>{'Mean' if var == 'mean' else 'Std / Count'}:<ul>"
+            html_string += f"<li>{'Mean' if var == 'mean' else 'Std / Count'}<ul>"
             
             for year in years:
                 dep_key = f"{trait}-{year}-{var}"
-                dep = children_deps.get(dep_key)  # Using .get() to avoid KeyError
-                if dep:  # Ensure dep exists before accessing its attributes
-                    html_string += f'<a href="{doi_prefix}{dep.doi}" target="_blank">{year}</a>, '
+                dep = children_deps.get(dep_key)  # Avoid KeyError with .get()
+                
+                if dep:  # Ensure dep exists before using its attributes
+                    html_string += f'<li><a href="{doi_prefix}{dep.doi}" target="_blank">{year}</a></li>'
             
             html_string += "</ul></li>"  # Close variable ul and li
 
         html_string += "</ul></li>"  # Close trait ul and li
+
+    html_string += "</ul>"  # Close the outer ul
 
     base_dep_description_updated = base_dep_description.replace(
         "ADD_RELATED_DOI_LINKS",

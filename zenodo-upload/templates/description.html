@@ -1,5 +1,19 @@
 <h3>Disclaimer</h3>
-<p >This dataset is currently being under revision. For more detailed information, please refer to the preprint available at XXX.</p>
+<p >This dataset is currently being under revision.</p>
+
+<p>The data is available at three resolutions:</p>
+
+<ul>
+    <li>1000m: this deposition</li>
+    <li>100m: see related datasets below</li>
+    <li>20m: Only on Google Earth Engine:
+        <ul>
+            <li>LAI: <code>ee.ImageCollection('/ee-speckerfelix/assets/open-earth/lai_predictions-mlp_20m_v01')</code></li>
+            <li>FAPAR: <code>ee.ImageCollection('/ee-speckerfelix/assets/open-earth/fapar_predictions-mlp_20m_v01')</code></li>
+            <li>FCOVER: <code>ee.ImageCollection('/ee-speckerfelix/assets/open-earth/fcover_predictions-mlp_20m_v01')</code></li>
+        </ul>
+    </li>
+</ul>
 
 <h3>Abstract</h3>
 <p >Restoration projects are crucial for recovering ecosystems and conserving biodiversity but monitoring them on a large scale poses significant challenges. Public satellite missions like Sentinel-2 have great potential to transform ecosystem monitoring due to their high spatial and temporal resolution when linked to ecosystem characteristics. Here, we present global, annual, high-resolution maps for three vegetation traits and biophysical vegetation properties, including leaf area index (LAI), fraction of absorbed photosynthetically active radiation (FAPAR), and fractional vegetation cover (FCOVER). We utilize a hybrid inversion approach of the mechanistic radiative transfer model PROSAIL to directly estimate biophysical variables from multispectral Sentinel-2 images, considering multiple observations during the peak growing season. All predictions are aggregated into mean values, standard deviations, and the number of observations taken during this period. The maps are available at 20m, 100m, and 1000m spatial resolution for the years 2019 to 2024, totalling approximately 20TB of analysis-ready data, and are validated using in-situ ground-based observations. The high temporal and spatial resolution of these maps provides new opportunities for biodiversity and ecosystem monitoring, enabling more effective assessments of restoration efforts and contributing to the development of standardized global monitoring frameworks.</p>
@@ -63,4 +77,5 @@
 
 <h3>Contact</h3>
 <p >Felix Specker: felix.specker@usys.ethz.ch / speckerfelix@gmail.com</p>
+<p >Johan van den Hoogen: johan.vandenhoogen@usys.ethz.ch</p>
 
