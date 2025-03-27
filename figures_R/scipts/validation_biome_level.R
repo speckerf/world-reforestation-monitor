@@ -50,6 +50,11 @@ mean_absolute_error <- function(true, pred) {
   mean(abs(true - pred))
 }
 
+# Define additional metric functions
+mean_error <- function(true, pred) {
+  mean(pred - true)
+}
+
 root_mean_squared_error <- function(true, pred) {
   sqrt(mean((true - pred)^2))
 }
@@ -62,6 +67,28 @@ mean_error <- function(true, pred) {
   mean(pred - true)
 }
 
+uncertainty_agreement_ratio <- function(true, pred, variable) {
+  # Check input validity
+  stopifnot(variable %in% c('lai', 'fapar', 'fcover'))
+  
+  # Calculate absolute error
+  abs_error <- abs(true - pred)
+  
+  # Define threshold based on variable
+  threshold <- switch(variable,
+                      'fapar'  = pmax(0.10 * true, 0.05),
+                      'fcover' = pmax(0.10 * true, 0.05),
+                      'lai'    = pmax(0.20 * true, 0.5)
+  )
+  
+  # Determine which predictions are within uncertainty bounds
+  within_bounds <- abs_error <= threshold
+  
+  # Calculate agreement ratio
+  ratio <- sum(within_bounds, na.rm = TRUE) / length(true)
+  
+  return(ratio)
+}
 
 
 # Function to read and prepare data
@@ -87,13 +114,15 @@ subset_biomes <- function(data, top_n = 6){
 
 
 # Function to calculate metrics
-calculate_metrics <- function(data) {
+calculate_metrics <- function(data, variable) {
   list(
     N = nrow(data),
     R2 = coefficient_of_determination(data$true, data$pred),
     RMSE = root_mean_squared_error(data$true, data$pred),
     nRMSE = root_mean_squared_error(data$true, data$pred) / abs(max(data$true) - min(data$true)),
-    MAE = mean_absolute_error(data$true, data$pred)
+    MAE = mean_absolute_error(data$true, data$pred),
+    ME = mean_error(data$true, data$pred),
+    UAR = uncertainty_agreement_ratio(data$true, data$pred, variable)
   )
 }
 
@@ -146,7 +175,7 @@ add_log_scale_colors <- function(data, x_col, y_col, bandwidth = NULL, color_pal
 #   geom_point(color = data$colors, size = 0.9)
 
 # Function to create global scatterplot
-create_global_plot <- function(data, metrics, xlim, ylim, density_palette, density_bandwidth, axis_prefix) {
+create_global_plot <- function(data, metrics, xlim, ylim, density_palette, density_bandwidth, axis_prefix, variable) {
   data <- data %>%
         mutate(colors = densCols(true, pred, colramp = colorRampPalette(density_palette), bandwidth = density_bandwidth))
   
@@ -155,12 +184,34 @@ create_global_plot <- function(data, metrics, xlim, ylim, density_palette, densi
   position_x = xlim[1] + 0.95 * (xlim[2] - xlim[1])
   position_y = ylim[1] + 0.05 * (ylim[2] - ylim[1])
   
-  data %>%
+  # Add uncertainty bound lines depending on variable
+  uncertainty_fun <- switch(variable,
+                            "fapar"  = function(x) pmax(0.10 * x, 0.05),
+                            "fcover" = function(x) pmax(0.10 * x, 0.05),
+                            "lai"    = function(x) pmax(0.20 * x, 0.5),
+                            stop("Invalid variable")
+  )
+  
+  x_vals <- seq(xlim[1], xlim[2], length.out = 200)
+  offset <- uncertainty_fun(x_vals)
+  
+  df_bounds <- data.frame(
+    x = x_vals,
+    upper = x_vals + offset,
+    lower = x_vals - offset
+  )
+  
+  
+  p <- data %>%
     ggplot(aes(x = true, y = pred)) +
     geom_point(color = data$colors, size = 0.9) +
-    geom_abline(intercept = 0, slope = 1, color = "#4D4D4D", linetype = "dashed", linewidth = 1.0) +
+    # geom_point(aes(color = data$BIOME_PLOT), size = 0.9) +
+    geom_line(data = df_bounds, aes(x = x, y = x), linetype = "dashed", color = "gray40", linewidth = 1.0) +
+    geom_line(data = df_bounds, aes(x = x, y = upper), linetype = "dashed", color = "gray40", linewidth = 0.5) +
+    geom_line(data = df_bounds, aes(x = x, y = lower), linetype = "dashed", color = "gray40", linewidth = 0.5) + 
+    # geom_abline(intercept = 0, slope = 1, color = "#4D4D4D", linetype = "dashed", linewidth = 1.0) +
     # geom_smooth(method = "loess", se = TRUE, color = "#4D4D4D", linewidth = 0.75, method.args = list(family = "symmetric")) + 
-    labs(x = paste0(axis_prefix, "In-situ measurement"), y = paste0(axis_prefix, "S2 prediction")) +
+    labs(x = paste0(axis_prefix, "In-situ measurement"), y = paste0(axis_prefix, "S2 retrieval")) +
     coord_fixed() +
     scale_x_continuous(limits = xlim) +
     scale_y_continuous(limits = ylim) +
@@ -168,16 +219,41 @@ create_global_plot <- function(data, metrics, xlim, ylim, density_palette, densi
     annotate(
       "label", x = position_x, y = position_y,
       label = paste("N =", metrics$N,
+                    "\nR² =", round(metrics$R2, 3),
                     "\nRMSE =", round(metrics$RMSE, 3),
                     "\nMAE =", round(metrics$MAE, 3),
-                    "\nR² =", round(metrics$R2, 3)),
+                    "\nUAR =", round(metrics$UAR * 100, 1), "%"),
       hjust = 0.75, vjust = 0.25, size = 3.5,
       fill = "white", alpha = 0.7, label.size = NA
     )
+  p
+  # p + 
+  #   geom_line(data = df_bounds, aes(x = x, y = upper), linetype = "dashed", color = "gray40") +
+  #   geom_line(data = df_bounds, aes(x = x, y = lower), linetype = "dashed", color = "gray40")
+  
 }
 
 # Function to create biome-specific plot
-create_biome_plot <- function(data, palette, xlim, ylim, density_palette, density_bandwidth, axis_prefix) {
+create_biome_plot <- function(data, palette, xlim, ylim, density_palette, density_bandwidth, axis_prefix, variable) {
+  
+  # Add uncertainty bound lines depending on variable
+  uncertainty_fun <- switch(variable,
+                            "fapar"  = function(x) pmax(0.10 * x, 0.05),
+                            "fcover" = function(x) pmax(0.10 * x, 0.05),
+                            "lai"    = function(x) pmax(0.20 * x, 0.5),
+                            stop("Invalid variable")
+  )
+  
+  x_vals <- seq(xlim[1], xlim[2], length.out = 200)
+  offset <- uncertainty_fun(x_vals)
+  
+  df_bounds <- data.frame(
+    x = x_vals,
+    upper = x_vals + offset,
+    lower = x_vals - offset
+  )
+  
+  
   data <- data %>%
     group_by(BIOME_SHORT) %>%
     mutate(
@@ -194,7 +270,9 @@ create_biome_plot <- function(data, palette, xlim, ylim, density_palette, densit
     summarize(
       R2 = coefficient_of_determination_oos(true, pred, data[['true']]),
       MAE = mean_absolute_error(true, pred),
+      ME = mean_error(true, pred),
       RMSE = root_mean_squared_error(true, pred),
+      UAR = uncertainty_agreement_ratio(true, pred, variable),
       # MAPE = mean(abs((true- pred) / true) * 100),
       nRMSE = RMSE / abs(max(true, na.rm = TRUE) - min(true, na.rm = TRUE)),
       N = n()
@@ -212,7 +290,10 @@ create_biome_plot <- function(data, palette, xlim, ylim, density_palette, densit
     ggplot(aes(x = true, y = pred)) +
     geom_point(aes(color = colors_by_biome), size = 0.6) +
     scale_color_identity() +
-    geom_abline(intercept = 0, slope = 1, color = "#4D4D4D", linetype = "dashed", linewidth = 1.0) +
+    # geom_abline(intercept = 0, slope = 1, color = "#4D4D4D", linetype = "dashed", linewidth = 1.0) +
+    geom_line(data = df_bounds, aes(x = x, y = x), linetype = "dashed", color = "gray40", linewidth = 0.8) +
+    geom_line(data = df_bounds, aes(x = x, y = upper), linetype = "dashed", color = "gray40",  linewidth = 0.4) +
+    geom_line(data = df_bounds, aes(x = x, y = lower), linetype = "dashed", color = "gray40", linewidth = 0.4) + 
     facet_wrap(~ BIOME_SHORT, ncol = 3) +
     # geom_smooth(method = "lm", color = "#4D4D4D", linewidth = 0.75) +
     # geom_smooth(method = "loess", se = TRUE, color = "#4D4D4D", linewidth = 0.75, method.args = list(family = "symmetric")) + 
@@ -222,14 +303,14 @@ create_biome_plot <- function(data, palette, xlim, ylim, density_palette, densit
     coord_fixed() +
     theme_minimal() +
     theme(panel.spacing = unit(1, "lines")) + 
-    labs(x = paste0(axis_prefix, "In-situ measurement"), y = paste0(axis_prefix, "S2 prediction")) +
+    labs(x = paste0(axis_prefix, "In-situ measurement"), y = paste0(axis_prefix, "S2 retrieval")) +
     geom_label(
       data = fit_values_biome,
       aes(
         x = position_x, y = position_y,
-        label = paste("N =", N,
+        label = paste("RMSE =", round(RMSE, 3),
                       "\nMAE =", round(MAE, 3),
-                      "\nRMSE =", round(RMSE, 3))
+                      "\nUAR =", round(UAR * 100, 1), "%")
       ),
       hjust = 0.75, vjust = 0.25, size = 2.75, inherit.aes = FALSE,
       fill = "white", alpha = 0.7, label.size = NA
@@ -268,15 +349,14 @@ sqrt_palette <- create_sqrt_palette(palette)
 # Plot LAI
 ####
 data <- load_data(file_paths[["lai"]], BIOME_description)
-metrics <- calculate_metrics(data)
+metrics <- calculate_metrics(data, 'lai')
 # data <- assign_density_colors(data, palette)
 
-p1 <- create_global_plot(data, metrics, xlim = c(0, 6), ylim = c(0, 5), density_palette = palette, density_bandwidth = 0.2, axis_prefix = 'LAI - ')
+p1 <- create_global_plot(data, metrics, xlim = c(0, 6), ylim = c(0, 5), density_palette = palette, density_bandwidth = 0.2, axis_prefix = 'LAIe - ', variable = 'lai')
 
 data_subset <- subset_biomes(data, top_n = 6)
 # metrics <- 
-p2 <- create_biome_plot(data = data_subset, xlim = c(0, 6), ylim = c(0, 5), density_palette = palette, density_bandwidth = 0.2, axis_prefix = 'LAI - ')
-
+p2 <- create_biome_plot(data = data_subset, xlim = c(0, 6), ylim = c(0, 5), density_palette = palette, density_bandwidth = 0.2, axis_prefix = 'LAIe - ', variable = 'lai')
 
 plot_grid(p1, p2, rel_widths = c(3, 4))
 
@@ -285,12 +365,12 @@ plot_grid(p1, p2, rel_widths = c(3, 4))
 ####
 
 data <- load_data(file_paths[["fapar"]], BIOME_description)
-metrics <- calculate_metrics(data)
-p3 <- create_global_plot(data, metrics, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FAPAR - ')
+metrics <- calculate_metrics(data, 'fapar')
+p3 <- create_global_plot(data, metrics, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FAPAR - ', variable = 'fapar')
 
 data_subset <- subset_biomes(data, top_n = 6)
 # metrics <- 
-p4 <- create_biome_plot(data = data_subset, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FAPAR - ')
+p4 <- create_biome_plot(data = data_subset, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FAPAR - ', variable = 'fapar')
 plot_grid(p3, p4, rel_widths = c(3, 4))
 
 
@@ -300,16 +380,16 @@ plot_grid(p3, p4, rel_widths = c(3, 4))
 
 
 ####
-# Plot FAPAR
+# Plot FCOVER
 ####
 
 data <- load_data(file_paths[["fcover"]], BIOME_description)
-metrics <- calculate_metrics(data)
-p5 <- create_global_plot(data, metrics, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FCOVER - ')
+metrics <- calculate_metrics(data, 'fcover')
+p5 <- create_global_plot(data, metrics, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FCOVER - ', variable = 'fcover')
 
 data_subset <- subset_biomes(data, top_n = 6)
 # metrics <- 
-p6 <- create_biome_plot(data = data_subset, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FCOVER - ')
+p6 <- create_biome_plot(data = data_subset, xlim = c(0, 1), ylim = c(0, 1), density_palette = palette, density_bandwidth = 0.1, axis_prefix = 'FCOVER - ', variable = 'fcover')
 plot_grid(p5, p6, rel_widths = c(3, 4))
 
 
