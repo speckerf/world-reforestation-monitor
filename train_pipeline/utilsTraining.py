@@ -19,6 +19,24 @@ def get_model(config):
     return model
 
 
+def uncertainty_agreement_ratio(y_true, y_pred, variable_name: str):
+    assert variable_name in ['lai', 'fapar', 'fcover'], f"Unknown variable name: {variable_name}"
+    
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    
+    abs_error = np.abs(y_true - y_pred)
+    
+    if variable_name == 'lai':
+        threshold = np.maximum(0.20 * y_true, 0.5)
+    elif variable_name in ['fapar', 'fcover']:
+        threshold = np.maximum(0.10 * y_true, 0.05)
+    
+    within_bounds = abs_error <= threshold
+    
+    ratio = np.sum(within_bounds) / len(y_true)
+    
+    return ratio
 # Custom transformer that converts specified columns (angles) to their cosines
 class AngleTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):

@@ -14,6 +14,7 @@ from sklearn.metrics import (mean_absolute_error, r2_score,
 from config.config import get_config
 from train_pipeline.optunaTraining import objective
 from train_pipeline.utilsLoading import load_validation_data
+from train_pipeline.utilsTraining import uncertainty_agreement_ratio
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
@@ -96,12 +97,19 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     mae = mean_absolute_error(y_val, predictions_ensemble)
     r2 = r2_score(y_val, predictions_ensemble)
     rmse = root_mean_squared_error(y_val, predictions_ensemble)
+    nrmse = rmse / (y_val.max() - y_val.min())
     me = np.mean(predictions_ensemble - y_val.values)
+    uar = uncertainty_agreement_ratio(np.array(y_val), np.array(predictions_ensemble).squeeze(), variable_name=trait)
+    n = len(y_val)
 
     logger.info(f"Ensemble std: {std_ensemble}")
     logger.info(f"Ensemble MAE: {mae}")
     logger.info(f"Ensemble R2: {r2}")
     logger.info(f"Ensemble RMSE: {rmse}")
+    logger.info(f"Ensemble NRMSE: {nrmse}")
+    logger.info(f"Ensemble UAR: {uar}")
+    logger.info(f"Ensemble ME: {me}")
+    logger.info(f"Ensemble N: {n}")
 
     # stack out-of-sample predictions to get r2_oos
 
@@ -130,6 +138,12 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     r2_stacked = r2_score(true_values_oos_stack, predictions_oos_stack)
     mae_stacked = mean_absolute_error(true_values_oos_stack, predictions_oos_stack)
     rmse_stacked = root_mean_squared_error(true_values_oos_stack, predictions_oos_stack)
+    nrmse_stacked = rmse_stacked / (true_values_oos_stack.max() - true_values_oos_stack.min())
+    me_stacked = np.mean(predictions_oos_stack - true_values_oos_stack)
+    uar_stacked = uncertainty_agreement_ratio(
+        true_values_oos_stack, predictions_oos_stack, variable_name=trait
+    )
+    n_stacked = len(true_values_oos_stack)
 
     # create dict with model_name and number of predictions
     model_name_count = {k: len(v) for k, v in predictions_oos.items()}
@@ -153,47 +167,53 @@ def evaluate_model_ensemble(trait: str) -> tuple:
                 "mae": mae,
                 "r2": r2,
                 "rmse": rmse,
+                "nrmse": nrmse,
                 "me": me,
+                "uar": uar,
+                "n": n,
                 "r2_stacked": r2_stacked,
                 "mae_stacked": mae_stacked,
                 "rmse_stacked": rmse_stacked,
+                "nrmse_stacked": nrmse_stacked,
+                "me_stacked": me_stacked,
+                "uar_stacked": uar_stacked,
+                "n_stacked": n_stacked,
             },
             f,
         )
 
     from train_pipeline.utilsPlotting import plot_predicted_vs_true
 
-    plot_predicted_vs_true(
-        y_val,
-        predictions_ensemble,
-        save_plot_filename=os.path.join(
-            "data",
-            "train_pipeline",
-            "output",
-            "plots",
-            trait,
-            f"{'-'.join(model_name.split('-')[0:3])}-ensemble.png",
-        ),
-        plot_type="density_scatter",
-        x_label=f"{trait.upper()} - reference measurement",
-        y_label=f"{trait.upper()} - S2 prediction",
-    )
-
-    plot_predicted_vs_true(
-        true_values_oos_stack,
-        predictions_oos_stack,
-        save_plot_filename=os.path.join(
-            "data",
-            "train_pipeline",
-            "output",
-            "plots",
-            trait,
-            f"{'-'.join(model_name.split('-')[0:3])}-stacked_oos.png",
-        ),
-        plot_type="density_scatter",
-        x_label=f"{trait.upper()} - reference measurement",
-        y_label=f"{trait.upper()} - S2 prediction",
-    )
+    # plot_predicted_vs_true(
+    #     y_val,
+    #     predictions_ensemble,
+    #     save_plot_filename=os.path.join(
+    #         "data",
+    #         "train_pipeline",
+    #         "output",
+    #         "plots",
+    #         trait,
+    #         f"{'-'.join(model_name.split('-')[0:3])}-ensemble.png",
+    #     ),
+    #     plot_type="density_scatter",
+    #     x_label=f"{trait.upper()} - reference measurement",
+    #     y_label=f"{trait.upper()} - S2 prediction",
+    # )
+    # plot_predicted_vs_true(
+    #     true_values_oos_stack,
+    #     predictions_oos_stack,
+    #     save_plot_filename=os.path.join(
+    #         "data",
+    #         "train_pipeline",
+    #         "output",
+    #         "plots",
+    #         trait,
+    #         f"{'-'.join(model_name.split('-')[0:3])}-stacked_oos.png",
+    #     ),
+    #     plot_type="density_scatter",
+    #     x_label=f"{trait.upper()} - reference measurement",
+    #     y_label=f"{trait.upper()} - S2 prediction",
+    # )
 
     return predictions_ensemble, y_val
 
@@ -257,9 +277,11 @@ def featureToImage(feature):
 
 def main():
     config = get_config("train_pipeline")
-    rerun_and_save_best_optuna_wrapper("fcover", config)
+    # rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
-    # evaluate_model_ensemble("lai")
+    evaluate_model_ensemble("lai")
+    evaluate_model_ensemble("fapar")
+    evaluate_model_ensemble("fcover")
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 
