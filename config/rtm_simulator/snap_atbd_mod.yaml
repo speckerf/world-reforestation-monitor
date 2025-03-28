@@ -56,13 +56,13 @@ prosail_params:
   alpha: 
     distribution: 'constant'
     value: 40
-  psoil: 
-    distribution: 'uniform'
-    min: 0.0
-    max: 1.0
   tts: 
     distribution: 's2_angles_gee_samples'
   tto: 
     distribution: 's2_angles_gee_samples'
   psi: 
     distribution: 's2_angles_gee_samples'
+  psoil: 
+    distribution: 'uniform'
+    min: 0.0
+    max: 1.0
