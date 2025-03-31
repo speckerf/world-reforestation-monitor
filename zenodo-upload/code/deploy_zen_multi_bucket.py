@@ -211,7 +211,7 @@ def main():
     )
     # update to description: the link to DOI of code/data deposition
     base_ds.deposition.metadata.description = base_ds.deposition.metadata.description.replace(
-        "ADD_DOI_CODE_REPO", f'<a href="{doi_prefix}{code_data_ds.deposition.doi}" target="_blank">{code_data_ds.deposition.doi}</a>'
+        "ADD_DOI_CODE_REPO", f'{doi_prefix}{code_data_ds.deposition.doi}'
     )
     base_ds.update_metadata()
 
@@ -540,10 +540,102 @@ def zenodo_cleanup():
         dep.discard()
 
 
+# def update_citation():
+#     # update citation in all zenodo depositions:
+#     if FINAL_DEPOSITION:
+#         zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+#     else:
+#         zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+
+#     # load all depositions from 'zenodo-upload/depositions/deploy/*.json'
+#     dep_paths = glob.glob("zenodo-upload/depositions/deploy/*.json")
+
+#     for dep_path in dep_paths:
+#         dep = LocalFiles.from_file(dep_path)
+#         dep.set_deposition(api=zen, create_if_not_exists=False)
+#         dep.deposition.metadata['references'] = 
+#         dep.update_citation()
+
+def update_authors():
+    pass
+    # update citation in all zenodo depositions:
+    if FINAL_DEPOSITION:
+        zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+    else:
+        zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+
+    dep_paths = glob.glob("zenodo-upload/depositions/deploy/*.json")
+
+    new_authors_list = [
+        {"name": "Felix Specker", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-9398-9975"},
+        {"name": "Anna K. Schweiger", "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States", "orcid": "0000-0002-5567-4200"},
+        {"name": "Jean-Baptiste Féret", "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France", "orcid": "0000-0002-0151-1334"},
+        {"name": "Thomas Lauber", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-3118-432X"},
+        {"name": "Luke A. Brown", "affiliation": "School of Science, Engineering & Environment, University of Salford, Manchester, United Kingdom", "orcid": "0000-0003-4807-9056"},
+        {"name": "Jadunandan Dash", "affiliation": "School of Geography and Environmental Science, University of Southampton, Southampton, United Kingdom", "orcid": "0000-0002-5444-2109"},
+        {"name": "Rémi Grousset", "affiliation": "ACRI-ST, F-06904, Sophia-Antipolis, France"},
+        {"name": "Bert Gielen", "affiliation": "Plants and Ecosystems (PLECO), Department of Biology, University of Antwerp, B-2610, Wilrijk, Belgium", "orcid": "0000-0002-4890-3060"},
+        {"name": "Thomas W. Crowther", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-5674-8913"},
+        {"name": "Johan van den Hoogen", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-6624-8461"},
+    ]
+
+    for dep_path in dep_paths:
+
+        dep = LocalFiles.from_file(dep_path)
+        dep.set_deposition(api=zen, create_if_not_exists=False)
+        dep.deposition.metadata.creators = new_authors_list
+        dep.deposition.update()
+        dep.save()
+
+    print("Updated authors in all depositions.")
+
+def update_code_data_deposition():
+    if FINAL_DEPOSITION:
+        zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+    else:
+        zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+
+    dep_path = "zenodo-upload/depositions/deploy/deploy-deposition-base-code-data.json"
+
+    dep = LocalFiles.from_file(dep_path)
+    dep.set_deposition(api=zen, create_if_not_exists=False)
+
+    # files have changed / need to be updated
+    dep.deposition.update()
+    dep.upload()
+
+
+# def prereserve_doi():
+#     # reserve a DOI for the deposition
+#     if FINAL_DEPOSITION:
+#         zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+#     else:
+#         zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+
+#     # dep_paths = glob.glob("zenodo-upload/depositions/deploy/*.json")
+#     dep_paths = [
+#         "zenodo-upload/depositions/deploy/deploy-deposition-base.json",
+#         "zenodo-upload/depositions/deploy/deploy-deposition-base-code-data.json",
+#     ]
+
+#     for dep_path in dep_paths:
+#         dep = LocalFiles.from_file(dep_path)
+#         dep.set_deposition(api=zen, create_if_not_exists=False)
+#         dep.deposition.metadata.prereserve_doi["doi"]
+#         dep.deposition.update()
+#         dep.save()
+
+    
+
 if __name__ == "__main__":
+    # prereserve_doi()
+    # update_citation()
+    # update_authors()
+    # update_code_data_deposition()
     # test_tif_path = "data-local/results_1000m/lai_rtm.mlp_mean_1000m_s_20190101_20191231_go_epsg.4326_v01.tif"
     # wrapper_lowres_preview()
     # generate_low_res_preview(test_tif_path)
-    zenodo_cleanup()
-    main()
     # zenodo_cleanup()
+    # main()
+    # zenodo_cleanup()
+    pass
