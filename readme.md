@@ -39,7 +39,7 @@ Maps are available at resolutions:
 ```js
 ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
 ```
-- **Projection**: Local UTM Projection (native Sentinel-2 projection, requires mosaicing)
+- **Projection**: Local UTM Projection (native Sentinel-2 projection, requires mosaicking)
 - **Visualization Code** [View in GEE Code Editor](https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450)
 - **Example: Mosaicking / Scaling / Filtering Code** [Open in GEE Code Editor](https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763)
 ```js
@@ -75,7 +75,7 @@ To setup to environment, please follow these steps:
     - `conda env create -f environment.yml`
 
 3. Download `data` repository. 
-    - The folder `data` is not directly stored in the GitHub repository due to the large storage size. However, it is tracked using data-version-control. The obtain a snapshot of the data folder, download the file `data.tar.gz` from zenodo [Code and Data Repository: TODO](TODO) and uncompress locally. Move it in the root directory of the project, such that all relative paths work. 
+    - The folder `data` is not directly stored in the GitHub repository due to the large storage size. However, it is tracked using data-version-control. The obtain a snapshot of the data folder, download the file `data.tar.gz` from zenodo [Code and Data Repository](https://doi.org/10.5281/zenodo.15052996) and uncompress locally. Move it in the root directory of the project, such that all relative paths work. 
     - Alternatively, the remote location of the dev-tracked data folder is stored in a private Google Cloud Storage bucket / but access needs to be manually granted. 
 
 4. \[Optional: Only required for model training\]: 
