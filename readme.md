@@ -21,6 +21,10 @@ opportunities for biodiversity and ecosystem monitoring, enabling more effective
 restoration efforts and contributing to the development of standardized global monitoring
 frameworks.
 
+## Disclamer
+
+The output of this work is currently under revision and is thus not yet peer-reviewed. Preprint available soon. 
+
 ## Global LAIe/FAPAR/FCOVER maps - Data availability
 
 Maps are available at resolutions: 
