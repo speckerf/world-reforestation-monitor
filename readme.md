@@ -1,25 +1,27 @@
 # Code and Data repository
 
-## Title: Advancing Ecosystem Monitoring: Global High-resolution Maps of Biophysical Vegetation Properties
+## Title: Advancing Ecosystem Monitoring with Global High-Resolution Maps of Vegetation Biophysical Properties
 
-Restoration projects are crucial for recovering ecosystems and conserving biodiversity but
-monitoring progress at a large scale poses significant challenges. Public satellite missions like
-Sentinel-2 have great potential to transform ecosystem monitoring due to their high spatial and
-temporal resolution if they can be reliably linked to ecosystem characteristics. Here, we present
-the first high-resolution global maps for three key biophysical vegetation properties on an annual
-basis, including leaf area index (LAI), fraction of absorbed photosynthetically active radiation
-(FAPAR), and fractional vegetation cover (FCOVER). We utilize a hybrid inversion approach of
-the mechanistic radiative transfer model PROSAIL to directly estimate biophysical variables
-from multispectral Sentinel-2 images, considering multiple observations during the peak growing
-season. All predictions are aggregated into mean values, standard deviations, and the number
-of observations taken during this period. The maps are available at 20m, 100m, and 1000m
-spatial resolution for the years 2019 to 2024, totalling approximately 20TB of analysis-ready
-data, and are validated using in-situ ground-based observations. The high temporal and spatial
-resolution of these maps provides new opportunities for biodiversity and ecosystem monitoring,
-enabling more effective assessments of restoration efforts and contributing to the development
-of standardized global monitoring frameworks.
+Environmental restoration projects are crucial for ecosystem recovery and biodiversity
+conservation but monitoring progress at a global scale poses substantial challenges. Publicly
+funded satellite missions such as Sentinel-2 have great potential to transform ecosystem
+monitoring due to their high spatial and temporal resolution if they can be reliably linked to
+ecosystem characteristics. Here, we present the first global, analysis-ready, decametric maps
+for three key vegetation biophysical properties on an annual basis, including effective leaf area
+index (LAIe), fraction of absorbed photosynthetically active radiation (FAPAR), and fractional
+vegetation cover (FCOVER). We utilize a hybrid retrieval approach of the physically based
+radiative transfer model PROSAIL to directly estimate biophysical variables from multispectral
+Sentinel-2 images, making use of multiple observations during the peak of the growing season.
+All retrievals are aggregated into mean values, standard deviations, and the number of
+observations taken during this period. The maps are available at 20 m, 100 m, and 1000 m
+spatial resolution for the years 2019 to 2024, totaling approximately 20 TB of analysis-ready
+data, and are validated using in-situ data from the Ground-Based Observations for Validation
+(GBOV). The annual temporal and decametric spatial resolution of these maps provides new
+opportunities for biodiversity and ecosystem monitoring, enabling more effective assessments of
+restoration efforts and contributing to the development of standardized global monitoring
+frameworks.
 
-## Global LAI/FAPAR/FCOVER maps - Data availability
+## Global LAIe/FAPAR/FCOVER maps - Data availability
 
 Maps are available at resolutions: 
 
@@ -33,7 +35,7 @@ Maps are available at resolutions:
 - **Projection**: Single COGs in `EPSG:4325`
 
 **20m**: 
-- **App**: [Global Trait Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
+- **App**: [Global High-resolution Maps of Biophysical Vegetation Properties](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
 - **Assets**: 
 ```js
 ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
