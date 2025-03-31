@@ -30,7 +30,7 @@ Maps are available at resolutions:
 - **Projection**: Single COGs in `EPSG:4325`
 
 **20m**: 
-- **App**: [Global High-resolution Maps of Biophysical Vegetation Properties](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
+- **GEE-App**: [Global High-resolution Maps of Biophysical Vegetation Properties](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
 - **Assets**: 
 ```js
 ee.ImageCollection(`projects/ee-speckerfelix/assets/open-earth/[fapar, lai, fcover]_predictions-mlp_[1000m, 100m, 20m]_v01`)
