@@ -25,7 +25,7 @@ frameworks.
 
 Maps are available at resolutions: 
 
-**1000 m / 100m**
+**1000 m / 100 m**
 - **Source**: GEE (see below) or [Zenodo](https://doi.org/10.5281/zenodo.15052975)
 - **Projection**: Single COGs in `EPSG:4325`
 
