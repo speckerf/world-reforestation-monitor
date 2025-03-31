@@ -141,3 +141,9 @@ The repo is structure in different modules:
 - rtm_pipeline_python:
     - contains a class for generating the inputs for the prosail forward model. 
     - inputs are created based on some predefined parameter ranges: see config/rtm_simulator/*.yaml
+
+## Acknowledgments
+
+The Open-Earth-Monitor Cyberinfrastructure project has received funding from the European
+Union’s Horizon Europe research and innovation programme under grant agreement No.
+101059548.
