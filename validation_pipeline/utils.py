@@ -85,7 +85,12 @@ def add_angles_from_metadata_to_properties(image: ee.Image) -> ee.Image:
     return image
 
 
-def add_closest_cloudfree_s2_image_reflectances(feature: ee.Feature) -> ee.Feature:
+def add_closest_cloudfree_s2_image_reflectances(
+    feature: ee.Feature, network: str
+) -> ee.Feature:
+
+    assert network in ["NEON", "ICOS", "TERN"], f"Network {network} not supported."
+
     max_days_apart = 15
 
     # Get the point geometry
@@ -113,13 +118,22 @@ def add_closest_cloudfree_s2_image_reflectances(feature: ee.Feature) -> ee.Featu
     clear_threshold = 0.6
 
     def add_point_cloudfree_score(image):
+        if network in ["NEON", "ICOS"]:
+            # Create a 20x20 m box around the point for NEON and ICOS sites (10m buffer)
+            buffer_size = 10  # meters
+            export_geometry = point.buffer(buffer_size).bounds()
+        elif network == "TERN":
+            # TERN sites are 100x100m plots
+            buffer_size = 50  # meters
+            export_geometry = point.buffer(buffer_size).bounds()
+        else:
+            raise ValueError(f"Network {network} not supported.")
+
         cloud_score = (
             image.select(qa_band)
             .reduceRegion(
                 reducer=ee.Reducer.mean(),  # We expect only one value since it's a point
-                geometry=point.buffer(
-                    10
-                ).bounds(),  # construcs a 20x20m bounding box around the point
+                geometry=export_geometry,
                 scale=10,  # Adjust as necessary for the resolution of cloud scores
             )
             .get(qa_band)
@@ -141,7 +155,21 @@ def add_closest_cloudfree_s2_image_reflectances(feature: ee.Feature) -> ee.Featu
     )  # .first()
 
     def add_reflectances_to_metadata(feat: ee.Feature, img: ee.Image) -> ee.Feature:
-        band_values = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
+        # band_values = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
+        band_values = [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B8A",
+            "B9",
+            "B11",
+            "B12",
+        ]
         s2_closest_reflectances = img.select(band_values).reduceRegion(
             reducer=ee.Reducer.mean(), geometry=point.buffer(10).bounds(), scale=10
         )
@@ -165,78 +193,6 @@ def add_closest_cloudfree_s2_image_reflectances(feature: ee.Feature) -> ee.Featu
         add_reflectances_to_metadata(feature, s2_closest.first()),
     )
     return output_feature
-
-
-def is_abbrev(abbrev, text):
-    # function that checks if a string could be an abbreviation of another string
-    # returns true or false
-    pattern = ".*".join(abbrev.lower())
-    return re.match("^" + pattern, text.lower()) is not None
-
-
-# dictionary with site names and abbreviations:
-def parse_gbov_site_names(folder_path):
-    # list all file names ending txt, split by "_", get thrid element, get unique values
-    full_names = set(
-        [f.split("_")[2] for f in os.listdir(folder_path) if f.endswith(".txt")]
-    )
-    # remove the string 'L08' from this list
-    full_names = [f for f in full_names if f not in ["L08", "S2B"]]
-    # add space character between words in full names which are of the following format: 'SmithsonianConservationBiologyInstitute' (upperCase letter at beginning of word)
-    full_names_spaced = [re.sub(r"(?<=[a-z])(?=[A-Z])", " ", f) for f in full_names]
-
-    # get abbreviation as fourth element of filename, filter for strings of length 4, get unique values
-    abbreviations = set(
-        [f.split("_")[3] for f in os.listdir(folder_path) if f.endswith("_README.TXT")]
-    )
-    abbreviations = [f for f in abbreviations if len(f) == 4]
-
-    ## assert that length of full_names and abbreviations is equal
-    assert len(full_names) == len(
-        abbreviations
-    ), "Number of full names and abbreviations is not equal."
-
-    site_dict = {
-        "BART": "BartlettExperimentalForest",
-        "BLAN": "BlandyExperimentalFarm",
-        "CPER": "CentralPlainsExperimentalRange",
-        "DELA": "DeadLake",
-        "DSNY": "DisneyWildernessPreserve",
-        "GUAN": "GuanicaForest",
-        "HAIN": "Hainich",
-        "HARV": "HarvardForest",
-        "JERC": "JonesEcologicalResearchCenter",
-        "JORN": "Jornada",
-        "KONA": "KonzaPrairieBiologicalStation",
-        "LAJA": "LajasExperimentalStation",
-        "LITC": "LitchfieldSavanna",
-        "MOAB": "Moab",
-        "NIWO": "NiwotRidgeMountainResearchStation",
-        "ONAQ": "OnaquiAult",
-        "ORNL": "OakRidge",
-        "OSBS": "OrdwaySwisherBiologicalStation",
-        "SCBI": "SmithsonianConservationBiologyInstitute",
-        "SERC": "SmithsonianEnvironmentalResearchCenter",
-        "SRER": "SantaRita",
-        "STEI": "SteigerwaldtLandServices",
-        "STER": "NorthSterling",
-        "TALL": "TalladegaNationalForest",
-        "TUMB": "Tumbarumba",
-        "UNDE": "Underc",
-        "VALE": "ValenciaAnchorStation",
-        "WOMB": "WombatStringbarkEucalypt",
-        "WOOD": "Woodworth",
-    }
-
-    # check if all names and abbreviations are in the dictionary
-    assert sorted(site_dict.keys()) == sorted(
-        abbreviations
-    ), "Not all abbreviations are in the dictionary."
-    assert sorted(site_dict.values()) == sorted(
-        full_names
-    ), "Not all full names are in the dictionary."
-
-    return site_dict
 
 
 class EEExportError(Exception):
