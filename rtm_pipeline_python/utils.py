@@ -83,7 +83,7 @@ def load_insitu_foliar_generated() -> pd.DataFrame:
     return foliar_generated
 
 
-def load_s2_angles(eco_id=None, resync=False) -> pd.DataFrame:
+def load_s2_angles(resync=False) -> pd.DataFrame:
     # syn folder from google cloud storage: felixspecker/open-earth/s2_reflectances/ecoregion_level_all_lc/
     # to local repository: data/s2_reflectances/ecoregion_level_all_lc
     # use gsutil -m rsync -d -r gs://felixspecker/open-earth/s2_reflectances/ecoregion_level_all_lc data/s2_reflectances/ecoregion_level_all_lc
@@ -100,24 +100,16 @@ def load_s2_angles(eco_id=None, resync=False) -> pd.DataFrame:
             check=True,
         )
 
-    if eco_id is None:
+    all_files = glob.glob(
+        os.path.join(
+            "data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_*.csv",
+        )
+    )
 
-        all_files = glob.glob(
-            os.path.join(
-                "data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_*.csv",
-            )
-        )
-    else:
-        all_files = glob.glob(
-            os.path.join(
-                f"data/rtm_pipeline/input/s2_reflectances/angles_ecoregion_level/s2_angles_eco_{eco_id}.csv",
-            )
-        )
     all_dfs = []
     for file in all_files:
         try:
             df = pd.read_csv(file, index_col="system:index")
-            df["ECO_ID"] = int(file.split("_")[-1].split(".")[0])
             # drop column '.geo'
             df = df.drop(columns=[".geo"])
             all_dfs.append(df)
@@ -153,42 +145,24 @@ def load_s2_reflectances(eco_id=None, resync=False) -> pd.DataFrame:
             ],
             check=True,
         )
-
-    if eco_id is None:
-        # list all files in the folder with the following filename: 's2_reflectances_100000_eco_*.csv'
-        # load all files into a single dataframe
-        all_files = glob.glob(
-            "data/rtm_pipeline/input/s2_reflectances/reflectances_angles_ecoregion_level_with_lulc/s2_reflectances_10000_eco_*.csv"
-        )
-        # load all files into a list of dataframes, omit files that raise errors
-        all_dfs = []
-        for file in all_files:
-            try:
-                df = pd.read_csv(file, nrows=10000, index_col="system:index")
-                df["ECO_ID"] = int(file.split("_")[-1].split(".")[0])
-                # drop column '.geo'
-                df = df.drop(columns=[".geo", "random"])
-                all_dfs.append(df)
-            except Exception as e:
-                logger.error(f"Error loading file {file}: {e}")
-        combined_df = pd.concat(all_dfs, ignore_index=True)
-        return combined_df
-
-    else:
-        # check if the file with the following filename exists: 's2_reflectances_100000_eco_{eco_id}.csv'
-        file = f"data/rtm_pipeline/input/s2_reflectances/ecoregion_level_all_lc/s2_reflectances_10000_eco_{eco_id}.csv"
-        if not os.path.exists(file):
-            raise FileNotFoundError(
-                f"File 's2_reflectances_10000_eco_{eco_id}.csv' not found."
-            )
-        # load the file into a dataframe
+    # list all files in the folder with the following filename: 's2_reflectances_100000_eco_*.csv'
+    # load all files into a single dataframe
+    all_files = glob.glob(
+        "data/rtm_pipeline/input/s2_reflectances/reflectances_angles_ecoregion_level_with_lulc/s2_reflectances_10000_eco_*.csv"
+    )
+    # load all files into a list of dataframes, omit files that raise errors
+    all_dfs = []
+    for file in all_files:
         try:
             df = pd.read_csv(file, nrows=10000, index_col="system:index")
             df["ECO_ID"] = int(file.split("_")[-1].split(".")[0])
+            # drop column '.geo'
             df = df.drop(columns=[".geo", "random"])
+            all_dfs.append(df)
         except Exception as e:
             logger.error(f"Error loading file {file}: {e}")
-        return df
+    combined_df = pd.concat(all_dfs, ignore_index=True)
+    return combined_df
 
 
 def rename_angles_utils(df: pd.DataFrame) -> pd.DataFrame:

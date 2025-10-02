@@ -76,9 +76,6 @@ def optuna_init_config(trial):
         }
 
     config_general = {
-        "use_angles_for_prediction": trial.suggest_categorical(
-            "use_angles_for_prediction", [True, False]
-        ),
         **config_transform_target,
         "nirv_norm": trial.suggest_categorical("nirv_norm", [True, False]),
     }
@@ -109,7 +106,7 @@ def optuna_init_config(trial):
         0.005 * trial.suggest_int("additive_noise_optuna", 1, 7) - 0.005
     )
     config_lut["multiplicative_noise"] = (
-        0.01 * trial.suggest_int("multiplicative_noise_optuna)", 1, 11) - 0.01
+        0.01 * trial.suggest_int("multiplicative_noise_optuna", 1, 11) - 0.01
     )
 
     config_lut["rsoil_emit_insitu"] = trial.suggest_categorical(

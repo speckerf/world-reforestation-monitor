@@ -30,7 +30,6 @@ class rtm_simulator:
         self.distributions = None
         self.insitu_foliar = None
         self.s2_angles = None
-        self.eco_id = None
 
     def create_distributions(self, params) -> dict:
         distributions = {}
@@ -264,8 +263,6 @@ class rtm_simulator:
                     string_or_null_to_r_str(noise_type),
                     "--noise_args",
                     noise_args,
-                    "--ecoregion",
-                    int_or_null_to_r_str(self.eco_id),
                     "--modify_rsoil",
                     bool_to_r_str(modify_rsoil),
                     "--rsoil_insitu",
@@ -307,18 +304,16 @@ class rtm_simulator:
         return OutputPROSAIL
 
     def _load_s2_lulc_reflectances(
-        self, function: callable, num_samples: int, eco_id=None
+        self, function: callable, num_samples: int
     ) -> pd.DataFrame:
-        df = function(ecoregion=eco_id, num_samples=num_samples)
+        df = function(num_samples=num_samples)
         df_return = rename_angles_utils(df)
         return df_return
 
-    def generate_lut(self, eco_id=None):
+    def generate_lut(self):
+        logger.info(f"Generating LUT using PROSAIL...")
 
-        self.eco_id = eco_id
-        logger.info(f"Generating LUT for ecoregion {eco_id}.")
-
-        self.s2_angles = load_s2_angles(eco_id=self.eco_id, resync=False)
+        self.s2_angles = load_s2_angles(resync=False)
         # Generate input reflectances
         InputPROSAIL = self.generate_prosail_input()
 

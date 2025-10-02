@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 def get_model(config):
     if config["model"] == "mlp":
-        model = MLPRegressor(random_state=42)
+        model = MLPRegressor(random_state=42, early_stopping=True)
     else:
         raise ValueError(f"Unknown model: {config['model']}")
 
@@ -20,23 +20,30 @@ def get_model(config):
 
 
 def uncertainty_agreement_ratio(y_true, y_pred, variable_name: str):
-    assert variable_name in ['lai', 'fapar', 'fcover'], f"Unknown variable name: {variable_name}"
-    
+    assert variable_name in [
+        "lai",
+        "laie",
+        "fapar",
+        "fcover",
+    ], f"Unknown variable name: {variable_name}"
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
-    
+
     abs_error = np.abs(y_true - y_pred)
-    
-    if variable_name == 'lai':
-        threshold = np.maximum(0.20 * y_true, 0.5)
-    elif variable_name in ['fapar', 'fcover']:
-        threshold = np.maximum(0.10 * y_true, 0.05)
-    
+
+    if variable_name in ["lai", "laie"]:
+        threshold = np.maximum(0.20 * y_true, 1.0)
+    elif variable_name in ["fapar", "fcover"]:
+        threshold = np.maximum(0.20 * y_true, 0.1)
+
     within_bounds = abs_error <= threshold
-    
+
     ratio = np.sum(within_bounds) / len(y_true)
-    
+
     return ratio
+
+
 # Custom transformer that converts specified columns (angles) to their cosines
 class AngleTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
@@ -117,19 +124,13 @@ def get_pipeline(model: BaseEstimator, config: dict) -> Pipeline:
     else:
         band_transformer = Pipeline(steps=[("scaler", StandardScaler())])
 
-    if config["use_angles_for_prediction"]:
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ("band_transformer", band_transformer, bands),
-                ("angle_transformer", angle_transformer, angles),
-            ],
-            remainder="passthrough",
-        )
-    else:
-        preprocessor = ColumnTransformer(
-            transformers=[("band_transformer", band_transformer, bands)],
-            remainder="passthrough",
-        )
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("band_transformer", band_transformer, bands),
+            ("angle_transformer", angle_transformer, angles),
+        ],
+        remainder="passthrough",
+    )
 
     if config["transform_target"] == "log1p":
         regressor = TransformedTargetRegressor(
@@ -183,6 +184,7 @@ def limit_prediction_range(
 ) -> Union[np.array, pd.DataFrame]:
     min_values = {
         "lai": 0.000,
+        "laie": 0.000,
         "CHL": 0.000,
         "CAR": 0.000,
         "EWT": 0.000,
@@ -192,6 +194,7 @@ def limit_prediction_range(
     }
     max_values = {
         "lai": 10.000,
+        "laie": 10.000,
         "CHL": 100.000,
         "CAR": 100.000,
         "EWT": 0.100,
