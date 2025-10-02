@@ -357,7 +357,7 @@ def objective(trial, save_model=False):
     if trait == "laie":
         X, y = prepare_features_and_target(df, "lai")
     else:
-        X, y = prepare_features_and_target(df, config, trait)
+        X, y = prepare_features_and_target(df, trait)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.1, random_state=42
     )
