@@ -22,6 +22,8 @@ dependencies:
   - rasterio
   - scikit-learn=1.5.1
   - scipy
+  - dvc
+  - dvc-gs
   - seaborn
   - tqdm
   - mysqlclient
