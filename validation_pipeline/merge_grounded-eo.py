@@ -1,5 +1,6 @@
 import os
 import subprocess
+import uuid
 
 import ee
 import pandas as pd
@@ -46,6 +47,9 @@ def main():
     df = pd.concat(
         [pd.read_csv(file_name) for file_name in local_filenames], ignore_index=True
     )
+
+    # create a UUID column
+    df["uuid"] = [uuid.uuid4() for _ in range(len(df))]
 
     df.to_csv(
         os.path.join(

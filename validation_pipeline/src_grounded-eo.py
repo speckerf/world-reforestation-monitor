@@ -16,7 +16,6 @@ from validation_pipeline.utils import (
     add_closest_cloudfree_s2_image_reflectances,
     load_ecoregion_shapefile,
 )
-from validation_pipeline.utils_lai import merge_lai_files
 
 service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
 credentials = ee.ServiceAccountCredentials(
