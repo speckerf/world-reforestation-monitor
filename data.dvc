@@ -25368,25 +25368,745 @@ outs:
     size: 8196
   - relpath: train_pipeline/output/models/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
+  - relpath: 
+      train_pipeline/output/models/fapar/lut_optuna-v2-fapar-mlp-split-0.csv
+    md5: 86a624bab9eb40273c14d1a92c94f25f
+    size: 1223994
+  - relpath: 
+      train_pipeline/output/models/fapar/lut_optuna-v2-fapar-mlp-split-1.csv
+    md5: a98300317bcb426dbd2c1871bb2ee5bb
+    size: 14562501
+  - relpath: 
+      train_pipeline/output/models/fapar/lut_optuna-v2-fapar-mlp-split-2.csv
+    md5: 6bc90dd9eaff9e1fc959b513ce35d4d0
+    size: 2450911
+  - relpath: 
+      train_pipeline/output/models/fapar/lut_optuna-v2-fapar-mlp-split-3.csv
+    md5: ccfbbc846fddcad525405fcb467968f4
+    size: 1270698
+  - relpath: 
+      train_pipeline/output/models/fapar/lut_optuna-v2-fapar-mlp-split-4.csv
+    md5: 2d508e533b15a0c427c88d0891925d93
+    size: 1210321
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_band_values_optuna-v2-fapar-mlp-split-0.json
+    md5: c1ca406cc21171fe5b4b60d893cfb4cc
+    size: 449
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_band_values_optuna-v2-fapar-mlp-split-1.json
+    md5: ec5bc3324086d7d2974e30af2f50bea8
+    size: 480
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_band_values_optuna-v2-fapar-mlp-split-2.json
+    md5: 2699147e547fd8b4e448d03f8ee78932
+    size: 382
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_band_values_optuna-v2-fapar-mlp-split-3.json
+    md5: fe9f512e24466c5877f3b4858f4abd12
+    size: 413
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_band_values_optuna-v2-fapar-mlp-split-4.json
+    md5: 802c5ace12d43a19476355d8e65a78ab
+    size: 410
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_label_values_optuna-v2-fapar-mlp-split-0.json
+    md5: 2bd6a7adcfe4834285329fabd768942d
+    size: 48
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_label_values_optuna-v2-fapar-mlp-split-1.json
+    md5: 19ed2bf1458ca5537d14c447297e109e
+    size: 49
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_label_values_optuna-v2-fapar-mlp-split-2.json
+    md5: 59195000182b1f998da0a68ff207c059
+    size: 49
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_label_values_optuna-v2-fapar-mlp-split-3.json
+    md5: f9148ea05d37ce5515d2e83173703cc6
+    size: 49
+  - relpath: 
+      train_pipeline/output/models/fapar/min_max_label_values_optuna-v2-fapar-mlp-split-4.json
+    md5: f9cfcdd9345327a794430a61caf8d91b
+    size: 49
+  - relpath: 
+      train_pipeline/output/models/fapar/model_domain_codes_optuna-v2-fapar-mlp-split-0.json
+    md5: 4c1ee37c1322060f69acb4a68171d960
+    size: 2168
+  - relpath: 
+      train_pipeline/output/models/fapar/model_domain_codes_optuna-v2-fapar-mlp-split-1.json
+    md5: d9d25a1d7cabb3ea8164f01115e14db9
+    size: 10105
+  - relpath: 
+      train_pipeline/output/models/fapar/model_domain_codes_optuna-v2-fapar-mlp-split-2.json
+    md5: 559e957176d7ed873ec438e97c07983f
+    size: 8766
+  - relpath: 
+      train_pipeline/output/models/fapar/model_domain_codes_optuna-v2-fapar-mlp-split-3.json
+    md5: 092d9e3c83b598011fdddfb43587082e
+    size: 4132
+  - relpath: 
+      train_pipeline/output/models/fapar/model_domain_codes_optuna-v2-fapar-mlp-split-4.json
+    md5: 9ee776d36b1008e2d543b6e0978beb99
+    size: 2186
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-0.json
+    md5: 200021bbd66ad4a705097d10a49059c8
+    size: 674
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-0.pkl
+    md5: 61342a5183bb70efe930122f7de17eee
+    size: 22816
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-0_config.json
+    md5: fd1a395108464764b421675a40b06d83
+    size: 968
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-0_split.json
+    md5: 90ace6b94c3d60e9db775e7bc5929bbd
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-1.json
+    md5: 753cfd1e91a595fd0ebfe36536c3dc0c
+    size: 676
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-1.pkl
+    md5: 1bbfa7041fefe222eaee4a436258f61e
+    size: 13538
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-1_config.json
+    md5: d6a38ce31693eb50be69d4247483ba9c
+    size: 1004
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-1_split.json
+    md5: a3724ed9a07e1d831a0c3a7d8ab75873
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-2.json
+    md5: 417515a696471f15997886c26e3f9a84
+    size: 671
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-2.pkl
+    md5: ff98b6037a33a5abb513d6fdc7ef3df4
+    size: 28115
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-2_config.json
+    md5: 9a02ae5f9397a47adc5fd42042f24e24
+    size: 1057
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-2_split.json
+    md5: de7c8139472a2b483d284cba39febccc
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-3.json
+    md5: 04278de182ceea3a986c881a4ed1db51
+    size: 673
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-3.pkl
+    md5: 0e8a1bac42c29539ff61cf8a15d403d8
+    size: 21528
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-3_config.json
+    md5: 03587791cef4573823b9ff3446f0d260
+    size: 1016
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-3_split.json
+    md5: 9dce3db298ea17e87d869926015c88b0
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-4.json
+    md5: 558598d6c102e7bc1ad09ff3ee929f7e
+    size: 677
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-4.pkl
+    md5: ae9f26b32c070427bfb16f39284605fb
+    size: 21904
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-4_config.json
+    md5: fe124283a39c516d2123ba4312e5982b
+    size: 1016
+  - relpath: 
+      train_pipeline/output/models/fapar/model_optuna-v2-fapar-mlp-split-4_split.json
+    md5: baa2cd28a2441e37a57086efc5255147
+    size: 259
   - relpath: train_pipeline/output/models/fcover/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
+  - relpath: 
+      train_pipeline/output/models/fcover/lut_optuna-v2-fcover-mlp-split-0.csv
+    md5: 74b3d7c6db63f012d55be4a71be858e6
+    size: 1290289
+  - relpath: 
+      train_pipeline/output/models/fcover/lut_optuna-v2-fcover-mlp-split-1.csv
+    md5: bffe9ce74e2f0a998c2ed3c90d5c4715
+    size: 4750482
+  - relpath: 
+      train_pipeline/output/models/fcover/lut_optuna-v2-fcover-mlp-split-2.csv
+    md5: 1c30fe1b2f990292c4e3652e66f4a674
+    size: 1239051
+  - relpath: 
+      train_pipeline/output/models/fcover/lut_optuna-v2-fcover-mlp-split-3.csv
+    md5: 8243b820cfaf8272c377dd39254cb151
+    size: 1242688
+  - relpath: 
+      train_pipeline/output/models/fcover/lut_optuna-v2-fcover-mlp-split-4.csv
+    md5: 34b4355f63982d92a00b4eef4c718904
+    size: 1238233
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_band_values_optuna-v2-fcover-mlp-split-0.json
+    md5: 9f09b5aced8c56e1d56ace809b5fb4fe
+    size: 418
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_band_values_optuna-v2-fcover-mlp-split-1.json
+    md5: 39d627b690f96de158616d851df643b0
+    size: 394
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_band_values_optuna-v2-fcover-mlp-split-2.json
+    md5: 4655f33ede755cc4ec85c142ebb24727
+    size: 412
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_band_values_optuna-v2-fcover-mlp-split-3.json
+    md5: 0255556e9f713f6a7ed3fdcf287853a7
+    size: 406
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_band_values_optuna-v2-fcover-mlp-split-4.json
+    md5: 6e234a1972629a31d14fd0c7497ca5ba
+    size: 394
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_label_values_optuna-v2-fcover-mlp-split-0.json
+    md5: b1703c1f98931de74fd7792302d204f9
+    size: 50
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_label_values_optuna-v2-fcover-mlp-split-1.json
+    md5: f20bf86321cf44965f31273647e6ca23
+    size: 50
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_label_values_optuna-v2-fcover-mlp-split-2.json
+    md5: dfb7fc666cc017fefd0177ee1ce9177d
+    size: 50
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_label_values_optuna-v2-fcover-mlp-split-3.json
+    md5: 11345c8f4b0d6d3a0cae4f9476b1caac
+    size: 49
+  - relpath: 
+      train_pipeline/output/models/fcover/min_max_label_values_optuna-v2-fcover-mlp-split-4.json
+    md5: 6ae3171a084a8184e8b19aa29fd7e92e
+    size: 50
+  - relpath: 
+      train_pipeline/output/models/fcover/model_domain_codes_optuna-v2-fcover-mlp-split-0.json
+    md5: 7f5174c917495e0c4d0d8286a01cda99
+    size: 5881
+  - relpath: 
+      train_pipeline/output/models/fcover/model_domain_codes_optuna-v2-fcover-mlp-split-1.json
+    md5: 8762959ab35531393c64311abc41de6b
+    size: 4915
+  - relpath: 
+      train_pipeline/output/models/fcover/model_domain_codes_optuna-v2-fcover-mlp-split-2.json
+    md5: 02558fe1ef4c3e7779f30bb1b345952a
+    size: 5033
+  - relpath: 
+      train_pipeline/output/models/fcover/model_domain_codes_optuna-v2-fcover-mlp-split-3.json
+    md5: 034d38cfb3fb6f2d582ca8c5f3d89f39
+    size: 7804
+  - relpath: 
+      train_pipeline/output/models/fcover/model_domain_codes_optuna-v2-fcover-mlp-split-4.json
+    md5: 90c1860c10b294e8c2a66e5092fde91a
+    size: 4583
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-0.json
+    md5: 178ff246a43cc915fa31c0a0dbde9261
+    size: 679
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-0.pkl
+    md5: d4d5cb35b979f21f31cef1d71e3b2d58
+    size: 26965
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-0_config.json
+    md5: 7bca216042b10b52a8f594c372212859
+    size: 999
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-0_split.json
+    md5: 90ace6b94c3d60e9db775e7bc5929bbd
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-1.json
+    md5: 9456083382c8f4f5efe3a1ac09db4e98
+    size: 680
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-1.pkl
+    md5: 01002a86d9e4700f9726b509c628aa8b
+    size: 18655
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-1_config.json
+    md5: 70ce8ac973dd52949579682ab8b4cbec
+    size: 992
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-1_split.json
+    md5: a3724ed9a07e1d831a0c3a7d8ab75873
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-2.json
+    md5: 69f6c122e339603eb0bf4ff0206620b4
+    size: 676
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-2.pkl
+    md5: 21e3cdd1a5e0a7906ad3eb109aef5573
+    size: 22424
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-2_config.json
+    md5: 9e5da2f18b712bab372aac58a7faeefd
+    size: 1028
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-2_split.json
+    md5: de7c8139472a2b483d284cba39febccc
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-3.json
+    md5: c24102ea1a30371be8e895be8c349f05
+    size: 675
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-3.pkl
+    md5: 648bbc3d42cb42d772a6a1a3fd701520
+    size: 28288
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-3_config.json
+    md5: 3f6b20392b79ca69f99e882a2522f461
+    size: 995
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-3_split.json
+    md5: 9dce3db298ea17e87d869926015c88b0
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-4.json
+    md5: cc9b28be3eaff7db7135024bc185777b
+    size: 673
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-4.pkl
+    md5: 7fddf39ddbbc9612616e3e4865e77579
+    size: 31391
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-4_config.json
+    md5: c70bcc88dea248ee4fe74a300181387d
+    size: 996
+  - relpath: 
+      train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-4_split.json
+    md5: baa2cd28a2441e37a57086efc5255147
+    size: 259
   - relpath: train_pipeline/output/models/lai/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/models/laie/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
     size: 6148
+  - relpath: 
+      train_pipeline/output/models/laie/lut_optuna-v2-laie-mlp-split-0.csv
+    md5: 5f799cd6ae06ce1013f5cf081c748cf6
+    size: 2453054
+  - relpath: 
+      train_pipeline/output/models/laie/lut_optuna-v2-laie-mlp-split-1.csv
+    md5: 7961f57951ebda7fd0c2296ddd7269e8
+    size: 5004484
+  - relpath: 
+      train_pipeline/output/models/laie/lut_optuna-v2-laie-mlp-split-2.csv
+    md5: 77afc53982b009fb5c4988b0dcb6765b
+    size: 3607275
+  - relpath: 
+      train_pipeline/output/models/laie/lut_optuna-v2-laie-mlp-split-3.csv
+    md5: defa0dfaa73b3554a8d68311396dac26
+    size: 2476082
+  - relpath: 
+      train_pipeline/output/models/laie/lut_optuna-v2-laie-mlp-split-4.csv
+    md5: 1e318da5254a3629345ca40277a725d2
+    size: 2534353
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_band_values_optuna-v2-laie-mlp-split-0.json
+    md5: 23692d4ffcdd2a9d1038575230f1f2c9
+    size: 450
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_band_values_optuna-v2-laie-mlp-split-1.json
+    md5: 8a9144fbd7398953cdda5bbed3eb200d
+    size: 507
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_band_values_optuna-v2-laie-mlp-split-2.json
+    md5: 1d28027fda37a42695abfc1c79fcf842
+    size: 414
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_band_values_optuna-v2-laie-mlp-split-3.json
+    md5: e134f3c17e6e16fa91388d9d23420d57
+    size: 421
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_band_values_optuna-v2-laie-mlp-split-4.json
+    md5: 2f79b4a741f41feabb939ef800bb6d91
+    size: 449
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_label_values_optuna-v2-laie-mlp-split-0.json
+    md5: ca51d9213e087ef2f74792d8e5b9996b
+    size: 46
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_label_values_optuna-v2-laie-mlp-split-1.json
+    md5: 5b41fee085425fb5c19d19dc025906b4
+    size: 46
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_label_values_optuna-v2-laie-mlp-split-2.json
+    md5: 482e6eea35e1f34928320bd716c7e474
+    size: 46
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_label_values_optuna-v2-laie-mlp-split-3.json
+    md5: 4e83e3a6bfe61bac2826b822a8a10aa2
+    size: 46
+  - relpath: 
+      train_pipeline/output/models/laie/min_max_label_values_optuna-v2-laie-mlp-split-4.json
+    md5: 4cb88e4138b2a77ed5162ead124e01f3
+    size: 46
+  - relpath: 
+      train_pipeline/output/models/laie/model_domain_codes_optuna-v2-laie-mlp-split-0.json
+    md5: 8a33e209547db2b11958d98148f38d5e
+    size: 2890
+  - relpath: 
+      train_pipeline/output/models/laie/model_domain_codes_optuna-v2-laie-mlp-split-1.json
+    md5: ed4c6499c93df29953ef1dab8d77a6ce
+    size: 6351
+  - relpath: 
+      train_pipeline/output/models/laie/model_domain_codes_optuna-v2-laie-mlp-split-2.json
+    md5: feaae9f523f7b4ff12f26ca45f76e815
+    size: 5818
+  - relpath: 
+      train_pipeline/output/models/laie/model_domain_codes_optuna-v2-laie-mlp-split-3.json
+    md5: 9456294c0815b78982e1f3d8c88e081f
+    size: 4011
+  - relpath: 
+      train_pipeline/output/models/laie/model_domain_codes_optuna-v2-laie-mlp-split-4.json
+    md5: 07a5fb610b5b5005b424b1f49c4031a0
+    size: 3724
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-0.json
+    md5: b2d8c5794f6bbc0f856e0a295e5fd187
+    size: 668
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-0.pkl
+    md5: 41ff10fcfd2004db05d578ce6b704479
+    size: 19353
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-0_config.json
+    md5: 6d458d19b4948f126276146838dbec5f
+    size: 981
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-0_split.json
+    md5: 90ace6b94c3d60e9db775e7bc5929bbd
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-1.json
+    md5: 6351321efd446a86c18fe0c0ca1f2f93
+    size: 669
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-1.pkl
+    md5: 9ad7893abbdc277deb77f01f370e9dd4
+    size: 19679
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-1_config.json
+    md5: 4ce24895854374e7cb5c437add04e8ef
+    size: 999
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-1_split.json
+    md5: a3724ed9a07e1d831a0c3a7d8ab75873
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-2.json
+    md5: 00113e2895b8de632a4049c6509cad8d
+    size: 666
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-2.pkl
+    md5: f396ad2fe3eb7ef7baa075f1864a905a
+    size: 21818
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-2_config.json
+    md5: db3f6dc6ab3095b009666f2e4f54e782
+    size: 980
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-2_split.json
+    md5: de7c8139472a2b483d284cba39febccc
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-3.json
+    md5: a9864d5fa381f92bc1e8ec4ef25f6f13
+    size: 671
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-3.pkl
+    md5: 69ef46a6117cfb36f83bdd548dad6825
+    size: 20183
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-3_config.json
+    md5: 2f5fef14331d18a45b3707a4ec70c196
+    size: 984
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-3_split.json
+    md5: 9dce3db298ea17e87d869926015c88b0
+    size: 259
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-4.json
+    md5: 215bcc99827e692b71656c05f5843100
+    size: 672
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-4.pkl
+    md5: 12083540e28478b8b87b1990cc84680d
+    size: 25135
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-4_config.json
+    md5: 15f64ac7717bc079d3dc08e487ecd820
+    size: 1000
+  - relpath: 
+      train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-4_split.json
+    md5: baa2cd28a2441e37a57086efc5255147
+    size: 259
   - relpath: train_pipeline/output/plots/.DS_Store
     md5: 4832177838c3918fa83db2f6dff06f3e
     size: 6148
   - relpath: train_pipeline/output/plots/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_test_model_optuna-v2-fapar-mlp-split-0.png
+    md5: 834c44563c502e93b00f6b954ab52b19
+    size: 1415226
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_test_model_optuna-v2-fapar-mlp-split-1.png
+    md5: 549237bca8c54e64e4ae50f5fe4c066a
+    size: 1666994
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_test_model_optuna-v2-fapar-mlp-split-2.png
+    md5: 7f9431109b19f890d2e178febe1e887f
+    size: 1620621
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_test_model_optuna-v2-fapar-mlp-split-3.png
+    md5: bff711936c62919837fc15d1b67c9b58
+    size: 1562098
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_test_model_optuna-v2-fapar-mlp-split-4.png
+    md5: e9f0ad57de39465b2e73e8e045e6239c
+    size: 1338003
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_train_model_optuna-v2-fapar-mlp-split-0.png
+    md5: a9d13a746786341ec3653f93f1945abf
+    size: 2414114
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_train_model_optuna-v2-fapar-mlp-split-1.png
+    md5: 38d9a93e6803bce88f440371261d94b9
+    size: 1622508
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_train_model_optuna-v2-fapar-mlp-split-2.png
+    md5: d2f7575a217b65d560bf9e0d60424c6e
+    size: 2779012
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_train_model_optuna-v2-fapar-mlp-split-3.png
+    md5: c0897ccb344aae7b026446c482587700
+    size: 2860706
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_sim_train_model_optuna-v2-fapar-mlp-split-4.png
+    md5: 8066fe702a32def1231de329392995ad
+    size: 2276703
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_test_model_optuna-v2-fapar-mlp-split-0.png
+    md5: 8309680952fdbe641552ff7b83f1c11f
+    size: 3077164
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_test_model_optuna-v2-fapar-mlp-split-1.png
+    md5: e086e277da64bf3469ccb1555c7a88cf
+    size: 2784534
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_test_model_optuna-v2-fapar-mlp-split-2.png
+    md5: 1c6e7985c3c8bf4ffae59339a5950dd0
+    size: 2700187
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_test_model_optuna-v2-fapar-mlp-split-3.png
+    md5: 7fbb9af43a65d3e1201d2c48a69c5ce3
+    size: 3057737
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_test_model_optuna-v2-fapar-mlp-split-4.png
+    md5: b864594f043780c8ca327115c145fb19
+    size: 2464037
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_train_model_optuna-v2-fapar-mlp-split-0.png
+    md5: 84489aa5c0004cdb217a0ebc6558d9e1
+    size: 3233927
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_train_model_optuna-v2-fapar-mlp-split-1.png
+    md5: 9d91c723935f80f2fa878e4791770722
+    size: 3096684
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_train_model_optuna-v2-fapar-mlp-split-2.png
+    md5: 185b8375af81f45e4bab9a402097bb20
+    size: 3507102
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_train_model_optuna-v2-fapar-mlp-split-3.png
+    md5: 7dadf3ff84eab48b6b803e89e3fa21c2
+    size: 3306175
+  - relpath: 
+      train_pipeline/output/plots/fapar/predicted_vs_true_val_train_model_optuna-v2-fapar-mlp-split-4.png
+    md5: 4c40e5d68951950a88eb744692c30ccb
+    size: 3702321
   - relpath: train_pipeline/output/plots/fcover/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_test_model_optuna-v2-fcover-mlp-split-0.png
+    md5: 156203ac67a6ec5865bad8976ddd9405
+    size: 1394355
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_test_model_optuna-v2-fcover-mlp-split-1.png
+    md5: 442531a56c803b85061441fc5fbc22b6
+    size: 1079122
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_test_model_optuna-v2-fcover-mlp-split-2.png
+    md5: 294c84fb7e20ebaf34bfd1ce0e3ea51c
+    size: 1286323
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_test_model_optuna-v2-fcover-mlp-split-3.png
+    md5: d5eea96b52ae88218aca9c72ef1eef4d
+    size: 1352075
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_test_model_optuna-v2-fcover-mlp-split-4.png
+    md5: 0154ba2db59c1267e7d53f6af48ce698
+    size: 1324657
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_train_model_optuna-v2-fcover-mlp-split-0.png
+    md5: c39565bcbd086de06b851c4d5474d4ab
+    size: 2345303
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_train_model_optuna-v2-fcover-mlp-split-1.png
+    md5: 49a63a69e5f99e26856a5f26a0adbc7f
+    size: 1174115
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_train_model_optuna-v2-fcover-mlp-split-2.png
+    md5: 2da10bbe962029439c0f21e2d4792327
+    size: 2289091
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_train_model_optuna-v2-fcover-mlp-split-3.png
+    md5: 1ed25d161430176744ee5c0e7dc195ac
+    size: 2252227
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_sim_train_model_optuna-v2-fcover-mlp-split-4.png
+    md5: 09f9b5a524653235cd8c1d75cfd62116
+    size: 2185955
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_test_model_optuna-v2-fcover-mlp-split-0.png
+    md5: f74760bcd258759680660f1af4e7980f
+    size: 2950198
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_test_model_optuna-v2-fcover-mlp-split-1.png
+    md5: a353b52c17c7c3045b13089b43cd0e3c
+    size: 3044852
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_test_model_optuna-v2-fcover-mlp-split-2.png
+    md5: ca8071d1a22a4b911674d1f5f97cdd65
+    size: 2437653
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_test_model_optuna-v2-fcover-mlp-split-3.png
+    md5: 3e1b1ecc144260dbe80f6b0e1d5f628a
+    size: 2895632
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_test_model_optuna-v2-fcover-mlp-split-4.png
+    md5: 7716ac78d0fd5f4294b846dbc6ca2784
+    size: 2149012
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-0.png
+    md5: b9f67a9dc403b16cfc341f43015726d4
+    size: 2977255
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-1.png
+    md5: 7d2a2f5513d078bb95ecafb60cc87263
+    size: 2968998
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-2.png
+    md5: ccc42f75401b36fb2eab828b595e643c
+    size: 3173101
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-3.png
+    md5: b84ded2aeefa15a351679151d0d726fd
+    size: 3117245
+  - relpath: 
+      train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-4.png
+    md5: b6a8996ec49a49dc0e8a574061e564c8
+    size: 3399924
   - relpath: train_pipeline/output/plots/lai/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/plots/laie/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
     size: 6148
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_test_model_optuna-v2-laie-mlp-split-0.png
+    md5: a9ec1365efede34fa7c63897210d3d2f
+    size: 1148785
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_test_model_optuna-v2-laie-mlp-split-1.png
+    md5: e57d8860b8abc3c47336372e06e4c702
+    size: 1339911
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_test_model_optuna-v2-laie-mlp-split-2.png
+    md5: e858060b0716b8a0539b87c7837c59b5
+    size: 1403904
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_test_model_optuna-v2-laie-mlp-split-3.png
+    md5: 93671fea50014000b3b2fac62282869f
+    size: 1167603
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_test_model_optuna-v2-laie-mlp-split-4.png
+    md5: e6fcfaaba12a764e5d58b6ac0c089518
+    size: 1036820
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_train_model_optuna-v2-laie-mlp-split-0.png
+    md5: 7862c77c1907660f0341eb9236bf55c3
+    size: 1511608
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_train_model_optuna-v2-laie-mlp-split-1.png
+    md5: f2627663426bc99d7f8842b394553e15
+    size: 1658387
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_train_model_optuna-v2-laie-mlp-split-2.png
+    md5: c8fae783c3ca4bf57e3fffae59c012a0
+    size: 2172068
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_train_model_optuna-v2-laie-mlp-split-3.png
+    md5: 1852ae93caf7fe384a315b9077aa7d51
+    size: 1607580
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_sim_train_model_optuna-v2-laie-mlp-split-4.png
+    md5: 21fefb76c783a33304aba3681ea240e0
+    size: 1259387
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_test_model_optuna-v2-laie-mlp-split-0.png
+    md5: 6c31bfd3e9c96c0655814165796961d6
+    size: 2704230
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_test_model_optuna-v2-laie-mlp-split-1.png
+    md5: 0d7204db2fb4c030b82fc48f8fc394e9
+    size: 2253481
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_test_model_optuna-v2-laie-mlp-split-2.png
+    md5: 60a063019eb325d9f13f3a81a45ea1b9
+    size: 1762078
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_test_model_optuna-v2-laie-mlp-split-3.png
+    md5: ed7fb72de2253c717717ce00048d6a00
+    size: 2303091
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_test_model_optuna-v2-laie-mlp-split-4.png
+    md5: 80ba5feff59cc2b7e6c678b7de62ab6a
+    size: 1659493
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_train_model_optuna-v2-laie-mlp-split-0.png
+    md5: ed411c1fd2239ee9a05e890b3e3af7f6
+    size: 1890039
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_train_model_optuna-v2-laie-mlp-split-1.png
+    md5: cbcc5d0e1f595971045d907cdeb28c45
+    size: 2184466
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_train_model_optuna-v2-laie-mlp-split-2.png
+    md5: 81f4bc3887e088f0c935481470ea5740
+    size: 2015295
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_train_model_optuna-v2-laie-mlp-split-3.png
+    md5: 363a14c9d56d8f7c953e89b7cddd00a1
+    size: 2026769
+  - relpath: 
+      train_pipeline/output/plots/laie/predicted_vs_true_val_train_model_optuna-v2-laie-mlp-split-4.png
+    md5: 10abf1ad9e0a140ebc24e8cafbb1126d
+    size: 2104085
   - relpath: validation_pipeline/.DS_Store
     md5: 7ef58fd444228f31c7adfacd28b1eef9
     size: 6148
