@@ -47,8 +47,6 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     testsets = [i for i in range(config["group_k_fold_splits"])]
 
     for testset in testsets:
-        if testset != 2:
-            continue
         study_version = config["optuna_study_name"].split("-")[1]
         study_name = f"optuna-{study_version}-{trait}-{model}-split-{testset}"
 
@@ -261,8 +259,10 @@ def load_model_ensemble(trait: str) -> dict:
 def main():
     config = get_config("train_pipeline")
     # rerun_and_save_best_optuna_wrapper("laie", config)
+    # rerun_and_save_best_optuna_wrapper("fapar", config)
+    rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
-    evaluate_model_ensemble("laie")
+    # evaluate_model_ensemble("laie")
     # evaluate_model_ensemble("fapar")
     # evaluate_model_ensemble("fcover")
     # compare_local_gee_rf_predictions("lai")
@@ -270,7 +270,7 @@ def main():
 
 
 if __name__ == "__main__":
-    ee.Initialize()
+    ee.Initialize(project = 'ee-speckerfelix')
     main()
     # main()
     # main()
