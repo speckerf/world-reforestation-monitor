@@ -55,9 +55,13 @@ def load_grounded_eo_validation_data() -> pd.DataFrame:
         "vza",
         "phi",
         "LAI",
+        "LAI_u",
         "LAIe",
+        "LAIe_u",
         "FAPAR",
+        "FAPAR_u",
         "FCOVER",
+        "FCOVER_u",
         "date_difference",
         "uuid",
     ]
@@ -75,12 +79,30 @@ def load_grounded_eo_validation_data() -> pd.DataFrame:
     df = df[df["ECO_ID"] != -1]
 
     df["ECO_ID"] = df["ECO_ID"].astype("Int32")
+
+    # merge land cover classes to ensure consistency with Grounded-EO:
+    # change dwarfScrub to shrubScrub
+    # change woodyWetlands and emergentHerbaceousWetlands to wetlands
+    # change sedgeHerbaceous to grasslandHerbaceous
+    df["NLCD"] = df["NLCD"].replace(
+        {
+            "dwarfScrub": "shrubScrub",
+            "woodyWetlands": "wetlands",
+            "emergentHerbaceousWetlands": "wetlands",
+            "sedgeHerbaceous": "grasslandHerbaceous",
+        }
+    )
+
     return df.rename(
         columns={
             "FAPAR": "fapar",
+            "FAPAR_u": "fapar_std",
             "FCOVER": "fcover",
+            "FCOVER_u": "fcover_std",
             "LAI": "lai",
+            "LAI_u": "lai_std",
             "LAIe": "laie",
+            "LAIe_u": "laie_std",
         }
     ).dropna()
 

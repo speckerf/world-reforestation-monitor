@@ -99,7 +99,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     mae = mean_absolute_error(y_val, predictions_ensemble)
     r2 = r2_score(y_val, predictions_ensemble)
     rmse = root_mean_squared_error(y_val, predictions_ensemble)
-    nrmse = rmse / (y_val.max() - y_val.min())
+    nrmse = rmse / (y_val.mean())
     me = np.mean(predictions_ensemble - y_val.values)
     uar = uncertainty_agreement_ratio(
         np.array(y_val), np.array(predictions_ensemble).squeeze(), variable_name=trait
@@ -260,18 +260,20 @@ def main():
     config = get_config("train_pipeline")
     # rerun_and_save_best_optuna_wrapper("laie", config)
     # rerun_and_save_best_optuna_wrapper("fapar", config)
-    rerun_and_save_best_optuna_wrapper("fcover", config)
+    # rerun_and_save_best_optuna_wrapper("fcover", config)
     # load_model_ensemble("lai")
-    # evaluate_model_ensemble("laie")
-    # evaluate_model_ensemble("fapar")
-    # evaluate_model_ensemble("fcover")
+    evaluate_model_ensemble("laie")
+    evaluate_model_ensemble("fapar")
+    evaluate_model_ensemble("fcover")
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 
 
 if __name__ == "__main__":
-    ee.Initialize(project = 'ee-speckerfelix')
+    ee.Initialize(project="ee-speckerfelix")
     main()
+    # main()
+    # main()
     # main()
     # main()
     # main()
