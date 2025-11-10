@@ -226,7 +226,7 @@ def optimize_hyperparams(pipeline, X_train, y_train, config):
         factor=3,
         verbose=1,
     )
-    halving_search.fit(X_train, y_train)
+    halving_search.fit(X_train, y_train.squeeze("columns"))
     return halving_search.best_estimator_
 
 
