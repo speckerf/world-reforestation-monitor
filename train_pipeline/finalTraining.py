@@ -1,8 +1,11 @@
 import json
 import os
+import re
 from glob import glob
 from pathlib import Path
+from pickle import dump as pickle_write
 from pickle import load as pickle_load
+from typing import Tuple
 
 import ee
 import numpy as np
@@ -13,6 +16,10 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 
 from config.config import get_config
 from train_pipeline.optunaTraining import objective
+from train_pipeline.utilsCalibration import (
+    compute_calibration_metrics,
+    smooth_tau_calibration,
+)
 from train_pipeline.utilsLoading import load_grounded_eo_validation_data
 from train_pipeline.utilsTraining import uncertainty_agreement_ratio
 
@@ -20,7 +27,6 @@ CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 
 def rerun_and_save_best_optuna(config: dict, study=None) -> None:
-
     if study is None:
         # load the study
         study = optuna.load_study(
@@ -62,6 +68,99 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
         # run and save best model
         rerun_and_save_best_optuna(config, study=study)
 
+    logger.info(f"Final uncertainty re-calibration for variable {trait}:")
+
+
+def calibrate_smooth_tau(trait: str):
+    # ---- Load data ----
+    df_insitu = load_grounded_eo_validation_data()
+    df_s2biophys = predict_s2biophys(df=df_insitu, recalibrate_uncertainty=False)
+
+    # rename insitu columns
+    cols = [
+        trait,
+        f"{trait}_std",
+        f"s2biophys_{trait}_mean",
+        f"s2biophys_{trait}_std",
+    ]
+
+    df = df_insitu.merge(df_s2biophys, on="uuid", how="inner")
+
+    #
+
+    # rename insitu columns
+    df = df[cols].rename(
+        columns={
+            trait: f"insitu_{trait}_mean",
+            f"{trait}_std": f"insitu_{trait}_std",
+        }
+    )
+
+    # ===============================================================
+    # Recalibrate S2BIOPHYS model
+    # ===============================================================
+
+    model = "s2biophys"
+    y_pred = df[f"{model}_{trait}_mean"].values
+    sigma_pred = df[f"{model}_{trait}_std"].values
+
+    # ---- Compute MACE & RMCE ----
+    mace, rmce = compute_calibration_metrics(
+        df[f"insitu_{trait}_mean"].values, y_pred, sigma_pred
+    )
+
+    logger.debug(
+        f"Pre-calibration {model.upper()} {trait.upper()}: MACE={mace:.4f}, RMCE={rmce:.4f}"
+    )
+
+    # ---- Calibrate τ via MACE minimization ----
+    tau_opt, sigma_cal_smooth, recalibration_table = smooth_tau_calibration(
+        y_true=df[f"insitu_{trait}_mean"].values,
+        y_pred=df[f"{model}_{trait}_mean"].values,
+        sigma_pred=df[f"{model}_{trait}_std"].values,
+        n_knots=6,
+        spline_degree=3,
+        trait=trait,
+    )
+
+    df[f"{model}_{trait}_calibrated_std"] = sigma_cal_smooth
+
+    # ---- Compute MACE & RMCE after calibration ----
+    mace_cal, rmce_cal = compute_calibration_metrics(
+        df[f"insitu_{trait}_mean"].values,
+        y_pred,
+        sigma_cal_smooth,
+    )
+    logger.debug(
+        f"Post-calibration {model.upper()} {trait.upper()}: MACE={mace_cal:.4f}, RMCE={rmce_cal:.4f}"
+    )
+
+    # we save the recalibration model for later use in earth engine
+    dir_path = os.path.join(
+        "data", "train_pipeline", "output", "uncertainty_recalibration", trait
+    )
+
+    os.makedirs(dir_path, exist_ok=True)
+
+    # save recalibration model using pickle, and recalibration table as csv
+    with open(
+        os.path.join(
+            dir_path,
+            f"recalibration_uncertainty_model_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.pkl",
+        ),
+        "wb",
+    ) as f:
+        pickle_write(tau_opt, f)
+
+    with open(
+        os.path.join(
+            dir_path,
+            f"recalibration_uncertainty_table_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.csv",
+        ),
+        "w",
+    ) as f:
+        recalibration_table.to_csv(f, index=False)
+
 
 def evaluate_model_ensemble(trait: str) -> tuple:
     """
@@ -69,7 +168,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     :param trait: str, trait name
     :return: tuple, predictions_ensemble, y_val
     """
-    models = load_model_ensemble(trait)
+    models, _ = load_model_ensemble(trait)
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     angles = ["tts", "tto", "psi"]
     features = bands + angles
@@ -190,7 +289,7 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     return predictions_ensemble, y_val
 
 
-def load_model_ensemble(trait: str) -> dict:
+def load_model_ensemble(trait: str) -> Tuple[dict, tuple]:
     testsets = list(range(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"]))
     study_version = get_config("train_pipeline")["optuna_study_name"].split("-")[1]
     model_names = [
@@ -253,7 +352,104 @@ def load_model_ensemble(trait: str) -> dict:
             "split": load_json(paths["split"]),
         }
 
-    return models
+    # load uncertainty recalibration model
+    uncertainty_model_path = os.path.join(
+        "data",
+        "train_pipeline",
+        "output",
+        "uncertainty_recalibration",
+        trait,
+        f"recalibration_uncertainty_model_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.pkl",
+    )
+    uncertainty_table_path = os.path.join(
+        "data",
+        "train_pipeline",
+        "output",
+        "uncertainty_recalibration",
+        trait,
+        f"recalibration_uncertainty_table_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.csv",
+    )
+    with open(uncertainty_model_path, "rb") as f:
+        uncertainty_model = pickle_load(f)
+    with open(uncertainty_table_path, "r") as f:
+        uncertainty_table = pd.read_csv(f)
+
+    return models, (uncertainty_model, uncertainty_table)
+
+
+def predict_s2biophys(
+    df: pd.DataFrame, recalibrate_uncertainty: bool = False
+) -> pd.DataFrame:
+    """Predict LAI with S2BIOPHYS ensemble; returns columns: s2biophys_lai_mean, s2biophys_lai_std."""
+
+    # Band order as used by your main()
+    band_order = [
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6",
+        "B7",
+        "B8",
+        "B8A",
+        "B11",
+        "B12",
+        "tts",
+        "tto",
+        "psi",
+    ]
+
+    out = pd.DataFrame(index=df.index)
+    df = df.copy()
+
+    rename_map = {}
+    if "sza" in df.columns:
+        rename_map["sza"] = "tts"
+    if "vza" in df.columns:
+        rename_map["vza"] = "tto"
+    if "phi" in df.columns:
+        rename_map["phi"] = "psi"
+
+    df = df.rename(columns=rename_map)
+
+    # divide all bands starting with B and being numeric by 10000
+    band_cols = [col for col in df.columns if re.match(r"^B\d{1,2}[A]?$", col)]
+    df[band_cols] = df[band_cols] / 10000.0
+
+    X = df[band_order].dropna()
+    if len(X) == 0:
+        return pd.DataFrame(index=df.index)
+    for trait in ["laie", "fapar", "fcover"]:
+        models, (uncertainty_recalibration_model, uncertainty_recalibration_table) = (
+            load_model_ensemble(trait=trait)
+        )
+        preds = np.column_stack([m["pipeline"].predict(X) for m in models.values()])
+
+        # clip before calculating mean and std
+        # clip to 0-8 for LAI, and 0-1 for fAPAR and fCOVER
+        if trait.lower() == "laie":
+            preds = np.clip(preds, 0, 8)
+        elif trait.lower() in ["fapar", "fcover"]:
+            preds = np.clip(preds, 0, 1)
+        else:
+            raise ValueError(f"Unknown trait: {trait}")
+
+        mean = preds.mean(axis=1)
+        std = preds.std(axis=1)
+
+        out.loc[X.index, f"s2biophys_{trait.lower()}_mean"] = mean
+        out.loc[X.index, f"s2biophys_{trait.lower()}_std"] = std
+
+        # if recalibrate_uncertainty is True, apply recalibration
+        if recalibrate_uncertainty:
+            # apply recalibration model
+            tau_values = uncertainty_recalibration_model(mean)
+            sigma_calibrated = tau_values * std
+
+            out.loc[X.index, f"s2biophys_{trait.lower()}_std"] = sigma_calibrated
+
+    out = out.join(df[["uuid"]])
+    return out
 
 
 def main():
@@ -261,10 +457,13 @@ def main():
     # rerun_and_save_best_optuna_wrapper("laie", config)
     # rerun_and_save_best_optuna_wrapper("fapar", config)
     # rerun_and_save_best_optuna_wrapper("fcover", config)
+    # calibrate_smooth_tau("laie")
+    calibrate_smooth_tau("fapar")
+    calibrate_smooth_tau("fcover")
     # load_model_ensemble("lai")
-    evaluate_model_ensemble("laie")
-    evaluate_model_ensemble("fapar")
-    evaluate_model_ensemble("fcover")
+    # evaluate_model_ensemble("laie")
+    # evaluate_model_ensemble("fapar")
+    # evaluate_model_ensemble("fcover")
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 
@@ -272,14 +471,6 @@ def main():
 if __name__ == "__main__":
     ee.Initialize(project="ee-speckerfelix")
     main()
-    # main()
-    # main()
-    # main()
-    # main()
-    # main()
-    # main()
-    # main()
-    # main()
     # main()
     # main()
     # main()

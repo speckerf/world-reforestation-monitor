@@ -1,8 +1,5 @@
 import re
 
-# assess goodness of fit for all models
-from math import sqrt
-
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -37,16 +34,15 @@ def calculate_metrics(y_true, y_pred, model_name):
     }
 
 
-def predict_grounded_eo() -> pd.DataFrame:
+def predict_grounded_eo(df: pd.DataFrame) -> pd.DataFrame:
     """Predict LAI and FAPAR with Grounded EO models; returns columns:
     grounded_lai_mean, grounded_lai_std, grounded_fapar_mean, grounded_fapar_std.
     Predictions are clipped to [0, upper_lim] where applicable.
     """
-    val = load_grounded_eo_validation_data()
-    out = pd.DataFrame(index=val.index)
+    out = pd.DataFrame(index=df.index)
 
     # Precompute cosine angles if raw angles exist and cosines not already present
-    df = val.copy()
+    df = df.copy()
     if {"sza", "vza", "phi"}.issubset(df.columns) and not {
         "cos_vza",
         "cos_sza",
@@ -72,14 +68,13 @@ def predict_grounded_eo() -> pd.DataFrame:
         out.loc[X.index, f"grounded_{trait.lower()}_std"] = std
 
     # left join column uuid
-    out = out.join(val[["uuid"]])
+    out = out.join(df[["uuid"]])
 
     return out
 
 
-def predict_specker() -> pd.DataFrame:
+def predict_specker(df: pd.DataFrame) -> pd.DataFrame:
     """Predict LAI with Specker ensemble; returns columns: specker_lai_mean, specker_lai_std."""
-    val = load_grounded_eo_validation_data()
 
     # Band order as used by your main()
     band_order = [
@@ -98,8 +93,8 @@ def predict_specker() -> pd.DataFrame:
         "psi",
     ]
 
-    out = pd.DataFrame(index=val.index)
-    df = val.copy()
+    out = pd.DataFrame(index=df.index)
+    df = df.copy()
 
     rename_map = {}
     if "sza" in df.columns:
@@ -117,27 +112,34 @@ def predict_specker() -> pd.DataFrame:
 
     X = df[band_order].dropna()
     if len(X) == 0:
-        return pd.DataFrame(index=val.index)
-
+        return pd.DataFrame(index=df.index)
     for trait in ["laie", "fapar", "fcover"]:
-        models = load_specker_model_ensemble(trait=trait)
+        models, _ = load_specker_model_ensemble(trait=trait)
         preds = np.column_stack([m["pipeline"].predict(X) for m in models.values()])
+
+        # clip before calculating mean and std
+        # clip to 0-8 for LAI, and 0-1 for fAPAR and fCOVER
+        if trait.lower() == "laie":
+            preds = np.clip(preds, 0, 8)
+        elif trait.lower() in ["fapar", "fcover"]:
+            preds = np.clip(preds, 0, 1)
+        else:
+            raise ValueError(f"Unknown trait: {trait}")
+
         mean = preds.mean(axis=1)
         std = preds.std(axis=1)
 
         out.loc[X.index, f"specker_{trait.lower()}_mean"] = mean
         out.loc[X.index, f"specker_{trait.lower()}_std"] = std
 
-    out = out.join(val[["uuid"]])
+    out = out.join(df[["uuid"]])
     return out
 
 
-def predict_sl2p() -> pd.DataFrame:
+def predict_sl2p(df: pd.DataFrame) -> pd.DataFrame:
     # Implement prediction logic for SL2P
-    val = load_grounded_eo_validation_data()
-    out = pd.DataFrame(index=val.index)
-    df = val.copy()
-
+    out = pd.DataFrame(index=df.index)
+    df = df.copy()
     if {"sza", "vza", "phi"}.issubset(df.columns) and not {
         "cosVZA",
         "cosSZA",
@@ -168,6 +170,16 @@ def predict_sl2p() -> pd.DataFrame:
         sl2p_mean = sl2p_mean_model.predict(X, domain_check=False)
         sl2p_std = sl2p_uncertainty_model.predict(X, domain_check=False)
 
+        # clip to 0-8 for LAI, and 0-1 for fAPAR and fCOVER
+        if trait.lower() == "lai":
+            sl2p_mean = np.clip(sl2p_mean, 0, 8)
+            sl2p_std = np.clip(sl2p_std, 0, 8)
+        elif trait.lower() in ["fapar", "fcover"]:
+            sl2p_mean = np.clip(sl2p_mean, 0, 1)
+            sl2p_std = np.clip(sl2p_std, 0, 1)
+        else:
+            raise ValueError(f"Unknown trait: {trait}")
+
         if trait.lower() == "lai":
             trait_out = "laie"
         else:
@@ -175,7 +187,7 @@ def predict_sl2p() -> pd.DataFrame:
         out.loc[X.index, f"sl2p_{trait_out}_mean"] = sl2p_mean
         out.loc[X.index, f"sl2p_{trait_out}_std"] = sl2p_std
 
-    out = out.join(val[["uuid"]])
+    out = out.join(df[["uuid"]])
     return out
 
 
@@ -370,9 +382,9 @@ def build_summary_table_by_group(
             # keep 'Group' + metric columns (drop 'Trait' if present)
             if "Trait" in df_trait.columns:
                 df_trait = df_trait.drop(columns=["Trait"])
-            assert (
-                "Group" in df_trait.columns
-            ), "Each trait DF must contain a 'Group' column."
+            assert "Group" in df_trait.columns, (
+                "Each trait DF must contain a 'Group' column."
+            )
 
             metric_cols = [c for c in df_trait.columns if c != "Group"]
 
@@ -508,7 +520,9 @@ def create_revisions_table1():
     print("Summary Table:")
     print(summary)
     # save as csv and open in excel for final formatting
-    summary.to_csv("tables/revision_table1_model_comparison.csv", float_format="%.2f")
+    summary.to_csv(
+        "tables-figures/revision_table1_model_comparison.csv", float_format="%.2f"
+    )
     print("Saved summary table to revision_table1_model_comparison.csv")
 
     # save to latex directly:
@@ -591,13 +605,14 @@ def create_revisions_supplementary_table_XX():
     print(summary)
     # save as csv and open in excel for final formatting
     summary.to_csv(
-        "tables/revision_supplementary_table_model_comparison.csv", float_format="%.2f"
+        "tables-figures/revision_supplementary_table_model_comparison.csv",
+        float_format="%.2f",
     )
     print("Saved summary table to revision_supplementary_table_model_comparison.csv")
 
     # save to latex directly:
     summary.to_latex(
-        "tables/revision_supplementary_table_model_comparison.tex",
+        "tables-figures/revision_supplementary_table_model_comparison.tex",
         float_format="%.2f",
         multirow=True,
     )
@@ -699,7 +714,7 @@ def create_site_table_supplement():
     print(site_table)
 
 
-def create_predictions_figure_1():
+def create_predictions_figure_2():
     # load validation data
     validation_data = load_grounded_eo_validation_data()
 
@@ -722,11 +737,198 @@ def create_predictions_figure_1():
     )
 
 
+def evaluate_S2BIOPHYS_3way() -> pd.DataFrame:
+    """Predict variables with S2BIOPHYS ensemble
+
+    - #1: Assess predicitons by averaging over model ensemble for each variable (ensemble mean scores)
+    - #2: Average Crossvalidation scroes for each fold (mean CV scores)
+    - #3: Stack validation splits from CV folds and then evaluate overall metrics (stacked-out-of-sample scoes)
+    """
+
+    val = load_grounded_eo_validation_data()
+
+    # Band order as used by your main()
+    band_order = [
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6",
+        "B7",
+        "B8",
+        "B8A",
+        "B11",
+        "B12",
+        "tts",
+        "tto",
+        "psi",
+    ]
+
+    out = pd.DataFrame(index=val.index)
+    df = val.copy()
+
+    rename_map = {}
+    if "sza" in df.columns:
+        rename_map["sza"] = "tts"
+    if "vza" in df.columns:
+        rename_map["vza"] = "tto"
+    if "phi" in df.columns:
+        rename_map["phi"] = "psi"
+
+    df = df.rename(columns=rename_map)
+
+    # divide all bands starting with B and being numeric by 10000
+    band_cols = [col for col in df.columns if re.match(r"^B\d{1,2}[A]?$", col)]
+    df[band_cols] = df[band_cols] / 10000.0
+
+    X = df[band_order].dropna()
+    if len(X) == 0:
+        return pd.DataFrame(index=val.index)
+
+    # Output container
+    rows = []
+
+    # ====================
+    # MAIN LOOP OVER TRAITS
+    # ====================
+
+    for trait in ["laie", "fapar", "fcover"]:
+        logger.info(f"Processing trait: {trait}")
+
+        models = load_specker_model_ensemble(trait=trait)
+
+        # store predictions
+        preds_ensemble = None
+        oof_true, oof_pred = [], []
+
+        # ----------------------------------------
+        # (#1) ENSEMBLE MEAN PREDICTIONS
+        # ----------------------------------------
+
+        pred_matrix = np.column_stack(
+            [mdl["pipeline"].predict(X) for mdl in models.values()]
+        )
+        preds_ensemble = pred_matrix.mean(axis=1)
+
+        metrics_1 = evaluate_predictions(
+            y_true=df[trait].values,
+            y_pred=preds_ensemble,
+            trait=trait,
+        )
+        metrics_1["Method"] = "ensemble_mean"
+        rows.append(metrics_1)
+
+        # ----------------------------------------
+        # (#2) CV MODEL-WISE SCORES
+        # ----------------------------------------
+        fold_metrics = []
+
+        for model_name, model_info in models.items():
+            test_ecoregions = model_info["split"]["val_ecos_test"]
+            test_idx = df.index[df["ECO_ID"].isin(test_ecoregions)]
+
+            X_test = X.loc[test_idx]
+            y_test = df.loc[test_idx, trait]
+
+            y_pred_test = model_info["pipeline"].predict(X_test)
+
+            # store Out-of-fold predictions for method #3
+            oof_true.append(y_test.values)
+            oof_pred.append(y_pred_test)
+
+            met = evaluate_predictions(
+                y_true=y_test.values,
+                y_pred=y_pred_test.reshape(-1),
+                trait=trait,
+            )
+            met["Method"] = f"cv_fold_{model_name}"
+            fold_metrics.append(met)
+
+        # summerize fold metrics
+        fold_metrics_df = pd.DataFrame(fold_metrics)
+        fold_metrics_summary = {
+            "Trait": trait,
+            "Method": "cv_mean",
+            "N": fold_metrics_df["N"].sum(),
+            "MAE": fold_metrics_df["MAE"].mean(),
+            "RMSE": fold_metrics_df["RMSE"].mean(),
+            "NRMSE": fold_metrics_df["NRMSE"].mean(),
+            "R2": fold_metrics_df["R2"].mean(),
+            "R2_Global": fold_metrics_df["R2_Global"].mean(),
+            "ME": fold_metrics_df["ME"].mean(),
+            "UAR": fold_metrics_df["UAR"].mean(),
+        }
+        rows.append(fold_metrics_summary)
+
+        # ----------------------------------------
+        # (#3) STACKED OUT-OF-SAMPLE (OOF)
+        # ----------------------------------------
+        if len(oof_true) > 0:
+            y_true_oof = np.concatenate(oof_true)
+            y_pred_oof = np.concatenate(oof_pred)
+
+            metrics_3 = evaluate_predictions(
+                y_true=y_true_oof,
+                y_pred=y_pred_oof.reshape(-1),
+                trait=trait,
+            )
+            metrics_3["Method"] = "stacked_oof"
+            rows.append(metrics_3)
+
+        # Convert to DataFrame
+        out = pd.DataFrame(rows)
+
+        # Clean up ordering
+        cols = [
+            "Trait",
+            "Method",
+            "N",
+            "MAE",
+            "RMSE",
+            "NRMSE",
+            "R2",
+            "R2_Global",
+            "ME",
+            "UAR",
+        ]
+        out = out[cols]
+
+    return out
+
+
+def site_stats():
+    # count number of sites, plots, ecoregions, biomes in validation data
+    validation_data = load_grounded_eo_validation_data()
+
+    n_sites = validation_data["Site"].nunique()
+    n_plots = validation_data["Plot"].nunique()
+    n_ecoregions = validation_data["ECO_ID"].nunique()
+    # load biome ecoregion lookup table and add Biome column
+    ecoregion_lookup = pd.read_csv(
+        "data/misc/ecoregion_biome_table.csv", usecols=["ECO_ID", "BIOME_NUM"]
+    )
+
+    validation_data = validation_data.merge(ecoregion_lookup, on="ECO_ID", how="left")
+    n_biomes = validation_data["BIOME_NUM"].nunique()
+
+    print("Site Stats:")
+    print(f"Number of Sites: {n_sites}")
+    print(f"Number of Plots: {n_plots}")
+    print(f"Number of Ecoregions: {n_ecoregions}")
+    print(f"Number of Biomes: {n_biomes}")
+
+
 if __name__ == "__main__":
-    create_predictions_figure_1()
+    site_stats()
+    # create_predictions_figure_2()
+    # evaluate_S2BIOPHYS_3way()
     # create_revisions_table1()
     # create_revisions_supplementary_table_XX()
     # create_site_table_supplement()
+    # main()
+    # main()
+    # main()
+    # main()
     # main()
     # main()
     # main()

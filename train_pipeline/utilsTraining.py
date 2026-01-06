@@ -46,6 +46,9 @@ def uncertainty_agreement_ratio(y_true, y_pred, variable_name: str):
 
 # Custom transformer that converts specified columns (angles) to their cosines
 class AngleTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self._is_fitted = True
+
     def fit(self, X, y=None):
         # No fitting necessary for cosine transformation
         return self
@@ -56,6 +59,9 @@ class AngleTransformer(BaseEstimator, TransformerMixin):
 
 
 class NIRvTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self._is_fitted = True
+
     def fit(self, X, y=None):
         # No fitting necessary for cosine transformation
         return self
