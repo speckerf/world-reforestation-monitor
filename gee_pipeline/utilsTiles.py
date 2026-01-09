@@ -86,7 +86,7 @@ def get_s2_indices_filtered(
 
 
 def add_group(image):
-    orbit = image.getNumber("SENSING_ORBIT_NUMBER")
+    orbit = image.getNumber("SENSING_ORBIT_NUMBER").toInt()
     tile = image.getString("MGRS_TILE")
     group = ee.String(orbit.format()).cat("_").cat(tile)
     return image.set("group", group)
@@ -126,7 +126,7 @@ def get_epsg_code_from_mgrs(mgrs_zone_number: str):
     return crs.to_epsg()
 
 
-def add_vegetion_index_weight(image: ee.Image) -> ee.Image:
+def add_vegetation_index_weight(image: ee.Image) -> ee.Image:
     # use SCL to mask out all snow and water pixels, also defective pixels: mask out 0, 1, 2, 6, 11
     scl = image.select("SCL")
     scl_mask = scl.remap([0, 1, 2, 6, 11], [0, 0, 0, 0, 0], 1)
@@ -195,17 +195,40 @@ def add_vegetion_index_weight(image: ee.Image) -> ee.Image:
     )
 
 
+def _choose_n(
+    mean_cloud,
+    min_images,
+    max_images,
+    cloud_low,
+    cloud_high,
+):
+    """
+    Map mean cloudiness to [min_images, max_images].
+
+    cloud_low  -> min_images
+    cloud_high -> max_images
+    """
+
+    if mean_cloud <= cloud_low:
+        return min_images
+    if mean_cloud >= cloud_high:
+        return max_images
+
+    # linear scaling in between
+    frac = (mean_cloud - cloud_low) / (cloud_high - cloud_low)
+    return int(round(min_images + frac * (max_images - min_images)))
+
+
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
 ) -> ee.List:
-
     imgc = imgc.map(add_group)
 
     # mask out clouds and shadows using cloudscore plus
     imgc = apply_cloudScorePlus_mask(imgc)
 
-    # add pheno distance weight / new with evi instead of ndvi
-    imgc = imgc.map(add_vegetion_index_weight)
+    # add pheno distance weight / uses S2_FILTERING['VI_INDEX'] to compute vegetation index weight
+    imgc = imgc.map(add_vegetation_index_weight)
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
 
@@ -234,7 +257,7 @@ def groupby_mgrs_orbit_pandas(
 
     total_features_retrieved = len(fc_computed.get("features", {}))
     if total_features_retrieved == 0:
-        logger.error(f"Empty feature collection; after grouping.")
+        logger.error("Empty feature collection; after grouping.")
         return []
     if "nextPageToken" in fc_computed:
         logger.debug(
@@ -289,46 +312,62 @@ def groupby_mgrs_orbit_pandas(
     # Filter rows where the 'orbit' is in the 'ORBITS_TO_KEEP' list for each row
     df = df[df.apply(lambda row: row["orbit"] in row["ORBITS_TO_KEEP"], axis=1)]
 
-    # filter by group and sort by cloud_pheno_image_weight, limit to 10 images per group
+    # filter by group and sort by cloud_pheno_image_weight
     df_sorted = df.sort_values(
         by=["group", "cloud_pheno_image_weight"], ascending=[True, True]
     )
 
-    # filter out all evi larger than 1.0 and smaller than -1.0
+    # add a proxy for cloudiness for a given MGRS tile (after initial filtering)
+    group_cloud = (
+        df_sorted.groupby("group")["cloudy_pixel_percentage"].mean().reset_index()
+    )
+    group_cloud = group_cloud.rename(
+        columns={"cloudy_pixel_percentage": "group_mean_cloudy_percentage"}
+    )
+    df_sorted = df_sorted.merge(group_cloud, on="group")
+
+    # filter out all vegetation index larger than 1.0 and smaller than -1.0
     df_sorted_1 = df_sorted[
         (df_sorted["mean_vegetation_index"] <= 1.0)
         & (df_sorted["mean_vegetation_index"] > -1.0)
-    ]
+    ].copy()
 
-    df_sorted_3 = df_sorted_1  # legacy code
     # group by group and date of acquisition, only keep largest image (by system_asset_size)
-    df_sorted_3.loc[:, "acquisition_date"] = df_sorted_3["s2_index"].str.slice(0, 8)
-    df_sorted_4 = (
-        df_sorted_3.groupby(["group", "acquisition_date"])
-        .apply(lambda x: x.nlargest(1, "system_asset_size"))
-        .reset_index(drop=True)
+    df_sorted_1.loc[:, "acquisition_date"] = df_sorted_1["s2_index"].str.slice(0, 8)
+    df_sorted_2 = (
+        df_sorted_1.sort_values("system_asset_size", ascending=False)
+        .drop_duplicates(subset=["group", "acquisition_date"])
+        .copy()
     )
 
     # per group, drop images if their mean_evi is below 0.9 quantile - MAX_EVI_DIFFERENCE
-    df_sorted_4["mean_vi_diff"] = df_sorted_4.groupby("group")[
+    df_sorted_2["mean_vi_diff"] = df_sorted_2.groupby("group")[
         "mean_vegetation_index"
     ].transform(
         lambda x: x.quantile(CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_MAX_PERCENTILE"])
         - x
     )
-    df_sorted_5 = df_sorted_4[
-        df_sorted_4["mean_vi_diff"]
+    df_sorted_3 = df_sorted_2[
+        df_sorted_2["mean_vi_diff"]
         <= CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_VI_DIFFERENCE"]
-    ]
+    ].copy()
 
-    # from the remaining images, select the top MAX_IMAGES_PER_GROUP images per group
+    df_sorted_3["n_images_to_keep"] = df_sorted_3["group_mean_cloudy_percentage"].apply(
+        _choose_n,
+        min_images=CONFIG_GEE_PIPELINE["S2_FILTERING"]["MIN_IMAGES_PER_GROUP"],
+        max_images=CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_IMAGES_PER_GROUP"],
+        cloud_low=0.2,
+        cloud_high=0.5,
+    )
+    df_sorted_3 = df_sorted_3.sort_values(
+        by=["group", "cloud_pheno_image_weight"], ascending=[True, True]
+    )
+    df_sorted_3["group_copy"] = df_sorted_3["group"]  # to avoid SettingWithCopyWarning
+    # from the remaining images, keep only the top n_images_to_keep per group
     df_filtered = (
-        df_sorted_5.groupby("group")
+        df_sorted_3.groupby("group_copy")
         .apply(
-            lambda x: x.nsmallest(
-                CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_IMAGES_PER_GROUP"],
-                "cloud_pheno_image_weight",
-            )
+            lambda g: g.head(int(g["n_images_to_keep"].iloc[0])), include_groups=False
         )
         .reset_index(drop=True)
     )
@@ -409,7 +448,6 @@ def get_all_land_mgrs_tiles():
 
 
 if __name__ == "__main__":
-
     ee.Initialize(project="ee-speckerfelix")
 
     get_all_land_mgrs_tiles()

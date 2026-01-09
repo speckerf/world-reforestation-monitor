@@ -11,11 +11,12 @@ from tqdm import tqdm
 from config.config import get_config
 from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-from gee_pipeline.utilsPredict import (add_random_ensemble_assignment,
-                                       collapse_to_mean_and_stddev,
-                                       eePipelinePredictMap)
-from gee_pipeline.utilsTiles import (get_epsg_code_from_mgrs,
-                                     get_s2_indices_filtered)
+from gee_pipeline.utilsPredict import eeEnsemblePredictSingleImg, scale_and_cast_to_int
+from gee_pipeline.utilsTiles import (
+    add_group,
+    get_epsg_code_from_mgrs,
+    get_s2_indices_filtered,
+)
 from train_pipeline.finalTraining import load_model_ensemble
 
 CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
@@ -30,11 +31,11 @@ ee.Initialize(credentials, project="ee-speckerfelix")
 
 
 def export_mgrs_tile(mgrs_tile: str) -> None:
-
-    version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VERSION"]
+    model_version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["MODEL_VERSION"]
+    export_version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["EXPORT_VERSION"]
     year = int(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["YEAR"])
     output_resolution = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"]
-    trait = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["TRAIT"]
+    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
 
     logger.info(f"Exporting mgrs_tile: {mgrs_tile}")
     start_date = ee.Date(f"{year}-01-01")
@@ -59,7 +60,9 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     )
 
     # save s2_indices_filtered for later use
-    s2_indices_filename = f"s2-indices_{year}_mgrs-tile-{mgrs_tile}_{version}.txt"
+    s2_indices_filename = (
+        f"s2-indices_{year}_mgrs-tile-{mgrs_tile}_{export_version}.txt"
+    )
     if os.path.exists(
         os.path.join(
             "data",
@@ -116,33 +119,61 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     # apply cloud mask
     imgc = apply_cloudScorePlus_mask(imgc)
 
-    # Apply the function to each image in the collection
-    # imgc = imgc.map(add_random_property)
-    imgc = ee.ImageCollection(add_random_ensemble_assignment(imgc))
+    imgc = imgc.map(add_group)
 
     # add angles to bands
     imgc = imgc.map(add_angles_from_metadata_to_bands)
 
-    gee_preds = {}
-    models = load_model_ensemble(trait=trait, models=["mlp"])
-    for i, (model_name, model) in enumerate(models.items()):
-        imgc_i = imgc.filter(ee.Filter.eq("random_ensemble_assignment", i + 1))
-        gee_preds[model_name] = eePipelinePredictMap(
-            pipeline=model["pipeline"],
-            imgc=imgc_i,
-            trait=trait,
-            model_config=model["config"],
-            min_max_bands=model["min_max_bands"],
-            min_max_label=None,
+    models, (uncertainty_calibration_model, uncertainty_calibration_table) = (
+        load_model_ensemble(trait=variable)
+    )
+
+    # # map over imagecollection
+    imgc_preds = imgc.map(
+        lambda img: eeEnsemblePredictSingleImg(
+            ensemble=models,
+            img=img,
+            calibrate_uncertainty=True,
+            uncertainty_calibration_table=uncertainty_calibration_table,
         )
+    )
 
-    imgc_preds = reduce(lambda x, y: x.merge(y), gee_preds.values())
+    # reduce to mean / stdDev_across-images / stdDev_within-images per group
+    preds_mean = imgc_preds.select(f"{variable}_mean").mean().rename(f"{variable}_mean")
+    preds_count = (
+        imgc_preds.select(f"{variable}_mean")
+        .reduce(ee.Reducer.count())
+        .rename(f"{variable}_count")
+    )
+    preds_stdDev_within = (
+        imgc_preds.select(f"{variable}_stdDev")
+        .mean()
+        .rename(f"{variable}_stdDev_within")
+    )
+    preds_stdDev_across = (
+        imgc_preds.select(f"{variable}_mean")
+        .reduce(ee.Reducer.sampleStdDev())
+        .unmask(0)
+        .updateMask(preds_stdDev_within.mask())
+        .rename(f"{variable}_stdDev_across")
+    )
+    preds_stdDev_total = (
+        preds_stdDev_across.pow(2).add(preds_stdDev_within.pow(2)).sqrt()
+    ).rename(f"{variable}_stdDev")
 
-    # explicitly cast toFloat
-    imgc_preds = imgc_preds.map(lambda img: img.toFloat())
+    output_image = ee.Image(
+        [
+            preds_mean,
+            preds_stdDev_total,
+            preds_count,
+            preds_stdDev_across,
+            preds_stdDev_within,
+        ]
+    )
 
-    # collapse to mean and stddev
-    output_image = collapse_to_mean_and_stddev(imgc_preds)
+    # cast to proper datatypes
+    if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
+        output_image = scale_and_cast_to_int(output_image)
 
     # mask permament water bodies :80: permanent water bodies at 10 meter resolution
     water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v200").first()
@@ -161,13 +192,14 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     epsg_code_gee = f"EPSG:{epsg_code}"
     epsg_string = f"epsg-{epsg_code}"
 
-    system_index = f"{trait}_rtm-mlp_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{version}"
+    system_index = f"{variable}_rtm-mlp-{model_version}_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{export_version}"
 
     output_image = (
         output_image.set("system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis())
         .set("system:time_end", ee.Date.fromYMD(int(year), 12, 31).millis())
         .set("year", year)
-        .set("version", version)
+        .set("export_version", export_version)
+        .set("model_version", model_version)
         .set("system:index", system_index)
         .set("mgrs_tile", mgrs_tile)
     )
@@ -175,7 +207,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     # Export the image
     imgc_folder = (
         CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
-        + f"/{trait}_predictions-mlp_{output_resolution}m_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['VERSION']}/"
+        + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}/"
     )
 
     task = ee.batch.Export.image.toAsset(
@@ -201,12 +233,28 @@ def global_export_mgrs_tiles():
             "mgrs_tiles_all_land_ecoregions.csv",
         )
     )
-    mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
+    # mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
 
-    include = ["19F", "19E", "18X"]
-    # mgrs_tiles_list = include
-    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
-    logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
+    # include = ["19F", "19E", "18X"]
+    # # mgrs_tiles_list = include
+    # mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
+    # logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
+
+    mgrs_tiles_list = [
+        "36N",
+        "10T",
+        "10S",
+        "15Q",
+        "16Q",
+        "34N",
+        "55G",
+        "31T",
+        "24L",
+        "10U",
+        "10U",
+        "35L",
+        "32U",
+    ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [

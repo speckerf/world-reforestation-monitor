@@ -18,12 +18,36 @@ def test_export_global():
     # mgrs_tile_list = ["25W"]
     # 29Q to 35 Q
     # mgrs_tile_list = ["29Q", "30Q", "31Q", "32Q", "33Q", "34Q", "35Q"]
+    # mgrs_tile_list = ["32M"]
+    mgrs_tile_list = ["16R"]
+    # mgrs_tile_list = ["10S"]
 
-    # mgrs_tile_list = ["10T", "10S", "15Q", "16Q", "34N", "55G", "31T", "24L", ]  # for figures
+    # mgrs_tile_list = [
+    #     "36N",
+    #     "10T",
+    #     "10S",
+    #     "15Q",
+    #     "16Q",
+    #     "34N",
+    #     "55G",
+    #     "31T",
+    #     "24L",
+    #     # "29Q",
+    #     # "30Q",
+    #     # "31Q",
+    #     # "18F",
+    #     # "31T",
+    #     # "44S",
+    #     # "45S",
+    #     # "46S",
+    #     # "44T",
+    #     # "45T",
+    #     # "46T",
+    # ]  # for figures
     # mgrs_tile_list = ["24L", "36N", "50L"]
     # mgrs_tile_list = ["36N", "50L"]
     # mgrs_tile_list = ["18U", "19U"]
-    mgrs_tile_list = ["18F"]
+    # mgrs_tile_list = ["18F"]
     # mgrs_tile_list = ["29Q", "30Q", "31Q"]  # for figures
     # mgrs_tile_list = ["31T"]  # catalnuy
     # mgrs_tile_list = mgrs_tiles_for_figures

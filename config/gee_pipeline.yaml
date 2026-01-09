@@ -1,52 +1,56 @@
 PIPELINE_PARAMS:
-  SINGLE_ECOREGION: Null
-  YEAR: '2024'
-  OUTPUT_RESOLUTION: 10000 # in meters
+  YEAR: 2020
+  OUTPUT_RESOLUTION: 20 # in meters
   CAST_TO_INT16: TRUE
-  TRAIT: 'fapar'
+  VARIABLE: 'laie'
   ENSEMBLE_SIZE: 5 
-  VERSION: 'v01' # refers to version v1 of the pipeline
+  MODEL_VERSION: 'v02' # version of the model to be used (describes trained model version)
+  EXPORT_VERSION: 'v03' # version of the export to be used (describes pipeline parameters / cloud filtering / image selection strategy etc.)
 
-EXPORT_PARAMS: # used for exporting the final trait maps outside of GEE
+# MODEL-Versioning:
+# v01: initial submission (v01) / each observation predicted with single randomly assigned ensemble member
+# v02: updated model v02 trained using GROUNDED-EO RMs / predict each observation with full ensemble instead of single randomly assigned ensemble member
+
+# Export-Versioning:
+# v01: initial submission (MAX_IMAGES_PER_GROUP: 8, VI_INDEX: 'NDVI', MAX_VI_DIFFERENCE: 0.2, VI_MAX_PERCENTILE: 0.95)
+# v02: (MAX_IMAGES_PER_GROUP: 4, VI_INDEX: 'NDVI', MAX_VI_DIFFERENCE: 0.15, VI_MAX_PERCENTILE: 0.95)
+# v03: # dynemically choose between 4 (MIN_IMAGES_PER_GROUP) and 8 (MAX_IMAGES_PER_GROUP) depending on cloudiness of a region: more cloudy on average --> more s2 images as input
+# (MIN_IMAGES_PER_GROUP: 4, MAX_IMAGES_PER_GROUP: 8, VI_INDEX: 'NDVI', MAX_VI_DIFFERENCE: 0.15, VI_MAX_PERCENTILE: 0.95)
+
+EXPORT_PARAMS: # used for exporting the final trait maps outside from GEE Assets as single global mosaics either to GEE Drive or GEE Assets (not the exports crs for asset --> Local UTMs by default)
   EPSG: 'EPSG:4326'
   NO_DATA_VALUE_MEAN: -9999
   NO_DATA_VALUE_STDDEV: -9999
   NO_DATA_VALUE_COUNT: 255
 
-SET_NEGATIVE_VALUES_TO_ZERO: 
-  lai: TRUE
-  fapar: TRUE
-  fcover: TRUE
+CLAMP_PREDICTIONS: 
+  lai: [0.0, 8.0]
+  laie: [0.0, 8.0]
+  fapar: [0.0, 1.0]
+  fcover: [0.0, 1.0]
 
 S2_FILTERING:
-  MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile
+  MIN_IMAGES_PER_GROUP: 4 # min number of images to be used for images from the same orbit and tile (for normal conditions)
+  MAX_IMAGES_PER_GROUP: 8 # max number of images to be used for images from the same orbit and tile (in case of very cloudy conditions)
   VI_INDEX: 'NDVI' # 'EVI' or 'NDVI', bad results with EVI due to high values in some snow covered areas
-  MAX_VI_DIFFERENCE: 0.20 # max difference in EVI for images, taking all images with MAX_EVI_DIFFERENCE to the VI_MAX_PERCENTILE of EVI values
+  MAX_VI_DIFFERENCE: 0.15 # max difference in EVI for images, taking all images with MAX_EVI_DIFFERENCE to the VI_MAX_PERCENTILE of EVI values
   VI_MAX_PERCENTILE: 0.95 # max percentile of EVI values to be used for filtering images
 
 INT16_SCALING: 
   lai_mean: 1000
   lai_stdDev: 1000
-  CHL_mean: 100
-  CHL_stdDev: 100
-  EWT_mean: 100000
-  EWT_stdDev: 100000
-  LMA_mean: 100000
-  LMA_stdDev: 100000
+  laie_mean: 1000
+  laie_stdDev: 1000
   fapar_mean: 10000
   fapar_stdDev: 10000
   fcover_mean: 10000
   fcover_stdDev: 10000
 
-UNITS: # TODO: need to be verified : currently from here: https://www.mdpi.com/2072-4292/10/1/85
+UNITS: 
   lai_mean: '[m2/m2]'
+  laie_mean: '[m2/m2]'
   lai_stdDev: '[m2/m2]'
-  chl_mean: '[µg/cm2]'
-  chl_stdDev: '[µg/cm2]'
-  ewt_mean: '[cm]'
-  ewt_stdDev: '[cm]'
-  lma_mean: '[g/cm2]'
-  lma_stdDev: '[g/cm2]'
+  laie_stdDev: '[m2/m2]'
   fapar_mean: '[]'
   fapar_stdDev: '[]'
   fcover_mean: '[]'
