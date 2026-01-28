@@ -233,28 +233,28 @@ def global_export_mgrs_tiles():
             "mgrs_tiles_all_land_ecoregions.csv",
         )
     )
-    # mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
+    mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
 
-    # include = ["19F", "19E", "18X"]
-    # # mgrs_tiles_list = include
-    # mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
-    # logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
+    include = ["19F", "19E", "18X", "20F", "42N", "42P", "39M"]
+    # mgrs_tiles_list = include
+    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
+    logger.debug(f"Exporting mgrs_tiles: {mgrs_tiles_list}")
 
-    mgrs_tiles_list = [
-        "36N",
-        "10T",
-        "10S",
-        "15Q",
-        "16Q",
-        "34N",
-        "55G",
-        "31T",
-        "24L",
-        "10U",
-        "10U",
-        "35L",
-        "32U",
-    ]
+    # mgrs_tiles_list = [ # for figures
+    #     "36N",
+    #     "10T",
+    #     "10S",
+    #     "15Q",
+    #     "16Q",
+    #     "34N",
+    #     "55G",
+    #     "31T",
+    #     "24L",
+    #     "10U",
+    #     "10U",
+    #     "35L",
+    #     "32U",
+    # ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [
