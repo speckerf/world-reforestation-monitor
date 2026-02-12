@@ -7,6 +7,12 @@ with open("config/train_pipeline.yaml", "r") as file:
 with open("config/gee_pipeline.yaml", "r") as file:
     config_gee_pipeline = yaml.safe_load(file)
 
+    config_gee_pipeline["CLAMP_PREDICTIONS"] = {
+        trait: tuple(clamp_values)
+        for trait, clamp_values in config_gee_pipeline["CLAMP_PREDICTIONS"].items()
+    }
+
+
 # this function is used to access the config from anywhere
 def get_config(instance: str) -> dict:
     if instance == "gee_pipeline":

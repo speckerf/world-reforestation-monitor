@@ -1,8 +1,8 @@
 PIPELINE_PARAMS:
-  YEAR: 2025
-  OUTPUT_RESOLUTION: 100 # in meters
+  YEAR: 2020
+  OUTPUT_RESOLUTION: 20 # in meters
   CAST_TO_INT16: TRUE
-  VARIABLE: 'fapar'
+  VARIABLE: 'laie'
   ENSEMBLE_SIZE: 5 
   MODEL_VERSION: 'v02' # version of the model to be used (describes trained model version)
   EXPORT_VERSION: 'v03' # version of the export to be used (describes pipeline parameters / cloud filtering / image selection strategy etc.)
@@ -22,8 +22,9 @@ EXPORT_PARAMS: # used for exporting the final trait maps outside from GEE Assets
   NO_DATA_VALUE_MEAN: -9999
   NO_DATA_VALUE_STDDEV: -9999
   NO_DATA_VALUE_COUNT: 255
+  EXPORT_STD_FOR_20m: FALSE # whether to export the four uncertainty bands (stdDev, count, stdDev_within, stdDev_across) for 20m resolution (TRUE) / for 100 m they are always exported 
 
-CLAMP_PREDICTIONS: 
+CLAMP_PREDICTIONS: # will be converted to tuple in config.py 
   lai: [0.0, 8.0]
   laie: [0.0, 8.0]
   fapar: [0.0, 1.0]

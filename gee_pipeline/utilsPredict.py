@@ -1,26 +1,25 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, Tuple
 
 import ee
 import numpy as np
 import pandas as pd
-from loguru import logger
 from sklearn.pipeline import Pipeline
 
-from config.config import get_config
 from ee_translator.ee_mlp_regressor import eeMLPRegressor
 from ee_translator.ee_standard_scaler import eeStandardScaler
 from gee_pipeline.utilsOOD import MinMaxRangeMasker
 from gee_pipeline.utilsTiles import add_group
 
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
-
-def ee_calibrate_std(image: ee.Image, recalibration_table: pd.DataFrame) -> ee.Image:
+def ee_calibrate_std(
+    image: ee.Image,
+    recalibration_table: pd.DataFrame,
+    variable: Literal["laie", "fcover", "fapar"],
+) -> ee.Image:
     assert all(col in recalibration_table.columns for col in ["y_pred", "tau"]), (
         "Calibration table must contain 'pred_mean' and 'tau' columns"
     )
 
-    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
     mean_bandname = f"{variable}_mean"
     std_bandname = f"{variable}_stdDev"
 
@@ -57,21 +56,21 @@ def calculate_linear_weight(
     return image.set("phenology_weight", weight)
 
 
-def add_random_ensemble_assignment(imgc: ee.ImageCollection) -> ee.ImageCollection:
+def add_random_ensemble_assignment(
+    imgc: ee.ImageCollection, ensemble_size: int
+) -> ee.ImageCollection:
     return imgc.randomColumn("randomValue", seed=0).map(
         lambda img: img.set(
             "random_ensemble_assignment",
-            img.getNumber("randomValue")
-            .multiply(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"])
-            .floor()
-            .add(1),
+            img.getNumber("randomValue").multiply(ensemble_size).floor().add(1),
         )
     )
 
 
-def add_random_balanced_ensemble_assignment(imgc):
+def add_random_balanced_ensemble_assignment(
+    imgc: ee.ImageCollection, ensemble_size: int
+):
     size = imgc.size()
-    ensemble_size = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"]
 
     # add group key
     imgc = imgc.map(add_group)  # with property name 'group'
@@ -92,9 +91,11 @@ def add_random_balanced_ensemble_assignment(imgc):
 
 
 def collapse_to_mean_and_stddev(
-    imgc: ee.ImageCollection, return_count: bool
+    imgc: ee.ImageCollection,
+    return_count: bool,
+    variable: Literal["laie", "fcover", "fapar"],
+    clamp_range: Optional[Tuple[int, int]] = None,
 ) -> ee.Image:
-    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
     mean_name = f"{variable}_mean"
     std_name = f"{variable}_stdDev"
 
@@ -106,7 +107,6 @@ def collapse_to_mean_and_stddev(
         img_nobs = imgc.reduce(ee.Reducer.count()).rename(f"{variable}_count")
 
     # clamp predictions
-    clamp_range = CONFIG_GEE_PIPELINE["CLAMP_PREDICTIONS"].get(variable, None)
     if clamp_range is not None:
         img_mean = img_mean.clamp(clamp_range[0], clamp_range[1]).copyProperties(
             img_mean
@@ -119,37 +119,29 @@ def collapse_to_mean_and_stddev(
     return img_to_return
 
 
-def scale_and_cast_to_int(image: ee.Image) -> ee.Image:
-    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
+def scale_and_cast_to_int(
+    image: ee.Image,
+    variable: Literal["laie", "fcover", "fapar"],
+    mean_scaling: int,
+    std_scaling: int,
+) -> ee.Image:
     mean_name = f"{variable}_mean"
     std_name = f"{variable}_stdDev"
 
-    mean_image = (
-        image.select([mean_name])
-        .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][mean_name])
-        .toInt16()
-    )
-    std_image = (
-        image.select([std_name])
-        .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][std_name])
-        .toInt16()
-    )
+    mean_image = image.select([mean_name]).multiply(mean_scaling).toInt16()
+    std_image = image.select([std_name]).multiply(std_scaling).toInt16()
     count_image = image.select([f"{variable}_count"]).toUint8()
     return_image = ee.Image([mean_image, std_image, count_image])
 
     if f"{variable}_stdDev_across" in image.bandNames().getInfo():
         std_across_image = (
-            image.select([f"{variable}_stdDev_across"])
-            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{variable}_stdDev"])
-            .toInt16()
+            image.select([f"{variable}_stdDev_across"]).multiply(std_scaling).toInt16()
         )
         return_image = return_image.addBands(std_across_image)
 
     if f"{variable}_stdDev_within" in image.bandNames().getInfo():
         std_within_image = (
-            image.select([f"{variable}_stdDev_within"])
-            .multiply(CONFIG_GEE_PIPELINE["INT16_SCALING"][f"{variable}_stdDev"])
-            .toInt16()
+            image.select([f"{variable}_stdDev_within"]).multiply(std_scaling).toInt16()
         )
         return_image = return_image.addBands(std_within_image)
 
@@ -366,6 +358,7 @@ def _predict_one_member(
 def eeEnsemblePredictSingleImg(
     ensemble,
     img: ee.Image,
+    variable: Literal["laie", "fcover", "fapar"],
     calibrate_uncertainty: Optional[bool] = False,
     uncertainty_calibration_table: Optional[pd.DataFrame] = None,
 ) -> ee.Image:
@@ -373,7 +366,6 @@ def eeEnsemblePredictSingleImg(
     Predicts using an ensemble of models on a single image (ee.ImageCollection with one image)
     and returns the mean and stdDev of the predictions as an ee.Image.
     """
-    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
     mean_bandname = f"{variable}_mean"
     std_bandname = f"{variable}_stdDev"
 
@@ -399,7 +391,9 @@ def eeEnsemblePredictSingleImg(
                 "uncertainty_calibration_table must be provided when recalibrate_uncertainty is True"
             )
         return ee_calibrate_std(
-            ee.Image([preds_mean, preds_std]), uncertainty_calibration_table
+            ee.Image([preds_mean, preds_std]),
+            uncertainty_calibration_table,
+            variable=variable,
         )
     else:
         return ee.Image([preds_mean, preds_std])

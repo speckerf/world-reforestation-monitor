@@ -1,25 +1,19 @@
+from typing import Literal
+
 import ee
 
-from config.config import get_config
 
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
-
-
-def apply_cloudScorePlus_mask(s2imgC: ee.ImageCollection) -> ee.ImageCollection:
+def apply_cloudScorePlus_mask(
+    s2imgC: ee.ImageCollection, cs_band: Literal["cs", "cs_cdf"], cs_threshold: float
+) -> ee.ImageCollection:
     # code adopted from https://code.earthengine.google.com/5693305b63e347c83028ee1b6030b755
     csPlus = ee.ImageCollection("GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED")
 
     # Link S2 and CloudScore+ Mask.
-    linkedCollection = s2imgC.linkCollection(
-        csPlus, [CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUD_SCORE_PLUS_BAND"]]
-    )
+    linkedCollection = s2imgC.linkCollection(csPlus, [cs_band])
 
     s2CollectionMasked = linkedCollection.map(
-        lambda image: image.updateMask(
-            image.select(
-                CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUD_SCORE_PLUS_BAND"]
-            ).gte(CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUD_SCORE_PLUS_THRESHOLD"])
-        )
+        lambda image: image.updateMask(image.select(cs_band).gte(cs_threshold))
     )
 
     return s2CollectionMasked
@@ -43,7 +37,7 @@ if __name__ == "__main__":
         .filterBounds(geometry)
         .filterDate("2022-06-01", "2022-06-30")
     )
-    imgc = apply_cloudScorePlus_mask(imgc)
+    imgc = apply_cloudScorePlus_mask(imgc, cs_band="cs", cs_threshold=20)
 
     # create mean composite and test export
     composite = imgc.mean()

@@ -1,7 +1,6 @@
 import concurrent.futures
 import os
 import time
-from functools import reduce
 
 import ee
 import pandas as pd
@@ -11,6 +10,7 @@ from tqdm import tqdm
 from config.config import get_config
 from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
+from gee_pipeline.utilsExportAgent import MGRSExportAgent
 from gee_pipeline.utilsPredict import eeEnsemblePredictSingleImg, scale_and_cast_to_int
 from gee_pipeline.utilsTiles import (
     add_group,
@@ -18,8 +18,6 @@ from gee_pipeline.utilsTiles import (
     get_s2_indices_filtered,
 )
 from train_pipeline.finalTraining import load_model_ensemble
-
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 # Comment out the following lines to use the default GEE credentials
 service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
@@ -30,12 +28,12 @@ ee.Initialize(credentials, project="ee-speckerfelix")
 # ee.Initialize()
 
 
-def export_mgrs_tile(mgrs_tile: str) -> None:
-    model_version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["MODEL_VERSION"]
-    export_version = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["EXPORT_VERSION"]
-    year = int(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["YEAR"])
-    output_resolution = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"]
-    variable = CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["VARIABLE"]
+def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
+    model_version = config["PIPELINE_PARAMS"]["MODEL_VERSION"]
+    export_version = config["PIPELINE_PARAMS"]["EXPORT_VERSION"]
+    year = int(config["PIPELINE_PARAMS"]["YEAR"])
+    output_resolution = config["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"]
+    variable = config["PIPELINE_PARAMS"]["VARIABLE"]
 
     logger.info(f"Exporting mgrs_tile: {mgrs_tile}")
     start_date = ee.Date(f"{year}-01-01")
@@ -86,7 +84,13 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
             s2_indices_filtered = f.read().splitlines()
     else:
         s2_indices_filtered = get_s2_indices_filtered(
-            mgrs_tiles=current_mgrs_tiles, start_date=start_date, end_date=end_date
+            mgrs_tiles=current_mgrs_tiles,
+            start_date=start_date,
+            end_date=end_date,
+            cloudy_pixel_percentage_threshold=config["CLOUD_FILTERING"][
+                "CLOUDY_PIXEL_PERCENTAGE"
+            ],
+            vi_config=config["S2_FILTERING"],
         )
         logger.debug(f"Saving s2_indices_filtered to file: {s2_indices_filename}")
         # save s2_indices_filtered for later use
@@ -117,7 +121,11 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     output_geometry_bbox = imgc.geometry().bounds()
 
     # apply cloud mask
-    imgc = apply_cloudScorePlus_mask(imgc)
+    imgc = apply_cloudScorePlus_mask(
+        imgc,
+        cs_band=config["CLOUD_FILTERING"]["CLOUD_SCORE_PLUS_BAND"],
+        cs_threshold=config["CLOUD_FILTERING"]["CLOUD_SCORE_PLUS_THRESHOLD"],
+    )
 
     imgc = imgc.map(add_group)
 
@@ -125,7 +133,11 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     imgc = imgc.map(add_angles_from_metadata_to_bands)
 
     models, (uncertainty_calibration_model, uncertainty_calibration_table) = (
-        load_model_ensemble(trait=variable)
+        load_model_ensemble(
+            trait=variable,
+            ensemble_size=config["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"],
+            model_version=model_version,
+        )
     )
 
     # # map over imagecollection
@@ -135,6 +147,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
             img=img,
             calibrate_uncertainty=True,
             uncertainty_calibration_table=uncertainty_calibration_table,
+            variable=variable,
         )
     )
 
@@ -172,8 +185,27 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     )
 
     # cast to proper datatypes
-    if CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
-        output_image = scale_and_cast_to_int(output_image)
+    if config["PIPELINE_PARAMS"]["CAST_TO_INT16"]:
+        mean_scaling_factor = config["INT16_SCALING"][f"{variable}_mean"]
+        std_scaling_factor = config["INT16_SCALING"][f"{variable}_stdDev"]
+
+        output_image = scale_and_cast_to_int(
+            output_image, variable, mean_scaling_factor, std_scaling_factor
+        )
+
+    if (
+        not config["EXPORT_PARAMS"]["EXPORT_STD_FOR_20m"]
+        and config["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"] == 20
+    ):
+        logger.trace(
+            "Exporting only mean band for 20m resolution, as EXPORT_STD_FOR_20m is set to FALSE"
+        )
+        # subset to only export mean band
+        output_image = output_image.select(f"{variable}_mean")
+
+        distribution_export_str = "mean"
+    else:
+        distribution_export_str = "mean-std-n"
 
     # mask permament water bodies :80: permanent water bodies at 10 meter resolution
     water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v200").first()
@@ -192,7 +224,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     epsg_code_gee = f"EPSG:{epsg_code}"
     epsg_string = f"epsg-{epsg_code}"
 
-    system_index = f"{variable}_rtm-mlp-{model_version}_mean-std-n_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{export_version}"
+    system_index = f"{variable}_rtm-mlp-{model_version}_{distribution_export_str}_{output_resolution}m_s_{year_start_string}_{year_end_string}_T{mgrs_tile}_{epsg_string}_{export_version}"
 
     output_image = (
         output_image.set("system:time_start", ee.Date.fromYMD(int(year), 1, 1).millis())
@@ -206,7 +238,7 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
 
     # Export the image
     imgc_folder = (
-        CONFIG_GEE_PIPELINE["GEE_FOLDERS"]["ASSET_FOLDER"]
+        config["GEE_FOLDERS"]["ASSET_FOLDER"]
         + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}/"
     )
 
@@ -222,8 +254,10 @@ def export_mgrs_tile(mgrs_tile: str) -> None:
     task.start()
     time.sleep(0.1)
 
+    return task
 
-def global_export_mgrs_tiles():
+
+def global_export_mgrs_tiles(config: dict):
     mgrs_tiles = pd.read_csv(
         os.path.join(
             "data",
@@ -258,7 +292,7 @@ def global_export_mgrs_tiles():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [
-            executor.submit(export_mgrs_tile, mgrs_tile)
+            executor.submit(export_mgrs_tile, mgrs_tile, config)
             for mgrs_tile in mgrs_tiles_list
         ]
         for future in tqdm(
@@ -272,7 +306,43 @@ def global_export_mgrs_tiles():
     logger.info("All mgrs_tile export tasks started")
 
 
+def global_export_mgrs_tiles_agent(config: dict):
+    mgrs_tiles = pd.read_csv(
+        os.path.join(
+            "data",
+            "gee_pipeline",
+            "outputs",
+            "mgrs_tiles",
+            "mgrs_tiles_all_land_ecoregions.csv",
+        )
+    )
+    mgrs_tiles_list = list(set(mgrs_tiles["mgrs_tile_3"].tolist()))
+
+    include = ["19F", "19E", "18X", "20F", "42N", "42P", "39M"]
+    mgrs_tiles_list = list(set([*mgrs_tiles_list, *include]))
+
+    agent = MGRSExportAgent(
+        mgrs_tiles=mgrs_tiles_list,
+        export_fn=lambda mgrs_tile: export_mgrs_tile(mgrs_tile, config),
+        max_inflight=20,
+        poll_every_s=60,
+        summary_every_s=60,
+        persist_path="mgrs_export_agent_state.json",
+        max_attempts=2,
+        backoff_s=2,
+    )
+    agent.run()
+
+
+def main():
+    config = get_config("gee_pipeline")
+    # wait 1 hour
+    # time.sleep(3 * 3600)
+    # global_export_mgrs_tiles_agent(config)
+    global_export_mgrs_tiles(config)
+
+
 if __name__ == "__main__":
     # wait 1 hour
     # time.sleep(3 * 3600)
-    global_export_mgrs_tiles()
+    main()

@@ -1,6 +1,7 @@
 import ast
 import os
 import string
+from typing import Literal
 
 import ee
 import geopandas as gpd
@@ -8,10 +9,7 @@ import pandas as pd
 from loguru import logger
 from pyproj import CRS
 
-from config.config import get_config
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
 
 
 def return_mgrs_bounding_box(mgrs_tiles: list) -> ee.Geometry.BBox:
@@ -53,6 +51,8 @@ def get_s2_indices_filtered(
     start_date: ee.Date,
     end_date: ee.Date,
     mgrs_tiles: list,
+    cloudy_pixel_percentage_threshold: int,
+    vi_config: dict,
 ) -> pd.DataFrame:
     # load s2 data
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
@@ -65,7 +65,7 @@ def get_s2_indices_filtered(
         .filter(
             ee.Filter.lt(
                 "CLOUDY_PIXEL_PERCENTAGE",
-                CONFIG_GEE_PIPELINE["CLOUD_FILTERING"]["CLOUDY_PIXEL_PERCENTAGE"],
+                cloudy_pixel_percentage_threshold,
             )
         )
         .filter(
@@ -78,9 +78,27 @@ def get_s2_indices_filtered(
         .select([*bands, "SCL"])
     )
 
+    assert all(
+        [
+            "VI_INDEX",
+            "MAX_VI_DIFFERENCE",
+            "VI_MAX_PERCENTILE",
+            "MIN_IMAGES_PER_GROUP",
+            "MAX_IMAGES_PER_GROUP",
+        ]
+        in vi_config.keys()
+    ), (
+        "vi_config must contain keys: 'VI_INDEX', 'MAX_VI_DIFFERENCE', 'VI_MAX_PERCENTILE', 'MIN_IMAGES_PER_GROUP', 'MAX_IMAGES_PER_GROUP'"
+    )
+
     # filter imgc by grouping by mgrs tile and orbit number
     s2_indices_filtered = groupby_mgrs_orbit_pandas(
         imgc,
+        vi_index=vi_config["VI_INDEX"],
+        max_vi_difference=vi_config["MAX_VI_DIFFERENCE"],
+        max_vi_percentile=vi_config["VI_MAX_PERCENTILE"],
+        min_images_per_group=vi_config["MIN_IMAGES_PER_GROUP"],
+        max_images_per_group=vi_config["MAX_IMAGES_PER_GROUP"],
     )
     return s2_indices_filtered
 
@@ -126,7 +144,9 @@ def get_epsg_code_from_mgrs(mgrs_zone_number: str):
     return crs.to_epsg()
 
 
-def add_vegetation_index_weight(image: ee.Image) -> ee.Image:
+def add_vegetation_index_weight(
+    image: ee.Image, vi_index: Literal["EVI", "NDVI"]
+) -> ee.Image:
     # use SCL to mask out all snow and water pixels, also defective pixels: mask out 0, 1, 2, 6, 11
     scl = image.select("SCL")
     scl_mask = scl.remap([0, 1, 2, 6, 11], [0, 0, 0, 0, 0], 1)
@@ -138,7 +158,7 @@ def add_vegetation_index_weight(image: ee.Image) -> ee.Image:
         natural_classes, ee.List.repeat(1, len(natural_classes)), 0
     )
 
-    if CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_INDEX"] == "EVI":
+    if vi_index == "EVI":
         vi = image.expression(
             "2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))",
             {
@@ -148,7 +168,7 @@ def add_vegetation_index_weight(image: ee.Image) -> ee.Image:
             },
         ).rename("vegetation_index")
 
-    elif CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_INDEX"] == "NDVI":
+    elif vi_index == "NDVI":
         vi = image.expression(
             "(NIR - RED) / (NIR + RED)",
             {
@@ -221,6 +241,11 @@ def _choose_n(
 
 def groupby_mgrs_orbit_pandas(
     imgc: ee.ImageCollection,
+    vi_index: Literal["EVI", "NDVI"],
+    max_vi_difference: float,
+    max_vi_percentile: float,
+    min_images_per_group: int,
+    max_images_per_group: int,
 ) -> ee.List:
     imgc = imgc.map(add_group)
 
@@ -228,7 +253,7 @@ def groupby_mgrs_orbit_pandas(
     imgc = apply_cloudScorePlus_mask(imgc)
 
     # add pheno distance weight / uses S2_FILTERING['VI_INDEX'] to compute vegetation index weight
-    imgc = imgc.map(add_vegetation_index_weight)
+    imgc = imgc.map(lambda image: add_vegetation_index_weight(image, vi_index))
 
     # convert imagecollection to pandas data frame: with system:index, group, CLOUDY_PIXEL_PERCENTAGE, and pheno_weoght
 
@@ -343,19 +368,13 @@ def groupby_mgrs_orbit_pandas(
     # per group, drop images if their mean_evi is below 0.9 quantile - MAX_EVI_DIFFERENCE
     df_sorted_2["mean_vi_diff"] = df_sorted_2.groupby("group")[
         "mean_vegetation_index"
-    ].transform(
-        lambda x: x.quantile(CONFIG_GEE_PIPELINE["S2_FILTERING"]["VI_MAX_PERCENTILE"])
-        - x
-    )
-    df_sorted_3 = df_sorted_2[
-        df_sorted_2["mean_vi_diff"]
-        <= CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_VI_DIFFERENCE"]
-    ].copy()
+    ].transform(lambda x: x.quantile(max_vi_percentile) - x)
+    df_sorted_3 = df_sorted_2[df_sorted_2["mean_vi_diff"] <= max_vi_difference].copy()
 
     df_sorted_3["n_images_to_keep"] = df_sorted_3["group_mean_cloudy_percentage"].apply(
         _choose_n,
-        min_images=CONFIG_GEE_PIPELINE["S2_FILTERING"]["MIN_IMAGES_PER_GROUP"],
-        max_images=CONFIG_GEE_PIPELINE["S2_FILTERING"]["MAX_IMAGES_PER_GROUP"],
+        min_images=min_images_per_group,
+        max_images=max_images_per_group,
         cloud_low=0.2,
         cloud_high=0.5,
     )

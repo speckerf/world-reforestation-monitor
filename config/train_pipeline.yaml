@@ -27,6 +27,8 @@ mlp_grid:
   alpha: [0.0001, 0.001, 0.01, 0.1]
   max_iter: [5000]
 
+model_version: 'v02' # version of the model to be used (describes trained model version)
+ensemble_size: 5
 
 optuna_n_trials: 8000
 optuna_n_startup_trials: 4000
