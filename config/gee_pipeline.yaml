@@ -1,9 +1,11 @@
 PIPELINE_PARAMS:
   YEAR: 2020
-  OUTPUT_RESOLUTION: 20 # in meters
+  OUTPUT_RESOLUTION: 100 # in meters
   CAST_TO_INT16: TRUE
-  VARIABLE: 'laie'
+  VARIABLE: 'fapar'
   ENSEMBLE_SIZE: 5 
+  EXPORT_BANDS: ['mean', 'stdDev', 'count', 'stdDev_within', 'stdDev_across'] # which bands to export (for 20m resolution, mean is always exported, stdDev, count, stdDev_within and stdDev_across are only exported if EXPORT_STD_FOR_20m is set to TRUE)
+  # EXPORT_BANDS: ['mean', 'stdDev']
   MODEL_VERSION: 'v02' # version of the model to be used (describes trained model version)
   EXPORT_VERSION: 'v03' # version of the export to be used (describes pipeline parameters / cloud filtering / image selection strategy etc.)
 
@@ -22,13 +24,16 @@ EXPORT_PARAMS: # used for exporting the final trait maps outside from GEE Assets
   NO_DATA_VALUE_MEAN: -9999
   NO_DATA_VALUE_STDDEV: -9999
   NO_DATA_VALUE_COUNT: 255
-  EXPORT_STD_FOR_20m: FALSE # whether to export the four uncertainty bands (stdDev, count, stdDev_within, stdDev_across) for 20m resolution (TRUE) / for 100 m they are always exported 
 
-CLAMP_PREDICTIONS: # will be converted to tuple in config.py 
-  lai: [0.0, 8.0]
+CLAMP_PREDICTIONS: # will be converted to tuple in config.py / idea first mask predicitons to avoid unrealistic retrievals, than clamp to 0-1 range. 
   laie: [0.0, 8.0]
-  fapar: [0.0, 1.0]
+  fapar: [0.0, 1.0] # we allow slightly higher and lower values for FCVOER and FAPAR; a prediction of -0.001 in a desert is still realistic. 
   fcover: [0.0, 1.0]
+
+MASK_RANGE: # range to mask predictions before clamping (e.g. for fapar, we can mask all values < -0.1 and > 1.1 to avoid unrealistic retrievals, but still allow slightly higher and lower values for FCVOER and FAPAR; a prediction of -0.001 in a desert is still realistic.)
+  laie: [-0.1, 8.1]
+  fapar: [-0.05, 1.05]
+  fcover: [-0.05, 1.05]
 
 S2_FILTERING:
   MIN_IMAGES_PER_GROUP: 4 # min number of images to be used for images from the same orbit and tile (for normal conditions)

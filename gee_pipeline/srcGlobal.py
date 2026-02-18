@@ -7,6 +7,7 @@ import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 
+from config import config
 from config.config import get_config
 from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
@@ -145,6 +146,9 @@ def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
         lambda img: eeEnsemblePredictSingleImg(
             ensemble=models,
             img=img,
+            mask_and_clamp=True,
+            mask_range=config["MASK_RANGE"][variable],
+            clamp_range=config["CLAMP_PREDICTIONS"][variable],
             calibrate_uncertainty=True,
             uncertainty_calibration_table=uncertainty_calibration_table,
             variable=variable,
@@ -193,19 +197,35 @@ def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
             output_image, variable, mean_scaling_factor, std_scaling_factor
         )
 
-    if (
-        not config["EXPORT_PARAMS"]["EXPORT_STD_FOR_20m"]
-        and config["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"] == 20
-    ):
-        logger.trace(
-            "Exporting only mean band for 20m resolution, as EXPORT_STD_FOR_20m is set to FALSE"
-        )
-        # subset to only export mean band
-        output_image = output_image.select(f"{variable}_mean")
+    # select only output bands according to config: raise warning if EXPORT_BANDS not all (for 100m), and more than mean, stdDev for 20m
+    if config["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"] == 100:
+        if set(config["PIPELINE_PARAMS"]["EXPORT_BANDS"]) != set(
+            ["mean", "stdDev", "count", "stdDev_within", "stdDev_across"]
+        ):
+            logger.warning(
+                f"EXPORT_BANDS for 100m resolution should include all bands (mean, stdDev, count, stdDev_within, stdDev_across), but {config['PIPELINE_PARAMS']['EXPORT_BANDS']} was set. Please check your config."
+            )
+    elif config["PIPELINE_PARAMS"]["OUTPUT_RESOLUTION"] == 20:
+        if not set(config["PIPELINE_PARAMS"]["EXPORT_BANDS"]).issubset(
+            set(["mean", "stdDev"])
+        ):
+            logger.warning(
+                f"EXPORT_BANDS for 20m resolution should be a subset of ['mean', 'stdDev'], but {config['PIPELINE_PARAMS']['EXPORT_BANDS']} was set. Please check your config."
+            )
 
-        distribution_export_str = "mean"
-    else:
-        distribution_export_str = "mean-std-n"
+    # select bands
+    output_image = output_image.select(
+        [f"{variable}_{band}" for band in config["PIPELINE_PARAMS"]["EXPORT_BANDS"]]
+    )
+
+    # create distribution_export_str for system:index based on which bands are exported (for 20m resolution, if only mean is exported, distribution_export_str is set to "mean", if stdDev is also exported, it is set to "mean-std", for 100m resolution, it should always be "mean-std-n")
+    distribution_export_str = ""
+    if "mean" in config["PIPELINE_PARAMS"]["EXPORT_BANDS"]:
+        distribution_export_str += "mean"
+    if "stdDev" in config["PIPELINE_PARAMS"]["EXPORT_BANDS"]:
+        distribution_export_str += "-std"
+    if "count" in config["PIPELINE_PARAMS"]["EXPORT_BANDS"]:
+        distribution_export_str += "-n"
 
     # mask permament water bodies :80: permanent water bodies at 10 meter resolution
     water_mask_2020 = ee.ImageCollection("ESA/WorldCover/v200").first()
@@ -239,7 +259,7 @@ def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
     # Export the image
     imgc_folder = (
         config["GEE_FOLDERS"]["ASSET_FOLDER"]
-        + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}/"
+        + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}-debug/"
     )
 
     task = ee.batch.Export.image.toAsset(

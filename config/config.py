@@ -12,6 +12,11 @@ with open("config/gee_pipeline.yaml", "r") as file:
         for trait, clamp_values in config_gee_pipeline["CLAMP_PREDICTIONS"].items()
     }
 
+    config_gee_pipeline["MASK_RANGE"] = {
+        trait: tuple(mask_values)
+        for trait, mask_values in config_gee_pipeline["MASK_RANGE"].items()
+    }
+
 
 # this function is used to access the config from anywhere
 def get_config(instance: str) -> dict:

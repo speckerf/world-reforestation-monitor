@@ -33,7 +33,7 @@ def ee_calibrate_std(
     tau_image = mean_image.interpolate(
         y_pred_inter,
         tau_inter,
-        behavior="extrapolate",
+        behavior="clamp",  # BUG: I misunderstood "extrapolate": resulted in unrealistic recalibration if prediciton outside the realistic domain: changed here to "clamp" --> plus we need to change to mask before rescaling!!!!
     ).rename("tau")
 
     # use ee.Image.interpolate to recalibrate std_image / values outside of the range are copied (behavior='input')
@@ -46,6 +46,7 @@ def ee_calibrate_std(
 def calculate_linear_weight(
     image: ee.Image, start_date: ee.Date, end_date: ee.Date, total_days: ee.Number
 ):
+    raise DeprecationWarning("This function is deprecated.")
     # Calculate the difference in days from the start date.
     days_from_start = image.date().difference(start_date, "day").abs()
     days_to_end = image.date().difference(end_date, "day").abs()
@@ -59,6 +60,9 @@ def calculate_linear_weight(
 def add_random_ensemble_assignment(
     imgc: ee.ImageCollection, ensemble_size: int
 ) -> ee.ImageCollection:
+    raise DeprecationWarning(
+        "This function is deprecated and should not be used anymore."
+    )
     return imgc.randomColumn("randomValue", seed=0).map(
         lambda img: img.set(
             "random_ensemble_assignment",
@@ -70,6 +74,9 @@ def add_random_ensemble_assignment(
 def add_random_balanced_ensemble_assignment(
     imgc: ee.ImageCollection, ensemble_size: int
 ):
+    raise DeprecationWarning(
+        "This function is deprecated and should not be used anymore."
+    )
     size = imgc.size()
 
     # add group key
@@ -96,6 +103,9 @@ def collapse_to_mean_and_stddev(
     variable: Literal["laie", "fcover", "fapar"],
     clamp_range: Optional[Tuple[int, int]] = None,
 ) -> ee.Image:
+    raise DeprecationWarning(
+        "This function is deprecated and should not be used anymore."
+    )
     mean_name = f"{variable}_mean"
     std_name = f"{variable}_stdDev"
 
@@ -196,6 +206,9 @@ def eePipelinePredictMap(
     min_max_bands: Optional[dict] = None,
     min_max_label: Optional[dict] = None,
 ):
+    raise DeprecationWarning(
+        "This function is deprecated and should not be used anymore. Use eeEnsemblePredictSingleImg instead."
+    )
     # get the bands and angles
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     angles = ["tts", "tto", "psi"]
@@ -359,6 +372,9 @@ def eeEnsemblePredictSingleImg(
     ensemble,
     img: ee.Image,
     variable: Literal["laie", "fcover", "fapar"],
+    mask_and_clamp: bool = True,
+    mask_range: Optional[Tuple[float, float]] = None,
+    clamp_range: Optional[Tuple[float, float]] = None,
     calibrate_uncertainty: Optional[bool] = False,
     uncertainty_calibration_table: Optional[pd.DataFrame] = None,
 ) -> ee.Image:
@@ -368,6 +384,11 @@ def eeEnsemblePredictSingleImg(
     """
     mean_bandname = f"{variable}_mean"
     std_bandname = f"{variable}_stdDev"
+
+    if mask_and_clamp:
+        assert mask_range is not None and clamp_range is not None, (
+            "mask_range and clamp_range must be provided if mask_and_clamp is True"
+        )
 
     # ------------------------------------------------------------------
     # shared preprocessing (identical for all ensemble members)
@@ -384,6 +405,17 @@ def eeEnsemblePredictSingleImg(
     preds_ic = ee.ImageCollection(preds)
     preds_mean = preds_ic.mean().rename(mean_bandname)
     preds_std = preds_ic.reduce(ee.Reducer.sampleStdDev()).rename(std_bandname)
+
+    # mask predictions:
+    # previous bug: unrealistic predicitons where not masked by default anymore; lead in combination with extrapolate recalibration (negative reclalibration was possible due to that) to undesired behaviour.
+    if mask_and_clamp:
+        # first mask:
+        mask = preds_mean.gte(mask_range[0]).And(preds_mean.lte(mask_range[1]))
+        preds_mean = preds_mean.updateMask(mask)
+        preds_std = preds_std.updateMask(mask)
+
+        # then clamp:
+        preds_mean = preds_mean.clamp(clamp_range[0], clamp_range[1])
 
     if calibrate_uncertainty:
         if uncertainty_calibration_table is None:
@@ -402,9 +434,3 @@ def eeEnsemblePredictSingleImg(
 # test ensemble assignment
 if __name__ == "__main__":
     ee.Initialize()
-    imgc = (
-        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterDate("2020-12-01", "2020-12-31")
-        .filterBounds(ee.Geometry.Point([11.4924, 42.8902]))
-    )
-    imgc = add_random_balanced_ensemble_assignment(imgc)
