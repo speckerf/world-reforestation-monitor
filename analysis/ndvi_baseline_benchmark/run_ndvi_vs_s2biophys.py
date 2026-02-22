@@ -1,5 +1,5 @@
 """
-NDVI-baseline benchmark vs Hybrid (S2Biophys_MLP) using Stacked Out-of-Fold Predictions
+NDVI-baseline benchmark vs Hybrid (S2Biophys_MLP) using Ecoregion-Based Spatially Blocked CV
 
 Outputs (relative to this script's location by default):
   figures/ndvi_baseline_vs_hybrid_3x2_stacked_oof.png
@@ -13,10 +13,11 @@ This addresses reviewer comment:
     complexity provides a meaningful performance improvement over a much simpler approach.
 
 Implementation:
-- Uses the same 5-fold cross-validation splits for both NDVI and S2BIOPHYS models
-- Each validation sample is predicted by exactly ONE model (the fold where it was held out)
-- All out-of-fold predictions are stacked and evaluated together
-- This ensures a fair, unbiased comparison between the two approaches
+- Third-degree polynomial NDVI–variable regression
+- Fitted to GROUNDED-EO reference measurements
+- Uses same ecoregion-based spatially blocked CV splits as S2BIOPHYS training
+- Ensures fair comparison using identical train/validation split structure
+- Demonstrates S2BIOPHYS advantage in physical consistency and extrapolation
 """
 
 from __future__ import annotations
