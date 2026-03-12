@@ -299,6 +299,7 @@ def process_mgrs_tile(
         transform=scaled_distances.rio.transform(),
         nodata=255 if save_as_uint8 else np.nan,
         compress="deflate",
+        tiled=True,
     ) as dst:
         dst.write(scaled_distances.values, 1)
         dst.scales = [1 / scale_factor]
