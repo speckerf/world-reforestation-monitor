@@ -20,6 +20,7 @@ dependencies:
   - pyproj
   - pyyaml
   - rasterio
+  - rioxarray
   - scikit-learn=1.7.2
   - scipy
   - dvc
