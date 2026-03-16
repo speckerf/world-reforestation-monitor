@@ -7,6 +7,7 @@ dependencies:
   - cartopy
   - geemap
   - geopandas
+  - earthengine-api
   - google-api-python-client
   - hvplot
   - loguru
@@ -31,3 +32,4 @@ dependencies:
   - pip
   - pip:
     - git+https://github.com/Open-Earth-Monitor/zen#egg=zen
+    - git+https://github.com/google/Xee.git@refs/pull/275/head

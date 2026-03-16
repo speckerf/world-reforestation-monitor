@@ -13,12 +13,19 @@ from loguru import logger
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+from xee import helpers
 
 from analysis.domain_representativeness_experiment.prepare_lut_domain import (
     load_lut_for_trait,
 )
 from ee_translator.ee_standard_scaler import eeStandardScaler
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
+
+BAND_NAMES = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
+N_NEAREST_NEIGHBORS = 5
+MAX_RESCALE_DISTANCE = (
+    10  # Maximum distance to consider for rescaling (for uint8 storage)
+)
 
 
 def load_s2_imgc_mgrs(mgrs_tile: str) -> List[str]:
@@ -119,7 +126,7 @@ def load_s2_data_for_seed(
         return None, None, None
 
     # Create Earth Engine ImageCollection with seed
-    s2_imgc = ee.ImageCollection(
+    s2_all = ee.ImageCollection(
         (
             ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
             .filter(ee.Filter.inList("system:index", sampled_s2_indices))
@@ -127,12 +134,9 @@ def load_s2_data_for_seed(
         ).randomColumn("random", seed=seed)
     )
 
-    # Get CRS info
-    crs = s2_imgc.first().select(BAND_NAMES[0]).projection().getInfo()["crs"]
-
     # Apply cloud mask
     s2_cloudfree = apply_cloudScorePlus_mask(
-        s2_imgc, cs_band="cs", cs_threshold=0.65
+        s2_all, cs_band="cs", cs_threshold=0.65
     ).select(BAND_NAMES)
 
     # Create mosaic with seed-based sorting
@@ -148,8 +152,30 @@ def load_s2_data_for_seed(
     s2_normalized = ee_standard_scaler.transform_image(s2_mosaic)
 
     # Convert to xarray
+    common_projection = s2_all.first().select(BAND_NAMES[0]).projection().atScale(scale)
+    grid_params = helpers.extract_grid_params(s2_all)
+    # change scale to 100m
+    current_scale_ic = grid_params["crs_transform"][0]  # x_scale from affine transform
+    if current_scale_ic != scale:
+        grid_params["crs_transform"] = (
+            scale,
+            grid_params["crs_transform"][1],
+            grid_params["crs_transform"][2],
+            grid_params["crs_transform"][3],
+            -scale,
+            grid_params["crs_transform"][5],
+        )
+
+        new_shape_2d = (
+            int(grid_params["shape_2d"][0] * current_scale_ic / scale),
+            int(grid_params["shape_2d"][1] * current_scale_ic / scale),
+        )
+        grid_params["shape_2d"] = new_shape_2d
+
     ds = xr.open_dataset(
-        s2_normalized, engine="ee", crs=crs, scale=scale, geometry=s2_imgc.bounds()
+        s2_normalized,
+        engine="ee",
+        **grid_params,
     )
 
     # Drop time dimension if exists
@@ -240,15 +266,21 @@ def process_mgrs_tile(
             distances_img = compute_knn_distances_for_dataset(ds, knn_model)
 
             if reference_x is None:
-                reference_x = ds.X.copy()
-                reference_y = ds.Y.copy()
+                reference_x = ds.x.copy()
+                reference_y = ds.y.copy()
                 reference_crs = ds.rio.crs
 
+            assert np.allclose(ds.x.values, reference_x.values), (
+                "X coordinates do not match reference"
+            )
+            assert np.allclose(ds.y.values, reference_y.values), (
+                "Y coordinates do not match reference"
+            )
             # Create DataArray with seed dimension
             distances_da = xr.DataArray(
                 distances_img,
-                dims=["X", "Y"],
-                coords={"X": reference_x, "Y": reference_y},
+                dims=["x", "y"],
+                coords={"x": reference_x, "y": reference_y},
                 attrs=ds.attrs,
             ).expand_dims(seed=[int(seed)])
 
@@ -260,25 +292,24 @@ def process_mgrs_tile(
     mean_distances = combined_ds.mean(dim="seed")
 
     # Set spatial domains / crs and transform
-    mean_distances.rio.set_spatial_dims(x_dim="X", y_dim="Y", inplace=True)
+    # mean_distances.rio.set_spatial_dims(x_dim="X", y_dim="Y", inplace=True)
     mean_distances.rio.write_crs(reference_crs, inplace=True)
 
     # swap axes to (Y, X) for correct geospatial orientation
-    mean_distances = mean_distances.transpose("Y", "X")
+    # mean_distances = mean_distances.transpose("Y", "X")
 
     if save_as_uint8:
         # scale distances to 0-250 for uint8 storage / reserve 255 for nodata
-        max_distance = np.nanmax(mean_distances.values)
-        assert max_distance > 0, "Max distance should be non-negative"
-        scale_factor = 250 / max_distance if max_distance > 0 else 1.0
+
+        # max_distance = np.nanmax(mean_distances.values)
+        # assert max_distance > 0, "Max distance should be non-negative"
+        scale_factor = 250 / MAX_RESCALE_DISTANCE
         scaled_distances = (mean_distances * scale_factor).fillna(255).astype(np.uint8)
 
         scaled_distances.rio.write_nodata(255, inplace=True)
     else:
         scale_factor = 1.0
         scaled_distances = mean_distances
-
-    scaled_distances.rio.set_spatial_dims(x_dim="X", y_dim="Y", inplace=True)
 
     # Define output path
     output_path = (
@@ -306,10 +337,6 @@ def process_mgrs_tile(
         dst.offsets = [0]
 
 
-BAND_NAMES = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
-N_NEAREST_NEIGHBORS = 5
-
-
 def main():
     """
     Main function to run generalized analysis across multiple MGRS tiles and seeds.
@@ -322,24 +349,33 @@ def main():
     sample_s2_prop = 0.5  # Proportion of S2 images to sample
     sample_lut_prop = 0.25  # Proportion of LUT samples to use
     scale = 1000  # Resolution in meters
-    parallel = True  # Whether to run in parallel
+    parallel = False  # Whether to run in parallel
     save_as_uint8 = True  # Whether to save distances as uint8 (scaled) or float32
 
     # Get all MGRS tiles
     mgrs_tiles = get_mgrs_tiles()
 
+    # get already produces mgrs tiles to skip
+    output_dir = Path("analysis/domain_representativeness_experiment/ood_results")
+    existing_files = list(
+        output_dir.glob("knn-distance_all-traits_*_100m_multi-seed.tif")
+    )
+    existing_mgrs_tiles = set(f.stem.split("_")[2] for f in existing_files)
+    mgrs_tiles = [tile for tile in mgrs_tiles if tile not in existing_mgrs_tiles]
+    logger.info(f"Skipping {len(existing_mgrs_tiles)} already processed MGRS tiles")
+
     # For testing, limit to a subset (remove this for full run)
-    test_tiles = [
-        "31T",
-        "32T",
-        "33T",
-        "34T",
-        "31U",
-        "32U",
-        "33U",
-        "34U",
-    ]  # Limit for testing
-    # test_tiles = ["31T"]
+    # test_tiles = [
+    #     "31T",
+    #     "32T",
+    #     "33T",
+    #     "34T",
+    #     "31U",
+    #     "32U",
+    #     "33U",
+    #     "34U",
+    # ]  # Limit for testing
+    test_tiles = ["28S"]
     mgrs_tiles = [tile for tile in mgrs_tiles if tile in test_tiles]
 
     logger.info(f"Processing {len(mgrs_tiles)} MGRS tiles with {len(seeds)} seeds each")
@@ -383,24 +419,6 @@ def main():
             except Exception as e:
                 logger.error(f"Error processing MGRS tile {mgrs_tile}: {e}")
                 continue
-
-    # # Process each MGRS tile
-    # all_results = {}
-    # for mgrs_tile in tqdm(mgrs_tiles, desc="Processing MGRS tiles"):
-    #     try:
-    #         results = process_mgrs_tile(
-    #             mgrs_tile=mgrs_tile,
-    #             trait=variable,
-    #             seeds=seeds,
-    #             sample_s2_prop=sample_s2_prop,
-    #             sample_lut_prop=sample_lut_prop,
-    #             scale=scale,
-    #         )
-    #         all_results[mgrs_tile] = results
-
-    #     except Exception as e:
-    #         logger.error(f"Error processing MGRS tile {mgrs_tile}: {e}")
-    #         continue
 
     # Summary
     logger.info("Analysis completed!")
