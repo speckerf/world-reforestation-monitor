@@ -1,4 +1,5 @@
 import concurrent.futures
+import math
 import os
 import random
 from pathlib import Path
@@ -96,6 +97,125 @@ def _apply_water_and_rock_mask(img: ee.Image) -> ee.Image:
     return img
 
 
+def imagecollection_to_transform_fc(imgc, band=None):
+    """
+    Convert an Earth Engine ImageCollection to a FeatureCollection containing
+    the 6 affine transform parameters of each image's projection.
+
+    Output properties per feature:
+      - elt_0_0
+      - elt_0_1
+      - elt_0_2
+      - elt_1_0
+      - elt_1_1
+      - elt_1_2
+
+    Additional metadata:
+      - system:index
+      - system:time_start
+      - band
+
+    Parameters
+    ----------
+    imgc : ee.ImageCollection
+        Input image collection.
+    band : str or None
+        Band whose projection should be used. If None, uses the first band.
+
+    Returns
+    -------
+    ee.FeatureCollection
+    """
+
+    def _extract_param(transform_str, name):
+        transform_str = ee.String(transform_str)
+        pattern = ee.String('.*PARAMETER\\["').cat(name).cat('",\\s*([-0-9.]+)\\].*')
+        value = transform_str.replace(pattern, "$1")
+        return ee.Number.parse(value)
+
+    def _img_to_feature(img):
+        img = ee.Image(img)
+
+        proj = img.select(["B2"]).projection()
+        tstr = ee.String(proj.transform())
+
+        transform_lst = ee.List(
+            [
+                ee.Number.parse(
+                    tstr.match('PARAMETER\\["elt_0_0",\\s*([-+]?\\d*\\.?\\d+)').get(1)
+                ),
+                ee.Number.parse(
+                    tstr.match('PARAMETER\\["elt_0_2",\\s*([-+]?\\d*\\.?\\d+)').get(1)
+                ),
+                ee.Number.parse(
+                    tstr.match('PARAMETER\\["elt_1_1",\\s*([-+]?\\d*\\.?\\d+)').get(1)
+                ),
+                ee.Number.parse(
+                    tstr.match('PARAMETER\\["elt_1_2",\\s*([-+]?\\d*\\.?\\d+)').get(1)
+                ),
+            ]
+        )
+        feat = ee.Feature(
+            None,
+            {
+                "xScale": transform_lst.get(0),
+                "xMin": transform_lst.get(1),
+                "yScale": transform_lst.get(2),
+                "yMax": transform_lst.get(3),
+                "system:index": img.get("system:index"),
+                "band": "B2",
+            },
+        )
+
+        return feat
+
+    return ee.FeatureCollection(imgc.map(_img_to_feature))
+
+
+def get_grid_and_bounds_for_imgc(
+    imgc: ee.ImageCollection, scale: int
+) -> Tuple[List[float], dict]:
+    # map over imgc; get transform and bounds
+    #  - img.select(0).projection().transform()
+    fc_transform = imagecollection_to_transform_fc(imgc)
+
+    # get min xmin and max ymax across all images in the collection
+    min_xmin = fc_transform.aggregate_min("xMin").getInfo()
+    max_xmin = fc_transform.aggregate_max("xMin").getInfo()
+
+    min_ymax = fc_transform.aggregate_min("yMax").getInfo()
+    max_ymax = fc_transform.aggregate_max("yMax").getInfo()
+
+    tile_width_meters = 10980
+
+    xmin, xmax = min_xmin, max_xmin + tile_width_meters
+    ymin, ymax = min_ymax - tile_width_meters, max_ymax
+
+    bounds_in_utm = [xmin, ymin, xmax, ymax]
+
+    total_shape_2d = (
+        math.ceil(abs(xmax - xmin) / scale),
+        math.ceil(abs(ymax - ymin) / scale),
+    )
+
+    # Convert to xarray
+    grid_params = helpers.extract_grid_params(imgc.select("B2"))
+
+    new_origin = (xmin, ymax)
+    new_crs_transform = (
+        scale,
+        0,
+        new_origin[0],
+        0,
+        -scale,
+        new_origin[1],
+    )
+    grid_params["crs_transform"] = new_crs_transform
+    grid_params["shape_2d"] = total_shape_2d
+
+    return bounds_in_utm, grid_params
+
+
 def load_s2_data_for_seed(
     mgrs_tile: str, seed: int, sample_s2_prop: float, sample_lut_prop: float, scale: int
 ) -> Tuple[xr.Dataset, StandardScaler, NearestNeighbors]:
@@ -129,14 +249,19 @@ def load_s2_data_for_seed(
     s2_all = ee.ImageCollection(
         (
             ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-            .filter(ee.Filter.inList("system:index", sampled_s2_indices))
+            .filter(ee.Filter.inList("system:index", mgrs_s2_indices))
             .select(BAND_NAMES)
         ).randomColumn("random", seed=seed)
     )
 
+    # create grid and bounding box in utm zone from the input imgc-collection
+    bbox_utm, grid_params = get_grid_and_bounds_for_imgc(s2_all, scale)
+
+    s2_sampled = s2_all.filter(ee.Filter.inList("system:index", sampled_s2_indices))
+
     # Apply cloud mask
     s2_cloudfree = apply_cloudScorePlus_mask(
-        s2_all, cs_band="cs", cs_threshold=0.65
+        s2_sampled, cs_band="cs", cs_threshold=0.65
     ).select(BAND_NAMES)
 
     # Create mosaic with seed-based sorting
@@ -150,27 +275,6 @@ def load_s2_data_for_seed(
     # Apply standard scaling
     ee_standard_scaler = eeStandardScaler(standard_scaler, feature_names=BAND_NAMES)
     s2_normalized = ee_standard_scaler.transform_image(s2_mosaic)
-
-    # Convert to xarray
-    common_projection = s2_all.first().select(BAND_NAMES[0]).projection().atScale(scale)
-    grid_params = helpers.extract_grid_params(s2_all)
-    # change scale to 100m
-    current_scale_ic = grid_params["crs_transform"][0]  # x_scale from affine transform
-    if current_scale_ic != scale:
-        grid_params["crs_transform"] = (
-            scale,
-            grid_params["crs_transform"][1],
-            grid_params["crs_transform"][2],
-            grid_params["crs_transform"][3],
-            -scale,
-            grid_params["crs_transform"][5],
-        )
-
-        new_shape_2d = (
-            int(grid_params["shape_2d"][0] * current_scale_ic / scale),
-            int(grid_params["shape_2d"][1] * current_scale_ic / scale),
-        )
-        grid_params["shape_2d"] = new_shape_2d
 
     ds = xr.open_dataset(
         s2_normalized,
