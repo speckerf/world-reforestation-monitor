@@ -344,12 +344,12 @@ def main():
     logger.info("Starting generalized domain distance analysis")
 
     # Configuration
-    # seeds = [1, 2, 3, 4, 5]  # Multiple seeds for robustness
-    seeds = [42, 43]
+    seeds = [1, 2, 3, 4, 5]  # Multiple seeds for robustness
+    # seeds = [42, 43]
     sample_s2_prop = 0.5  # Proportion of S2 images to sample
     sample_lut_prop = 0.25  # Proportion of LUT samples to use
-    scale = 1000  # Resolution in meters
-    parallel = False  # Whether to run in parallel
+    scale = 100  # Resolution in meters
+    parallel = True  # Whether to run in parallel
     save_as_uint8 = True  # Whether to save distances as uint8 (scaled) or float32
 
     # Get all MGRS tiles
@@ -358,7 +358,7 @@ def main():
     # get already produces mgrs tiles to skip
     output_dir = Path("analysis/domain_representativeness_experiment/ood_results")
     existing_files = list(
-        output_dir.glob("knn-distance_all-traits_*_100m_multi-seed.tif")
+        output_dir.glob(f"knn-distance_all-traits_*_{scale}m_multi-seed.tif")
     )
     existing_mgrs_tiles = set(f.stem.split("_")[2] for f in existing_files)
     mgrs_tiles = [tile for tile in mgrs_tiles if tile not in existing_mgrs_tiles]
@@ -375,14 +375,14 @@ def main():
     #     "33U",
     #     "34U",
     # ]  # Limit for testing
-    test_tiles = ["28S"]
-    mgrs_tiles = [tile for tile in mgrs_tiles if tile in test_tiles]
+    # test_tiles = ["28S"]
+    # mgrs_tiles = [tile for tile in mgrs_tiles if tile in test_tiles]
 
     logger.info(f"Processing {len(mgrs_tiles)} MGRS tiles with {len(seeds)} seeds each")
     logger.info(f"MGRS tiles: {mgrs_tiles}")
 
     if parallel:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             params = {
                 "seeds": seeds,
                 "sample_s2_prop": sample_s2_prop,
