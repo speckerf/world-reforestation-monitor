@@ -390,21 +390,21 @@ def main():
                 "scale": scale,
                 "save_as_uint8": save_as_uint8,
             }
-            futures = [
-                executor.submit(
-                    process_mgrs_tile,
-                    mgrs_tile,
-                    **params,
-                )
+            future_to_tile = {
+                executor.submit(process_mgrs_tile, mgrs_tile, **params): mgrs_tile
                 for mgrs_tile in mgrs_tiles
-            ]
+            }
+
             for future in tqdm(
-                concurrent.futures.as_completed(futures), total=len(futures)
+                concurrent.futures.as_completed(future_to_tile),
+                total=len(future_to_tile),
             ):
+                mgrs_tile = future_to_tile[future]
                 try:
                     future.result()  # If the task raised an exception, this will raise it here
+                    logger.info(f"Finished tile {mgrs_tile}")
                 except Exception as e:
-                    logger.error(f"Error exporting mgrs_tile: {e}")
+                    logger.error(f"Error exporting MGRS tile {mgrs_tile}: {e}")
     else:
         for mgrs_tile in tqdm(mgrs_tiles, desc="Processing MGRS tiles"):
             try:
