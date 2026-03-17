@@ -3,6 +3,7 @@ import math
 import os
 import random
 from pathlib import Path
+from pickle import TRUE
 from typing import List, Tuple
 
 import ee
@@ -347,17 +348,10 @@ def process_mgrs_tile(
 ) -> None:
     """
     Process a single MGRS tile with multiple seeds and traits.
-    Returns dictionary of output file paths.
+    Write each seed individually to disk.
     """
 
     logger.info(f"Processing MGRS tile {mgrs_tile}")
-
-    # Collect datasets for all seeds
-    datasets = []
-    reference_ds = None
-    reference_x = None
-    reference_y = None
-    reference_crs = None
 
     for seed in seeds:
         logger.debug(f"Processing seed {seed} for MGRS tile {mgrs_tile}")
@@ -369,76 +363,53 @@ def process_mgrs_tile(
             # Compute distances for this seed
             distances_img = compute_knn_distances_for_dataset(ds, knn_model)
 
-            if reference_x is None:
-                reference_x = ds.x.copy()
-                reference_y = ds.y.copy()
-                reference_crs = ds.rio.crs
-
-            assert np.allclose(ds.x.values, reference_x.values), (
-                "X coordinates do not match reference"
-            )
-            assert np.allclose(ds.y.values, reference_y.values), (
-                "Y coordinates do not match reference"
-            )
-            # Create DataArray with seed dimension
+            # Create DataArray with the distances
             distances_da = xr.DataArray(
                 distances_img,
-                dims=["x", "y"],
-                coords={"x": reference_x, "y": reference_y},
+                dims=["y", "x"],
+                coords={"x": ds.x, "y": ds.y},
                 attrs=ds.attrs,
-            ).expand_dims(seed=[int(seed)])
+            )
 
-            datasets.append(distances_da)
+            # Set spatial domains / crs and transform
+            distances_da.rio.write_crs(ds.rio.crs, inplace=True)
 
-    combined_ds = xr.concat(datasets, dim="seed", join="exact")
+            if save_as_uint8:
+                # scale distances to 0-250 for uint8 storage / reserve 255 for nodata
+                scale_factor = 250 / MAX_RESCALE_DISTANCE
+                scaled_distances = (
+                    (distances_da * scale_factor).fillna(255).astype(np.uint8)
+                )
+                scaled_distances.rio.write_nodata(255, inplace=True)
+            else:
+                scale_factor = 1.0
+                scaled_distances = distances_da
 
-    # Average across all seeds
-    mean_distances = combined_ds.mean(dim="seed")
+            # Define output path with seed number
+            output_path = (
+                Path(output_dir)
+                / f"knn-distance_all-traits_{mgrs_tile}_seed-{seed}.tif"
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Set spatial domains / crs and transform
-    # mean_distances.rio.set_spatial_dims(x_dim="X", y_dim="Y", inplace=True)
-    mean_distances.rio.write_crs(reference_crs, inplace=True)
-
-    # swap axes to (Y, X) for correct geospatial orientation
-    # mean_distances = mean_distances.transpose("Y", "X")
-
-    if save_as_uint8:
-        # scale distances to 0-250 for uint8 storage / reserve 255 for nodata
-
-        # max_distance = np.nanmax(mean_distances.values)
-        # assert max_distance > 0, "Max distance should be non-negative"
-        scale_factor = 250 / MAX_RESCALE_DISTANCE
-        scaled_distances = (mean_distances * scale_factor).fillna(255).astype(np.uint8)
-
-        scaled_distances.rio.write_nodata(255, inplace=True)
-    else:
-        scale_factor = 1.0
-        scaled_distances = mean_distances
-
-    # Define output path
-    output_path = (
-        Path(output_dir) / f"knn-distance_all-traits_{mgrs_tile}_multi-seed.tif"
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # write using rasterio to ensure scale and nodata are correctly set in metadata
-    with rasterio.open(
-        output_path,
-        "w",
-        driver="GTiff",
-        height=scaled_distances.shape[0],
-        width=scaled_distances.shape[1],
-        count=1,
-        dtype=np.uint8 if save_as_uint8 else np.float32,
-        crs=reference_crs,
-        transform=scaled_distances.rio.transform(),
-        nodata=255 if save_as_uint8 else np.nan,
-        compress="deflate",
-        tiled=True,
-    ) as dst:
-        dst.write(scaled_distances.values, 1)
-        dst.scales = [1 / scale_factor]
-        dst.offsets = [0]
+            # write using rasterio to ensure scale and nodata are correctly set in metadata
+            with rasterio.open(
+                output_path,
+                "w",
+                driver="GTiff",
+                height=scaled_distances.shape[0],
+                width=scaled_distances.shape[1],
+                count=1,
+                dtype=np.uint8 if save_as_uint8 else np.float32,
+                crs=ds.rio.crs,
+                transform=scaled_distances.rio.transform(),
+                nodata=255 if save_as_uint8 else np.nan,
+                compress="deflate",
+                tiled=True,
+            ) as dst:
+                dst.write(scaled_distances.values, 1)
+                dst.scales = [1 / scale_factor]
+                dst.offsets = [0]
 
 
 def main():
@@ -459,12 +430,21 @@ def main():
     # Get all MGRS tiles
     mgrs_tiles = get_mgrs_tiles()
 
-    # get already produces mgrs tiles to skip
+    # get already processed mgrs tiles to skip - check if ALL seeds exist for each tile
     output_dir = Path("analysis/domain_representativeness_experiment/ood_results")
-    existing_files = list(
-        output_dir.glob(f"knn-distance_all-traits_*_{scale}m_multi-seed.tif")
-    )
-    existing_mgrs_tiles = set(f.stem.split("_")[2] for f in existing_files)
+    existing_mgrs_tiles = set()
+    for mgrs_tile in mgrs_tiles:
+        all_seeds_exist = True
+        for seed in seeds:
+            expected_file = (
+                output_dir / f"knn-distance_all-traits_{mgrs_tile}_seed-{seed}.tif"
+            )
+            if not expected_file.exists():
+                all_seeds_exist = False
+                break
+        if all_seeds_exist:
+            existing_mgrs_tiles.add(mgrs_tile)
+
     mgrs_tiles = [tile for tile in mgrs_tiles if tile not in existing_mgrs_tiles]
     logger.info(f"Skipping {len(existing_mgrs_tiles)} already processed MGRS tiles")
 
@@ -511,18 +491,18 @@ def main():
                     logger.error(f"Error exporting MGRS tile {mgrs_tile}: {e}")
     else:
         for mgrs_tile in tqdm(mgrs_tiles, desc="Processing MGRS tiles"):
-            try:
-                process_mgrs_tile(
-                    mgrs_tile=mgrs_tile,
-                    seeds=seeds,
-                    sample_s2_prop=sample_s2_prop,
-                    sample_lut_prop=sample_lut_prop,
-                    scale=scale,
-                    save_as_uint8=save_as_uint8,
-                )
-            except Exception as e:
-                logger.error(f"Error processing MGRS tile {mgrs_tile}: {e}")
-                continue
+            # try:
+            process_mgrs_tile(
+                mgrs_tile=mgrs_tile,
+                seeds=seeds,
+                sample_s2_prop=sample_s2_prop,
+                sample_lut_prop=sample_lut_prop,
+                scale=scale,
+                save_as_uint8=save_as_uint8,
+            )
+        # except Exception as e:
+        #     logger.error(f"Error processing MGRS tile {mgrs_tile}: {e}")
+        #     continue
 
     # Summary
     logger.info("Analysis completed!")
