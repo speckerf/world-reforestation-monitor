@@ -514,7 +514,10 @@ def main():
 
 if __name__ == "__main__":
     # Initialize Earth Engine
-    ee.Initialize(opt_url="https://earthengine-highvolume.googleapis.com")
+    ee.Initialize(
+        project="ee-speckerfelix",
+        opt_url="https://earthengine-highvolume.googleapis.com",
+    )
 
     # Run main analysis
     main()
