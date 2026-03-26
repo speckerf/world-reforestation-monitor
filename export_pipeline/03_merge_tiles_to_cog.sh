@@ -23,13 +23,13 @@ rm -rf "$WORKDIR"/*
 # Ensure the destination directory exists
 mkdir -p "$DESTINATION"
 
-# Find directories containing "_1000m_"
+# Find directories containing "_100m_"
 echo "Finding directories in $SOURCE..."
-DIRS=$(find "$SOURCE" -mindepth 1 -maxdepth 1 -type d -name '*_1000m_*')
+DIRS=$(find "$SOURCE" -mindepth 1 -maxdepth 1 -type d -name '*_100m_*')
 
 # If no directories found, exit
 if [[ -z "$DIRS" ]]; then
-    echo "No directories matching '_1000m_' found. Exiting."
+    echo "No directories matching '_100m_' found. Exiting."
     exit 1
 fi
 
@@ -118,12 +118,22 @@ for DIR in $DIRS; do
             # continue
             echo "Multiple TIFF files found for $YEAR. Merging "${TIFF_FILES[@]}""
 
-            # Create VRT with proper error handling
-            if ! gdalbuildvrt -srcnodata -9999 -vrtnodata -9999 -overwrite -input_file_list <(printf "%s\n" "${TIFF_FILES[@]}") "$TEMP_VRT"; then
+            temp_list=$(mktemp)
+            printf '%s\n' "${TIFF_FILES[@]}" > "$temp_list"
+
+            if ! gdalbuildvrt \
+                -srcnodata -9999 \
+                -vrtnodata -9999 \
+                -overwrite \
+                -input_file_list "$temp_list" \
+                "$TEMP_VRT"
+            then
                 echo "${RED}Error: Failed to create VRT for $YEAR${RESET}"
+                rm -f "$temp_list"
                 ((FAILED_FILES++))
                 continue
             fi
+            rm -f "$temp_list"cd
 
             # Convert to COG with proper error handling
             if ! gdal_translate -of COG -ot Int16 -co COMPRESS=DEFLATE -co PREDICTOR=2 -co BIGTIFF=IF_SAFER -co NUM_THREADS=ALL_CPUS \
