@@ -6,11 +6,11 @@
 TARGET_DIR="/Volumes/RAID/felix_oemc/world-reforestation-monitor"
 
 # Define Google Drive remote name (set in `rclone config`)
-# REMOTE_NAME="drive" # Local
-REMOTE_NAME="gdrive_felix"
+REMOTE_NAME="drive" # Local
+# REMOTE_NAME="gdrive_felix"
 
 # Define a filter pattern for selecting folders
-FILTER_PATTERN="predictions-mlp_100m_v01"
+FILTER_PATTERN="predictions-mlp_100m_v03"
 
 # List all matching folders and extract only their names
 echo "Fetching list of folders matching filter: $FILTER_PATTERN"
@@ -28,11 +28,11 @@ echo "$FOLDERS" | nl
 echo -e "\n"
 
 # Ask for confirmation once
-# read -p "Do you want to sync all these folders? (y/n) " CONFIRM
-# if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-#     echo "Sync cancelled."
-#     exit 0
-# fi
+read -p "Do you want to sync all these folders? (y/n) " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Sync cancelled."
+    exit 0
+fi
 
 # Sync each folder
 while read -r FOLDER; do
