@@ -17,3 +17,5 @@
 /miscellaneous
 /SL2P_PYTHON
 /DEPRECATED
+analysis/domain_representativeness_experiment/ood_results
+data-local/
