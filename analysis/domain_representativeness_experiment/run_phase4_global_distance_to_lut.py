@@ -3,7 +3,6 @@ import math
 import os
 import random
 from pathlib import Path
-from pickle import TRUE
 from typing import List, Tuple
 
 import ee
@@ -70,6 +69,9 @@ def random_sample_s2_indices(
 
 
 def get_mgrs_tiles() -> List[str]:
+    raise NotImplementedError(
+        "This function is not needed anymore since we load the list of MGRS tiles from precomputed CSV"
+    )
     """Load all MGRS tiles from the CSV like in srcGlobal.py."""
     mgrs_tiles_df = pd.read_csv(
         os.path.join(
@@ -82,6 +84,15 @@ def get_mgrs_tiles() -> List[str]:
     )
     mgrs_tiles_list = list(set(mgrs_tiles_df["mgrs_tile_3"].tolist()))
     return mgrs_tiles_list
+
+
+def get_mgrs_from_ref() -> List[str]:
+    """Get list of MGRS tiles from the reference image collection."""
+    ref_imgc = ee.ImageCollection(
+        "projects/ee-speckerfelix/assets/open-earth/laie_predictions-mlp_20m_v03"
+    )
+    mgrs_tiles = ref_imgc.aggregate_array("mgrs_tile").distinct().getInfo()
+    return mgrs_tiles
 
 
 def _apply_water_and_rock_mask(img: ee.Image) -> ee.Image:
@@ -173,48 +184,82 @@ def imagecollection_to_transform_fc(imgc, band=None):
     return ee.FeatureCollection(imgc.map(_img_to_feature))
 
 
-def get_grid_and_bounds_for_imgc(
-    imgc: ee.ImageCollection, scale: int
+# def get_grid_and_bounds_for_imgc(
+#     imgc: ee.ImageCollection, scale: int
+# ) -> Tuple[List[float], dict]:
+#     # map over imgc; get transform and bounds
+#     #  - img.select(0).projection().transform()
+#     fc_transform = imagecollection_to_transform_fc(imgc)
+
+#     # get min xmin and max ymax across all images in the collection
+#     min_xmin = fc_transform.aggregate_min("xMin").getInfo()
+#     max_xmin = fc_transform.aggregate_max("xMin").getInfo()
+
+#     min_ymax = fc_transform.aggregate_min("yMax").getInfo()
+#     max_ymax = fc_transform.aggregate_max("yMax").getInfo()
+
+#     tile_width_meters = 109800  # Sentinel-2 tile width in meters (tile dimensions [10980, 10980] at 10m resolution)
+
+#     xmin, xmax = min_xmin, max_xmin + tile_width_meters
+#     ymin, ymax = min_ymax - tile_width_meters, max_ymax
+
+#     bounds_in_utm = [xmin, ymin, xmax, ymax]
+
+#     total_shape_2d = (
+#         math.ceil(abs(xmax - xmin) / scale),
+#         math.ceil(abs(ymax - ymin) / scale),
+#     )
+
+#     # Convert to xarray
+#     grid_params = helpers.extract_grid_params(imgc.select("B2"))
+
+#     new_origin = (xmin, ymax)
+#     new_crs_transform = (
+#         scale,
+#         0,
+#         new_origin[0],
+#         0,
+#         -scale,
+#         new_origin[1],
+#     )
+#     grid_params["crs_transform"] = new_crs_transform
+#     grid_params["shape_2d"] = total_shape_2d
+
+#     return bounds_in_utm, grid_params
+
+
+def get_grid_and_bounds_for_mgrs(
+    mgrs_tile: str, scale: int
 ) -> Tuple[List[float], dict]:
-    # map over imgc; get transform and bounds
-    #  - img.select(0).projection().transform()
-    fc_transform = imagecollection_to_transform_fc(imgc)
-
-    # get min xmin and max ymax across all images in the collection
-    min_xmin = fc_transform.aggregate_min("xMin").getInfo()
-    max_xmin = fc_transform.aggregate_max("xMin").getInfo()
-
-    min_ymax = fc_transform.aggregate_min("yMax").getInfo()
-    max_ymax = fc_transform.aggregate_max("yMax").getInfo()
-
-    tile_width_meters = 10980
-
-    xmin, xmax = min_xmin, max_xmin + tile_width_meters
-    ymin, ymax = min_ymax - tile_width_meters, max_ymax
-
-    bounds_in_utm = [xmin, ymin, xmax, ymax]
-
-    total_shape_2d = (
-        math.ceil(abs(xmax - xmin) / scale),
-        math.ceil(abs(ymax - ymin) / scale),
+    # load from precomputed results
+    reference_img = (
+        ee.ImageCollection(
+            "projects/ee-speckerfelix/assets/open-earth/laie_predictions-mlp_20m_v03"
+        )
+        .filter(ee.Filter.eq("mgrs_tile", mgrs_tile))
+        .first()
     )
+    grid_params = helpers.extract_grid_params(reference_img.select("laie_mean"))
 
-    # Convert to xarray
-    grid_params = helpers.extract_grid_params(imgc.select("B2"))
-
-    new_origin = (xmin, ymax)
+    # change scale in transform to match input scale
     new_crs_transform = (
         scale,
         0,
-        new_origin[0],
+        grid_params["crs_transform"][2],
         0,
         -scale,
-        new_origin[1],
+        grid_params["crs_transform"][5],
+    )
+    new_shape_2d = (
+        math.ceil(grid_params["shape_2d"][0] * grid_params["crs_transform"][0] / scale),
+        math.ceil(
+            grid_params["shape_2d"][1] * abs(grid_params["crs_transform"][4]) / scale
+        ),
     )
     grid_params["crs_transform"] = new_crs_transform
-    grid_params["shape_2d"] = total_shape_2d
+    grid_params["shape_2d"] = new_shape_2d
 
-    return bounds_in_utm, grid_params
+    return grid_params
 
 
 def load_s2_data_for_seed(
@@ -256,7 +301,8 @@ def load_s2_data_for_seed(
     )
 
     # create grid and bounding box in utm zone from the input imgc-collection
-    bbox_utm, grid_params = get_grid_and_bounds_for_imgc(s2_all, scale)
+    # bbox_utm, grid_params = get_grid_and_bounds_for_imgc(s2_all, scale)
+    grid_params = get_grid_and_bounds_for_mgrs(mgrs_tile, scale)
 
     s2_sampled = s2_all.filter(ee.Filter.inList("system:index", sampled_s2_indices))
 
@@ -344,7 +390,7 @@ def process_mgrs_tile(
     sample_lut_prop: float,
     scale: int,
     save_as_uint8: bool,
-    output_dir: str = "analysis/domain_representativeness_experiment/ood_results",
+    output_dir: str,
 ) -> None:
     """
     Process a single MGRS tile with multiple seeds and traits.
@@ -420,7 +466,7 @@ def main():
 
     # Configuration
     seeds = [1, 2, 3, 4, 5]  # Multiple seeds for robustness
-    # seeds = [42, 43]
+    # seeds = [42]
     sample_s2_prop = 0.5  # Proportion of S2 images to sample
     sample_lut_prop = 0.25  # Proportion of LUT samples to use
     scale = 100  # Resolution in meters
@@ -428,10 +474,18 @@ def main():
     save_as_uint8 = True  # Whether to save distances as uint8 (scaled) or float32
 
     # Get all MGRS tiles
-    mgrs_tiles = get_mgrs_tiles()
+    # mgrs_tiles = get_mgrs_tiles()
+    mgrs_tiles = get_mgrs_from_ref()
 
     # get already processed mgrs tiles to skip - check if ALL seeds exist for each tile
-    output_dir = Path("analysis/domain_representativeness_experiment/ood_results")
+    output_dir = Path("analysis/domain_representativeness_experiment/test-results")
+    output_dir = Path(
+        "analysis/domain_representativeness_experiment", f"ood-results-{scale}m"
+    )
+    if not output_dir.exists():
+        logger.info(f"Output directory {output_dir} does not exist yet. Creating it.")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
     existing_mgrs_tiles = set()
     for mgrs_tile in mgrs_tiles:
         all_seeds_exist = True
@@ -466,13 +520,14 @@ def main():
     logger.info(f"MGRS tiles: {mgrs_tiles}")
 
     if parallel:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             params = {
                 "seeds": seeds,
                 "sample_s2_prop": sample_s2_prop,
                 "sample_lut_prop": sample_lut_prop,
                 "scale": scale,
                 "save_as_uint8": save_as_uint8,
+                "output_dir": output_dir,
             }
             future_to_tile = {
                 executor.submit(process_mgrs_tile, mgrs_tile, **params): mgrs_tile
@@ -499,6 +554,7 @@ def main():
                 sample_lut_prop=sample_lut_prop,
                 scale=scale,
                 save_as_uint8=save_as_uint8,
+                output_dir=output_dir,
             )
         # except Exception as e:
         #     logger.error(f"Error processing MGRS tile {mgrs_tile}: {e}")

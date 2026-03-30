@@ -9,8 +9,8 @@ find "$INPUT_DIR" -type d -print | while IFS= read -r dir; do
     echo "Checking: $dir"
 
     # Build corresponding output directory
-    rel="${dir#$INPUT_DIR/}"
-    out_dir="$OUTPUT_DIR/"
+    rel="${dir#$INPUT_DIR}"
+    out_dir="$OUTPUT_DIR"
     mkdir -p "$out_dir"
 
     found_any=0
