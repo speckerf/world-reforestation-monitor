@@ -1,0 +1,142 @@
+<h3>Disclaimer</h3>
+<p>This dataset is currently under revision.</p>
+
+<p>The data is available at three resolutions:</p>
+<ul>
+    <li><strong>1000 m:</strong> This deposition (global mosaics as Cloud-Optimized GeoTIFFs)</li>
+    <li><strong>100 m:</strong> See related datasets below</li>
+    <li><strong>20 m and full 100 m products:</strong> Available on Google Earth Engine (GEE):
+        <ul>
+            <li>LAIe: <code>ee.ImageCollection('projects/ee-speckerfelix/assets/open-earth/laie_predictions-mlp_20m_v03')</code></li>
+            <li>FAPAR: <code>ee.ImageCollection('projects/ee-speckerfelix/assets/open-earth/fapar_predictions-mlp_20m_v03')</code></li>
+            <li>FCOVER: <code>ee.ImageCollection('projects/ee-speckerfelix/assets/open-earth/fcover_predictions-mlp_20m_v03')</code></li>
+            <li>
+                <strong>Earth-Engine App:</strong> 
+                <a href="https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps" target="_blank">
+                    https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps
+                </a>
+            </li>
+            <li>
+                <strong>Earth-Engine Visualisation Script:</strong> 
+                <a href="https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450" target="_blank">
+                    https://code.earthengine.google.com/7207cd15a5cc312ac816dc76cd60b450
+                </a>
+            </li>
+            <li>
+                <strong>Earth-Engine Analysis Script:</strong> 
+                <a href="https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763" target="_blank">
+                    https://code.earthengine.google.com/22fc7da25a4dbe758988cbee9afcf763
+                </a>
+            </li>
+        </ul>
+    </li>
+</ul>
+
+
+<h3>Abstract</h3>
+<p>
+We present S2BIOPHYS, a global dataset of annual vegetation biophysical properties derived from Sentinel-2 imagery at 20 m and 100 m resolution for 2019–2025. The dataset includes effective leaf area index (LAIe), fraction of absorbed photosynthetically active radiation (FAPAR), and fractional vegetation cover (FCOVER), estimated using a radiative transfer model inversion approach calibrated with in-situ data.
+Annual composites are generated from peak growing-season observations and include per-pixel mean values and uncertainty estimates. Global mosaics (<em>EPSG:4326</em>) are provided at 100 m and 1000 m resolution as Cloud-Optimized GeoTIFFs, with full-resolution products and extended uncertainty information available via Google Earth Engine.
+The dataset supports applications in ecosystem monitoring, biodiversity assessment, and restoration analysis.
+</p>
+
+
+<h3>Description</h3>
+<p>
+This dataset provides global annual composites of vegetation biophysical properties derived from Sentinel-2 data. The Zenodo archive contains global mosaics in geographic coordinates (EPSG:4326) at 1000 m resolution (this deposition) and 100 m resolution (child datasets).
+</p>
+
+<ul>
+    <li><strong>Annual Effective Leaf Area Index (LAIe) (2019–2025):</strong><br />
+        Ensemble mean and total uncertainty (standard deviation)</li>
+    <li><strong>Annual Fractional Vegetation Cover (FCOVER) (2019–2025):</strong><br />
+        Ensemble mean and total uncertainty (standard deviation)</li>
+    <li><strong>Annual Fraction of Absorbed Photosynthetically Active Radiation (FAPAR) (2019–2025):</strong><br />
+        Ensemble mean and total uncertainty (standard deviation)</li>
+</ul>
+
+<p>
+Each product represents an annual composite based on multiple Sentinel-2 observations during the peak growing season.
+</p>
+
+
+<h3>Resource Description</h3>
+<p>
+This Zenodo record provides global annual composites of LAIe, FAPAR and FCOVER for 2019–2025 as Cloud-Optimized GeoTIFFs (COGs). The data are distributed as global mosaics in geographic coordinates (EPSG:4326) at 1000 m spatial resolution (this deposition), with additional 100 m products available as separate Zenodo records.
+</p>
+
+<p>
+Each product contains the ensemble mean and total uncertainty derived from multiple Sentinel-2 observations during the peak growing season. These datasets are designed to be analysis-ready and easily accessible for large-scale applications.
+</p>
+
+<p>
+The full dataset is available on Google Earth Engine (GEE) at 20 m and 100 m resolution in Sentinel-2’s native UTM projection:
+</p>
+
+<ul>
+    <li><code>ee.ImageCollection("projects/ee-speckerfelix/assets/open-earth/{laie, fapar, fcover}_predictions-mlp_{100,20}m_v03")</code></li>
+</ul>
+
+<p>
+The GEE products additionally provide observation counts (<code>{var}_count</code>) and a decomposition of uncertainty into within-acquisition (<code>{var}_stdDev_within</code>) and across-acquisition (<code>{var}_stdDev_across</code>) components, enabling more detailed uncertainty analysis and quality filtering.
+</p>
+<p>
+
+In addition to these annual products, we provide the 
+<a href="https://pypi.org/project/gee-biophys/" target="_blank">gee-biophys Python package</a>, 
+which enables users to generate custom spatiotemporal composites. It implements both S2BIOPHYS and <a href="https://github.com/djamainajib/SL2P-PYTHON" target="_blank">SL2P</a> and allows users to define time intervals, spatial extents, and resolution using a simple configuration file, supporting reproducible and scalable generation of biophysical maps. This framework also enables access to the full set of uncertainty components at native resolution where required.
+</p>
+
+
+
+<h3>Data Format and Scaling</h3>
+<ul>
+    <li><strong>Data Types:</strong> Mean and standard deviation maps are stored as <code>int16</code>.</li>
+    <li><strong>NoData Values:</strong> <code>-9999</code></li>
+    <li><strong>Scaling Factors:</strong>
+        <ul>
+            <li>FAPAR and FCOVER: <code>0.0001</code></li>
+            <li>LAIe: <code>0.001</code></li>
+        </ul>
+    </li>
+</ul>
+
+<p>
+<strong>Note:</strong> Zenodo-hosted datasets (1000 m and 100 m) include only the ensemble mean and total uncertainty bands. Additional uncertainty components and observation counts are available exclusively via Google Earth Engine.
+</p>
+
+
+<h3>Related datasets</h3>
+<div id="related-doi-links">ADD_RELATED_DOI_LINKS</div>
+
+
+<h3>Code</h3>
+<p>
+The code used to generate the data is available at 
+<a href="ADD_DOI_CODE_REPO" target="_blank">Zenodo</a>, 
+and at the 
+<a href="https://github.com/speckerf/world-reforestation-monitor" target="_blank">GitHub repository</a>.
+</p>
+
+
+<h3>Naming Convention</h3>
+<p>
+We follow the Open-Earth-Monitor file naming convention:
+</p>
+<ul>
+    <li><strong>Variable:</strong> [laie, fapar, fcover]</li>
+    <li><strong>Method:</strong> rtm.mlp.v02</li>
+    <li><strong>Statistic:</strong> [mean, std]</li>
+    <li><strong>Resolution:</strong> [20m, 100m, 1000m]</li>
+    <li><strong>Depth:</strong> s (surface)</li>
+    <li><strong>Time start:</strong> YYYY0101</li>
+    <li><strong>Time end:</strong> YYYY1231</li>
+    <li><strong>Extent:</strong> go (global land, excluding Antarctica)</li>
+    <li><strong>CRS:</strong> epsg.4326</li>
+    <li><strong>Version:</strong> v3</li>
+</ul>
+
+
+<h3>Contact</h3>
+<p>Felix Specker: felix.specker@wsl.ch / speckerfelix@gmail.com</p>
+<p>Johan van den Hoogen: johan.vandenhoogen@usys.ethz.ch</p>

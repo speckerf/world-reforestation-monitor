@@ -9,7 +9,6 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
-
 from zen import LocalFiles, Zenodo
 
 FINAL_DEPOSITION = True
@@ -28,6 +27,7 @@ else:
             "zenodo-upload/depositions/deploy/deploy-deposition-base.json"
         )
 
+
 def grep_filenames(
     folder: str = ".", suffix: str = ".tif", contains: Union[str, list] = None
 ):
@@ -41,13 +41,19 @@ def grep_filenames(
         return glob.glob(f"{folder}/**/*{suffix}", recursive=True)
 
 
-def get_preview_file(tif_path: str, folder_previews: str) -> str: 
+def get_preview_file(tif_path: str, folder_previews: str) -> str:
     # find matching preview file in folder_previews
-    preview_files = grep_filenames(folder=folder_previews, suffix=".png", contains=os.path.basename(tif_path).replace(".tif", ""))
+    preview_files = grep_filenames(
+        folder=folder_previews,
+        suffix=".png",
+        contains=os.path.basename(tif_path).replace(".tif", ""),
+    )
     if len(preview_files) == 1:
         return preview_files[0]
     else:
-        raise ValueError(f"Found {len(preview_files)} preview files for {tif_path}. Expected 1.")
+        raise ValueError(
+            f"Found {len(preview_files)} preview files for {tif_path}. Expected 1."
+        )
 
 
 def main():
@@ -66,13 +72,37 @@ def main():
     doi_prefix = "https://doi.org/"
 
     creators_list = [
-        {"name": "Felix Specker", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-9398-9975"},
-        {"name": "Anna K. Schweiger", "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States", "orcid": "0000-0002-5567-4200"},
-        {"name": "Jean-Baptiste Féret", "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France", "orcid": "0000-0002-0151-1334"},
-        {"name": "Thomas Lauber", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-3118-432X"},
+        {
+            "name": "Felix Specker",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0002-9398-9975",
+        },
+        {
+            "name": "Anna K. Schweiger",
+            "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States",
+            "orcid": "0000-0002-5567-4200",
+        },
+        {
+            "name": "Jean-Baptiste Féret",
+            "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France",
+            "orcid": "0000-0002-0151-1334",
+        },
+        {
+            "name": "Thomas Lauber",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0002-3118-432X",
+        },
         {"name": "AUTHORS GBOV", "affiliation": "Misc"},
-        {"name": "Thomas W. Crowther", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-5674-8913"},
-        {"name": "Johan van den Hoogen", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-6624-8461"},
+        {
+            "name": "Thomas W. Crowther",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0001-5674-8913",
+        },
+        {
+            "name": "Johan van den Hoogen",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0001-6624-8461",
+        },
     ]
     keywords_list = [
         "Vegetation traits",
@@ -84,18 +114,28 @@ def main():
         "PROSAIL",
     ]
 
-
     local_file_paths = grep_filenames(
-        folder=DATA_FOLDER_1000m,
-        suffix=".tif",
-        contains=["_1000m"]
+        folder=DATA_FOLDER_1000m, suffix=".tif", contains=["_1000m"]
     )
-    selected_preview_files = [f for f in local_file_paths if "1000m_s_20200101_20201231" in f]
-    local_file_paths_selected_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), selected_preview_files))
+    selected_preview_files = [
+        f for f in local_file_paths if "1000m_s_20200101_20201231" in f
+    ]
+    local_file_paths_selected_previews = list(
+        map(
+            lambda x: get_preview_file(
+                x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+            ),
+            selected_preview_files,
+        )
+    )
 
     base_json_path = DEPOSITION_METADATA_PATH
     base_ds = LocalFiles(
-        sorted([*local_file_paths, *local_file_paths_selected_previews], reverse=False, key=lambda x: os.path.basename(x)),
+        sorted(
+            [*local_file_paths, *local_file_paths_selected_previews],
+            reverse=False,
+            key=lambda x: os.path.basename(x),
+        ),
         dataset_path=base_json_path,
     )
 
@@ -177,9 +217,7 @@ def main():
 
     code_data_ds = LocalFiles(
         [data_file_zipped, code_file_zipped],
-        dataset_path=DEPOSITION_METADATA_PATH.replace(
-            ".json", "-code-data.json"
-        ),
+        dataset_path=DEPOSITION_METADATA_PATH.replace(".json", "-code-data.json"),
     )
 
     code_data_ds.set_deposition(
@@ -210,8 +248,10 @@ def main():
         }
     )
     # update to description: the link to DOI of code/data deposition
-    base_ds.deposition.metadata.description = base_ds.deposition.metadata.description.replace(
-        "ADD_DOI_CODE_REPO", f'{doi_prefix}{code_data_ds.deposition.doi}'
+    base_ds.deposition.metadata.description = (
+        base_ds.deposition.metadata.description.replace(
+            "ADD_DOI_CODE_REPO", f"{doi_prefix}{code_data_ds.deposition.doi}"
+        )
     )
     base_ds.update_metadata()
 
@@ -243,10 +283,21 @@ def main():
             suffix=".tif",
             contains=[trait.lower(), "mean", str(year)],
         )
-        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), local_file_paths_children))
+        local_file_paths_children_previews = list(
+            map(
+                lambda x: get_preview_file(
+                    x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+                ),
+                local_file_paths_children,
+            )
+        )
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_children, *local_file_paths_children_previews], reverse=True, key=lambda x: os.path.basename(x)),
+            sorted(
+                [*local_file_paths_children, *local_file_paths_children_previews],
+                reverse=True,
+                key=lambda x: os.path.basename(x),
+            ),
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-mean.json"
             ),
@@ -297,11 +348,21 @@ def main():
             contains=[trait.lower(), "count", str(year)],
         )
         local_file_paths_std_count = std_files + count_files
-        local_file_paths_children_previews = list(map(lambda x: get_preview_file(x, "/Volumes/OEMC/world-reforestation-monitor/previews"), local_file_paths_std_count))
-
+        local_file_paths_children_previews = list(
+            map(
+                lambda x: get_preview_file(
+                    x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+                ),
+                local_file_paths_std_count,
+            )
+        )
 
         current_ds = LocalFiles(
-            sorted([*local_file_paths_std_count, *local_file_paths_children_previews], reverse=True, key=lambda x: os.path.basename(x)),
+            sorted(
+                [*local_file_paths_std_count, *local_file_paths_children_previews],
+                reverse=True,
+                key=lambda x: os.path.basename(x),
+            ),
             # template=base_template_100m,
             dataset_path=DEPOSITION_METADATA_PATH.replace(
                 ".json", f"-{trait.lower()}-{year}-std-count.json"
@@ -364,28 +425,27 @@ def main():
             )
         dep.update()
 
-
     #####
     # Updates Links in Base Depositions Metadata
     #####
-    # update Base depositions description: add section with links to children / replace line: <p >ADD_RELATED_DOI_LINKS</p> with: 
+    # update Base depositions description: add section with links to children / replace line: <p >ADD_RELATED_DOI_LINKS</p> with:
     base_dep_description = base_ds.deposition.metadata.description
     doi_prefix = "https://doi.org/"
     html_string = "<h3>Related DOI Links</h3><ul>"
 
     for trait in traits:
         html_string += f"<li><strong>{trait}</strong><ul>"
-        
+
         for var in ["mean", "stdcount"]:
             html_string += f"<li>{'Mean' if var == 'mean' else 'Std / Count'}<ul>"
-            
+
             for year in years:
                 dep_key = f"{trait}-{year}-{var}"
                 dep = children_deps.get(dep_key)  # Avoid KeyError with .get()
-                
+
                 if dep:  # Ensure dep exists before using its attributes
                     html_string += f'<li><a href="{doi_prefix}{dep.doi}" target="_blank">{year}</a></li>'
-            
+
             html_string += "</ul></li>"  # Close variable ul and li
 
         html_string += "</ul></li>"  # Close trait ul and li
@@ -393,8 +453,7 @@ def main():
     html_string += "</ul>"  # Close the outer ul
 
     base_dep_description_updated = base_dep_description.replace(
-        "ADD_RELATED_DOI_LINKS",
-        html_string
+        "ADD_RELATED_DOI_LINKS", html_string
     )
     base_ds.deposition.metadata.description = base_dep_description_updated
     base_ds.deposition.update()
@@ -408,40 +467,127 @@ def main():
     # for f in glob.glob("zenodo-upload/depositions/test/*.json"):
     #     os.remove(f)
 
+
 def get_cms(trait, variable):
     assert trait in ["lai", "fapar", "fcover"]
     assert variable in ["mean", "std", "count"]
 
-    if trait == 'lai':
-        if variable == 'mean':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=5), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#fffdcd', '#e1cd73', '#aaac20', '#5f920c', '#187328', '#144b2a', '#172313'], N=256))
-        elif variable == 'std':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=2), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#440154', '#433982', '#30678D', '#218F8B', '#36B677', '#8ED542', '#FDE725'], N=256))
-        elif variable == 'count':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=30), cmap='viridis')
-    elif trait == 'fapar':
-        if variable == 'mean':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=1), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#ffffdd', '#e6ad12', '#c53859', '#3a26a1', '#000000'], N=256))
-        elif variable == 'std':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=0.3), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#440154', '#433982', '#30678D', '#218F8B', '#36B677', '#8ED542', '#FDE725'], N=256))
-        elif variable == 'count':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=30), cmap='viridis')
-    elif trait == 'fcover':
-        if variable == 'mean':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=1), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#f7fcf5', '#c7e9c0', '#74c476', '#238b45', '#00441b'], N=256))
-        elif variable == 'std':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=0.3), cmap=mcolors.LinearSegmentedColormap.from_list("custom_cmap", ['#440154', '#433982', '#30678D', '#218F8B', '#36B677', '#8ED542', '#FDE725'], N=256))
-        elif variable == 'count':
-            return cm.ScalarMappable(norm=mcolors.Normalize(vmin=0, vmax=30), cmap='viridis')
+    if trait == "lai":
+        if variable == "mean":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=5),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    [
+                        "#fffdcd",
+                        "#e1cd73",
+                        "#aaac20",
+                        "#5f920c",
+                        "#187328",
+                        "#144b2a",
+                        "#172313",
+                    ],
+                    N=256,
+                ),
+            )
+        elif variable == "std":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=2),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    [
+                        "#440154",
+                        "#433982",
+                        "#30678D",
+                        "#218F8B",
+                        "#36B677",
+                        "#8ED542",
+                        "#FDE725",
+                    ],
+                    N=256,
+                ),
+            )
+        elif variable == "count":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=30), cmap="viridis"
+            )
+    elif trait == "fapar":
+        if variable == "mean":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=1),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    ["#ffffdd", "#e6ad12", "#c53859", "#3a26a1", "#000000"],
+                    N=256,
+                ),
+            )
+        elif variable == "std":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=0.3),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    [
+                        "#440154",
+                        "#433982",
+                        "#30678D",
+                        "#218F8B",
+                        "#36B677",
+                        "#8ED542",
+                        "#FDE725",
+                    ],
+                    N=256,
+                ),
+            )
+        elif variable == "count":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=30), cmap="viridis"
+            )
+    elif trait == "fcover":
+        if variable == "mean":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=1),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    ["#f7fcf5", "#c7e9c0", "#74c476", "#238b45", "#00441b"],
+                    N=256,
+                ),
+            )
+        elif variable == "std":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=0.3),
+                cmap=mcolors.LinearSegmentedColormap.from_list(
+                    "custom_cmap",
+                    [
+                        "#440154",
+                        "#433982",
+                        "#30678D",
+                        "#218F8B",
+                        "#36B677",
+                        "#8ED542",
+                        "#FDE725",
+                    ],
+                    N=256,
+                ),
+            )
+        elif variable == "count":
+            return cm.ScalarMappable(
+                norm=mcolors.Normalize(vmin=0, vmax=30), cmap="viridis"
+            )
     else:
         raise ValueError(f"Trait {trait} not recognized.")
 
 
 def generate_low_res_preview(tif_path):
     path = os.path.basename(tif_path)
-    trait, variable, year = path.split('_')[0], path.split('_')[2], path.split('_')[5][:4]
-    print(f"Generating low resolution preview for {trait} {variable} {year} file: {tif_path}")
-    
+    trait, variable, year = (
+        path.split("_")[0],
+        path.split("_")[2],
+        path.split("_")[5][:4],
+    )
+    print(
+        f"Generating low resolution preview for {trait} {variable} {year} file: {tif_path}"
+    )
+
     # Open the COG file
     with rasterio.open(tif_path, dtype=np.int16) as dataset:
         no_data_value = int(dataset.nodata)
@@ -467,7 +613,6 @@ def generate_low_res_preview(tif_path):
         if no_data_value:
             data = np.where(data == no_data_value, np.nan, data)
 
-
         if scaling_factor:
             data *= scaling_factor
 
@@ -491,33 +636,39 @@ def generate_low_res_preview(tif_path):
 
         preview_filename = path.replace(".tif", "_preview.png")
         # add prefix for auto-sorting in zenodo: 00_ for mean, 01_ for std, 02_ for count
-        if variable == 'mean':
-            preview_filename = '00_' + preview_filename
-        elif variable == 'std':
-            preview_filename = '01_' + preview_filename
-        elif variable == 'count':
-            preview_filename = '02_' + preview_filename
-    
+        if variable == "mean":
+            preview_filename = "00_" + preview_filename
+        elif variable == "std":
+            preview_filename = "01_" + preview_filename
+        elif variable == "count":
+            preview_filename = "02_" + preview_filename
+
         # get second dir in tif_path: results_1000m
         # save_dir = os.path.join(tif_path.split('/')[0], 'previews')
-        if 'results_1000m' in tif_path:
-            save_dir = os.path.split(tif_path)[0].replace('results_1000m', 'previews')
-        elif 'results_100m' in tif_path:
-            save_dir = os.path.split(tif_path)[0].replace('results_100m', 'previews')
+        if "results_1000m" in tif_path:
+            save_dir = os.path.split(tif_path)[0].replace("results_1000m", "previews")
+        elif "results_100m" in tif_path:
+            save_dir = os.path.split(tif_path)[0].replace("results_100m", "previews")
         else:
             raise ValueError(f"Path {tif_path} not recognized.")
         save_filename = os.path.join(save_dir, preview_filename)
         plt.savefig(save_filename, bbox_inches="tight")
 
+
 def wrapper_lowres_preview():
     # get all tif files in data-local/results_1000m/
-    tif_files = glob.glob("/Volumes/OEMC/world-reforestation-monitor/results_1000m/*.tif")
+    tif_files = glob.glob(
+        "/Volumes/OEMC/world-reforestation-monitor/results_1000m/*.tif"
+    )
     for tif in tif_files:
         generate_low_res_preview(tif)
 
-    tif_files = glob.glob("/Volumes/OEMC/world-reforestation-monitor/results_100m/*.tif")
+    tif_files = glob.glob(
+        "/Volumes/OEMC/world-reforestation-monitor/results_100m/*.tif"
+    )
     for tif in tif_files:
         generate_low_res_preview(tif)
+
 
 def zenodo_cleanup():
     # remove all files in zenodo-upload/depositions/test/*.json
@@ -534,7 +685,9 @@ def zenodo_cleanup():
     current_deps = zen.depositions.list()
 
     # filter for string: 'Advancing Ecosystem Monitoring' in title
-    current_deps = [dep for dep in current_deps if 'Advancing Ecosystem Monitoring' in dep.title]
+    current_deps = [
+        dep for dep in current_deps if "Advancing Ecosystem Monitoring" in dep.title
+    ]
     # delete all depositions
     for dep in current_deps:
         dep.discard()
@@ -553,8 +706,9 @@ def zenodo_cleanup():
 #     for dep_path in dep_paths:
 #         dep = LocalFiles.from_file(dep_path)
 #         dep.set_deposition(api=zen, create_if_not_exists=False)
-#         dep.deposition.metadata['references'] = 
+#         dep.deposition.metadata['references'] =
 #         dep.update_citation()
+
 
 def update_authors():
     pass
@@ -567,20 +721,58 @@ def update_authors():
     dep_paths = glob.glob("zenodo-upload/depositions/deploy/*.json")
 
     new_authors_list = [
-        {"name": "Felix Specker", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-9398-9975"},
-        {"name": "Anna K. Schweiger", "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States", "orcid": "0000-0002-5567-4200"},
-        {"name": "Jean-Baptiste Féret", "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France", "orcid": "0000-0002-0151-1334"},
-        {"name": "Thomas Lauber", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0002-3118-432X"},
-        {"name": "Luke A. Brown", "affiliation": "School of Science, Engineering & Environment, University of Salford, Manchester, United Kingdom", "orcid": "0000-0003-4807-9056"},
-        {"name": "Jadunandan Dash", "affiliation": "School of Geography and Environmental Science, University of Southampton, Southampton, United Kingdom", "orcid": "0000-0002-5444-2109"},
-        {"name": "Rémi Grousset", "affiliation": "ACRI-ST, F-06904, Sophia-Antipolis, France"},
-        {"name": "Bert Gielen", "affiliation": "Plants and Ecosystems (PLECO), Department of Biology, University of Antwerp, B-2610, Wilrijk, Belgium", "orcid": "0000-0002-4890-3060"},
-        {"name": "Thomas W. Crowther", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-5674-8913"},
-        {"name": "Johan van den Hoogen", "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland", "orcid": "0000-0001-6624-8461"},
+        {
+            "name": "Felix Specker",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0002-9398-9975",
+        },
+        {
+            "name": "Anna K. Schweiger",
+            "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States",
+            "orcid": "0000-0002-5567-4200",
+        },
+        {
+            "name": "Jean-Baptiste Féret",
+            "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France",
+            "orcid": "0000-0002-0151-1334",
+        },
+        {
+            "name": "Thomas Lauber",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0002-3118-432X",
+        },
+        {
+            "name": "Luke A. Brown",
+            "affiliation": "Department of Geography, King’s College London, London, WC2R 2LS, United Kingdom",
+            "orcid": "0000-0003-4807-9056",
+        },
+        {
+            "name": "Jadunandan Dash",
+            "affiliation": "School of Science, Engineering & Environment, University of Salford, Manchester, M5 4WT, United Kingdom",
+            "orcid": "0000-0002-5444-2109",
+        },
+        {
+            "name": "Rémi Grousset",
+            "affiliation": "ACRI-ST, F-06904, Sophia-Antipolis, France",
+        },
+        {
+            "name": "Bert Gielen",
+            "affiliation": "Plants and Ecosystems (PLECO), Department of Biology, University of Antwerp, B-2610, Wilrijk, Belgium",
+            "orcid": "0000-0002-4890-3060",
+        },
+        {
+            "name": "Thomas W. Crowther",
+            "affiliation": "Biological and Environmental Science and Engineering Division, King Abdullah University of Science and Technology (KAUST), Thuwal, Kingdom of Saudi Arabia",
+            "orcid": "0000-0001-5674-8913",
+        },
+        {
+            "name": "Johan van den Hoogen",
+            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
+            "orcid": "0000-0001-6624-8461",
+        },
     ]
 
     for dep_path in dep_paths:
-
         dep = LocalFiles.from_file(dep_path)
         dep.set_deposition(api=zen, create_if_not_exists=False)
         dep.deposition.metadata.creators = new_authors_list
@@ -588,6 +780,7 @@ def update_authors():
         dep.save()
 
     print("Updated authors in all depositions.")
+
 
 def update_code_data_deposition():
     if FINAL_DEPOSITION:
@@ -625,7 +818,6 @@ def update_code_data_deposition():
 #         dep.deposition.update()
 #         dep.save()
 
-    
 
 if __name__ == "__main__":
     # prereserve_doi()
