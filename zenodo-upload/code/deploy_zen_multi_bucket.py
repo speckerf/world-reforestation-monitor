@@ -9,9 +9,10 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+
 from zen import LocalFiles, Zenodo
 
-FINAL_DEPOSITION = True
+FINAL_DEPOSITION = False
 # parse zenodo token from auth.zenodo_sandbox.txt
 if not FINAL_DEPOSITION:
     with open("auth/zenodo_sandbox.txt", "r") as f:
@@ -830,4 +831,5 @@ if __name__ == "__main__":
     # zenodo_cleanup()
     # main()
     # zenodo_cleanup()
+    pass
     pass
