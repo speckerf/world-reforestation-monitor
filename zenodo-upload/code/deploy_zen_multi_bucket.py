@@ -9,10 +9,11 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+import re
 
 from zen import LocalFiles, Zenodo
 
-FINAL_DEPOSITION = False
+FINAL_DEPOSITION = True
 # parse zenodo token from auth.zenodo_sandbox.txt
 if not FINAL_DEPOSITION:
     with open("auth/zenodo_sandbox.txt", "r") as f:
@@ -57,7 +58,7 @@ def get_preview_file(tif_path: str, folder_previews: str) -> str:
         )
 
 
-def main():
+def main_old():
     """
     Create base deposition with all 1000m resolution files.
     """
@@ -66,10 +67,10 @@ def main():
     else:
         zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
 
-    # DATA_FOLDER_1000m = "data-local/results_1000m/"
-    DATA_FOLDER_1000m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
-    # DATA_FOLDER_100m = "data-local/results_1000m/"
-    DATA_FOLDER_100m = "/Volumes/OEMC/world-reforestation-monitor/results_100m/"
+    # DATA_FOLDER_1000m = "/Volumes/OEMC/world-reforestation-monitor/results_1000m/"
+    DATA_FOLDER_1000m = "data-local/merged-v03/results_1000m/"
+    # DATA_FOLDER_100m = "/Volumes/OEMC/world-reforestation-monitor/results_100m/"
+    DATA_FOLDER_100m = "data-local/merged-v03/results_100m/"
     doi_prefix = "https://doi.org/"
 
     creators_list = [
@@ -77,32 +78,6 @@ def main():
             "name": "Felix Specker",
             "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
             "orcid": "0000-0002-9398-9975",
-        },
-        {
-            "name": "Anna K. Schweiger",
-            "affiliation": "Montana State University, Department of Land Resources and Environmental Sciences, Bozeman, MT, United States",
-            "orcid": "0000-0002-5567-4200",
-        },
-        {
-            "name": "Jean-Baptiste Féret",
-            "affiliation": "TETIS, INRAE, AgroParisTech, CIRAD, CNRS, Université Montpellier, Montpellier, France",
-            "orcid": "0000-0002-0151-1334",
-        },
-        {
-            "name": "Thomas Lauber",
-            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
-            "orcid": "0000-0002-3118-432X",
-        },
-        {"name": "AUTHORS GBOV", "affiliation": "Misc"},
-        {
-            "name": "Thomas W. Crowther",
-            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
-            "orcid": "0000-0001-5674-8913",
-        },
-        {
-            "name": "Johan van den Hoogen",
-            "affiliation": "Institute of Integrative Biology, Department of Environmental Systems Science, ETH Zurich, Switzerland",
-            "orcid": "0000-0001-6624-8461",
         },
     ]
     keywords_list = [
@@ -124,7 +99,7 @@ def main():
     local_file_paths_selected_previews = list(
         map(
             lambda x: get_preview_file(
-                x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+                x, "data-local/merged-v03/previews"
             ),
             selected_preview_files,
         )
@@ -287,7 +262,7 @@ def main():
         local_file_paths_children_previews = list(
             map(
                 lambda x: get_preview_file(
-                    x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+                    x, "data-local/merged-v03/previews"
                 ),
                 local_file_paths_children,
             )
@@ -352,7 +327,7 @@ def main():
         local_file_paths_children_previews = list(
             map(
                 lambda x: get_preview_file(
-                    x, "/Volumes/OEMC/world-reforestation-monitor/previews"
+                    x, "data-local/merged-v03/previews"
                 ),
                 local_file_paths_std_count,
             )
@@ -470,10 +445,10 @@ def main():
 
 
 def get_cms(trait, variable):
-    assert trait in ["lai", "fapar", "fcover"]
+    assert trait in ["laie", "fapar", "fcover"]
     assert variable in ["mean", "std", "count"]
 
-    if trait == "lai":
+    if trait == "laie":
         if variable == "mean":
             return cm.ScalarMappable(
                 norm=mcolors.Normalize(vmin=0, vmax=5),
@@ -601,9 +576,9 @@ def generate_low_res_preview(tif_path):
 
         # Select the 2nd last overview level
         overview_levels = dataset.overviews(1)
-        if len(overview_levels) < 2:
+        if len(overview_levels) < 3:
             raise ValueError("Not enough overviews found in the provided COG file.")
-        overview_idx = -2
+        overview_idx = -3
         ovr_factor = overview_levels[overview_idx]
 
         # Read the data at the selected overview level
@@ -659,13 +634,13 @@ def generate_low_res_preview(tif_path):
 def wrapper_lowres_preview():
     # get all tif files in data-local/results_1000m/
     tif_files = glob.glob(
-        "/Volumes/OEMC/world-reforestation-monitor/results_1000m/*.tif"
+        "data-local/merged-v03/results_1000m/*.tif"
     )
     for tif in tif_files:
         generate_low_res_preview(tif)
 
     tif_files = glob.glob(
-        "/Volumes/OEMC/world-reforestation-monitor/results_100m/*.tif"
+        "data-local/merged-v03/results_100m/*.tif"
     )
     for tif in tif_files:
         generate_low_res_preview(tif)
@@ -712,7 +687,7 @@ def zenodo_cleanup():
 
 
 def update_authors():
-    pass
+    # pass
     # update citation in all zenodo depositions:
     if FINAL_DEPOSITION:
         zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
@@ -819,13 +794,84 @@ def update_code_data_deposition():
 #         dep.deposition.update()
 #         dep.save()
 
+def update_v3():
+    # update the original depositions with new files (new location)
+    
+    # changes: 
+    # updates all paths to new local files: data-local/merged-v03/results_1000m/ and data-local/merged-v03/results_100m/ and data-local/merged-v03/previews/
+
+    if FINAL_DEPOSITION:
+        zen = Zenodo(url=Zenodo.url, token=ZENODO_ACCESS_TOKEN)
+    else:
+        zen = Zenodo(url=Zenodo.sandbox_url, token=ZENODO_ACCESS_TOKEN)
+
+    dep_paths = glob.glob("zenodo-upload/depositions/deploy/*.json")
+
+    children_ds = {}
+
+    for dep_path in dep_paths:  
+        if not ('fapar' in dep_path or 'laie' in dep_path or 'fcover' in dep_path):
+            print(f"Skipping deposition {dep_path} as it does not contain 'fapar', 'laie', or 'fcover' in the path.")
+            continue
+
+        variable = "laie" if "laie" in dep_path else "fapar" if "fapar" in dep_path else "fcover"
+        resolution = "100m"
+        band = "mean" if "mean" in dep_path else "std-count" if "std-count" in dep_path else None
+        # grep for 4 digit number in dep_path for year
+        
+        match = re.search(r'\d{4}', dep_path)
+        year = match.group(0) if match else None
+        new_band = "mean" if "mean" in dep_path else "std" if "std-count" in dep_path else None
+        assert band is not None, f"Band not recognized in path {dep_path}"
+
+        dep_id = f"{variable}_{resolution}_{year}_{new_band}"
+
+        dep = LocalFiles.from_file(dep_path)
+        dep.set_deposition(api=zen, create_if_not_exists=False)
+        
+        # get all files in dep.dataset_path, update paths to new location
+        n_datasets = len(dep)
+        
+        # remove all datasets and add new ones with updated paths
+        for i in range(n_datasets):
+            dep.remove(0)
+
+        new_file_paths = []
+
+        new_tif_path = grep_filenames(
+            folder="data-local/merged-v03/results_100m/",
+            suffix=".tif",
+            contains=[variable, new_band, resolution, year],
+        )
+
+        new_preview_path = grep_filenames(
+            folder="data-local/merged-v03/previews/",
+            suffix=".png",
+            contains=[variable, new_band, resolution, year],
+        )
+
+        new_paths = [*new_tif_path, *new_preview_path]
+        dep.add(new_paths)
+
+        # dep.deposition.update()
+        # dep.upload()
+        if 'std-count' in dep_path:
+            # new local deposition name:
+            new_dep_path = dep_path.replace("std-count.json", "std.json")
+
+        dep.save()
+
+        print(f"Updated deposition for {dep_path} with new files.")
+
+
 
 if __name__ == "__main__":
+    update_v3()
     # prereserve_doi()
     # update_citation()
     # update_authors()
     # update_code_data_deposition()
-    # test_tif_path = "data-local/results_1000m/lai_rtm.mlp_mean_1000m_s_20190101_20191231_go_epsg.4326_v01.tif"
+    # test_tif_path = "data-local/merged-v03/results_1000m/laie_rtm.mlp.v02_mean_1000m_s_20190101_20191231_go_epsg.4326_v03.tif"
     # wrapper_lowres_preview()
     # generate_low_res_preview(test_tif_path)
     # zenodo_cleanup()
