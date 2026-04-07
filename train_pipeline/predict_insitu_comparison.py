@@ -114,7 +114,9 @@ def predict_specker(df: pd.DataFrame) -> pd.DataFrame:
     if len(X) == 0:
         return pd.DataFrame(index=df.index)
     for trait in ["laie", "fapar", "fcover"]:
-        models, _ = load_specker_model_ensemble(trait=trait)
+        models, _ = load_specker_model_ensemble(
+            trait=trait, ensemble_size=5, model_version="v02"
+        )
         preds = np.column_stack([m["pipeline"].predict(X) for m in models.values()])
 
         # clip before calculating mean and std
@@ -462,8 +464,8 @@ def create_revisions_table1():
     validation_data = load_grounded_eo_validation_data()
 
     # df_grounded = predict_grounded_eo()
-    df_specker = predict_specker()
-    df_sl2p = predict_sl2p()
+    df_specker = predict_specker(validation_data)
+    df_sl2p = predict_sl2p(validation_data)
 
     df_all_traits = build_combined_trait_df(validation_data, df_sl2p, df_specker)
 
@@ -521,17 +523,22 @@ def create_revisions_table1():
     print(summary)
     # save as csv and open in excel for final formatting
     summary.to_csv(
-        "tables-figures/revision_table1_model_comparison.csv", float_format="%.2f"
+        "revision-tables/table-1/revision_table1_model_comparison.csv",
+        float_format="%.2f",
     )
-    print("Saved summary table to revision_table1_model_comparison.csv")
+    print(
+        "Saved summary table to revision-tables/table-1/revision_table1_model_comparison.csv"
+    )
 
     # save to latex directly:
     summary.to_latex(
-        "tables/revision_table1_model_comparison.tex",
+        "revision-tables/table-1/revision_table1_model_comparison.tex",
         float_format="%.2f",
         multirow=True,
     )
-    print("Saved summary table to revision_table1_model_comparison.tex")
+    print(
+        "Saved summary table to revision-tables/table-1/revision_table1_model_comparison.tex"
+    )
 
 
 def create_revisions_supplementary_table_XX():
@@ -605,18 +612,22 @@ def create_revisions_supplementary_table_XX():
     print(summary)
     # save as csv and open in excel for final formatting
     summary.to_csv(
-        "tables-figures/revision_supplementary_table_model_comparison.csv",
+        "revision-tables/table-1/revision_supplementary_table_model_comparison.csv",
         float_format="%.2f",
     )
-    print("Saved summary table to revision_supplementary_table_model_comparison.csv")
+    print(
+        "Saved summary table to revision-tables/table-1/revision_supplementary_table_model_comparison.csv"
+    )
 
     # save to latex directly:
     summary.to_latex(
-        "tables-figures/revision_supplementary_table_model_comparison.tex",
+        "revision-tables/table-1/revision_supplementary_table_model_comparison.tex",
         float_format="%.2f",
         multirow=True,
     )
-    print("Saved summary table to revision_supplementary_table_model_comparison.tex")
+    print(
+        "Saved summary table to revision-tables/table-1/revision_supplementary_table_model_comparison.tex"
+    )
 
     # val_fapar = validation_data[["fapar", "fapar_std", "uuid"]]
 
@@ -919,10 +930,10 @@ def site_stats():
 
 
 if __name__ == "__main__":
-    site_stats()
+    # site_stats()
     # create_predictions_figure_2()
     # evaluate_S2BIOPHYS_3way()
-    # create_revisions_table1()
+    create_revisions_table1()
     # create_revisions_supplementary_table_XX()
     # create_site_table_supplement()
     # main()
