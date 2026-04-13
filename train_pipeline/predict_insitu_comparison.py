@@ -541,14 +541,14 @@ def create_revisions_table1():
     )
 
 
-def create_revisions_supplementary_table_XX():
+def create_revisions_supplementary_table_s4():
     # load validation data
     validation_data = load_grounded_eo_validation_data()
 
     # df_grounded = predict_grounded_eo()
-    df_specker = predict_specker()
-    df_sl2p = predict_sl2p()
-    df_grounded = predict_grounded_eo()
+    df_specker = predict_specker(validation_data)
+    df_sl2p = predict_sl2p(validation_data)
+    df_grounded = predict_grounded_eo(validation_data)
 
     df_all_traits = build_combined_trait_df(
         validation_data, df_sl2p, df_specker, df_grounded=df_grounded
@@ -612,21 +612,21 @@ def create_revisions_supplementary_table_XX():
     print(summary)
     # save as csv and open in excel for final formatting
     summary.to_csv(
-        "revision-tables/table-1/revision_supplementary_table_model_comparison.csv",
+        "revision-tables/table-s4/revision_supplementary_table_model_comparison.csv",
         float_format="%.2f",
     )
     print(
-        "Saved summary table to revision-tables/table-1/revision_supplementary_table_model_comparison.csv"
+        "Saved summary table to revision-tables/table-s4/revision_supplementary_table_model_comparison.csv"
     )
 
     # save to latex directly:
     summary.to_latex(
-        "revision-tables/table-1/revision_supplementary_table_model_comparison.tex",
+        "revision-tables/table-s4/revision_supplementary_table_model_comparison.tex",
         float_format="%.2f",
         multirow=True,
     )
     print(
-        "Saved summary table to revision-tables/table-1/revision_supplementary_table_model_comparison.tex"
+        "Saved summary table to revision-tables/table-s4/revision_supplementary_table_model_comparison.tex"
     )
 
     # val_fapar = validation_data[["fapar", "fapar_std", "uuid"]]
@@ -933,8 +933,8 @@ if __name__ == "__main__":
     # site_stats()
     # create_predictions_figure_2()
     # evaluate_S2BIOPHYS_3way()
-    create_revisions_table1()
-    # create_revisions_supplementary_table_XX()
+    # create_revisions_table1()
+    create_revisions_supplementary_table_s4()
     # create_site_table_supplement()
     # main()
     # main()

@@ -1,0 +1,59 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{pdflscape} % For landscape environment
+\usepackage{booktabs}
+
+\title{table_s3_parametrisation}
+\author{Felix Specker}
+\date{October 2025}
+
+\begin{document}
+\newpage
+
+\begin{landscape}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{\textbf{Parameterization of input variables in the PROSPECT-D and 4SAIL models across different parametrisations used in this study.} 
+Abbreviations: $N(\mu,\sigma)|_{min}^{max}$ -- truncated normal distribution, $U(a,b)$ -- uniform distribution, $C(x)$ -- constant value. 
+Minimum and maximum bounds are indicated as subscripts and superscripts.}
+\begin{tabular}{p{2.2cm} l l l l l l l}
+
+\midrule
+\textbf{Parameter} & \textbf{Abbr.} & \textbf{Unit} & \textbf{SNAP} & \textbf{Foliar Codis.} & \textbf{Estevez et al.} & \textbf{Kovacs et al.} & \textbf{Wan et al.} \\
+\midrule
+\multicolumn{8}{l}{\textbf{Leaf variables: PROSPECT-D}} \\[2pt]
+\midrule
+Leaf chlorophyll content & CHL & $\mu$g\,cm$^{-2}$ & $N(35,30)|_{5}^{75}$ & Gaussian Copula & $N(35,30)|_{5}^{75}$ & $U(0,100)$ & $N(50,20)|_{5}^{100}$ \\
+Leaf carotenoid content & CAR & $\mu$g\,cm$^{-2}$ & CHL / 7 & Gaussian Copula & CHL / 7 & $N(10,10)|_{0}^{20}$ & $N(7.5,3.5)|_{0}^{15}$ \\
+Leaf mass per area & LMA & g\,cm$^{-2}$ & $N(0.005,0.001)|_{0.001}^{0.03}$ & Gaussian Copula & $N(0.005,0.001)|_{0.001}^{0.03}$ & $N(0.005,0.003)|_{0.002}^{0.02}$ & $N(0.015,0.005)|_{0.001}^{0.03}$ \\
+Equivalent water thickness & EWT & cm & NA & Gaussian Copula & $N(0.02,0.01)|_{0.002}^{0.05}$ & $N(0.012,0.006)|_{0.005}^{0.035}$ & NA \\
+Relative water content & Cw\_rel & -- & $N(0.75,0.08)_{0.6}^{0.85}$ & NA & NA & NA & $U(0.55,0.95)$ \\
+Leaf anthocyanin content & ANT & $\mu$g\,cm$^{-2}$ & C(0) & C(0) & C(0) & C(0) & C(0) \\
+Leaf structure parameter & N & -- & $N(1.5,0.03)|_{1.2}^{1.8}$ & $N(1.5,0.03)|_{1.2}^{1.8}$ & $U(1.3,2.5)$ & $N(1.5,0.05)|_{1.0}^{2.7}$ & $N(1.75,0.5)|_{1.0}^{2.5}$ \\
+Fraction of senescent leaves & BROWN & -- & $N(0.0,0.3)|_{0}^{2}$ & $N(0.0,0.3)|_{0}^{2}$ & C(0) & C(0) & $U(0.0,0.2)$ \\[3pt]
+\midrule
+\multicolumn{8}{l}{\textbf{Canopy variables: 4SAIL}} \\[2pt]
+\midrule
+Leaf area index & LAI & m$^2$\,m$^{-2}$ & OPTUNA & OPTUNA & OPTUNA & OPTUNA & OPTUNA \\
+Hot spot parameter & q & m\,m$^{-1}$ & $N(0.2,0.5)|_{0.1}^{0.5}$ & $N(0.2,0.5)|_{0.1}^{0.5}$ & C(0.01) & C(0.01) & C(0.01) \\
+Average leaf angle & LIDFa & ° & $N(60,30)|_{30}^{80}$ & $N(60,30)|_{30}^{80}$ & $U(40,70)$ & $U(40,70)$ & $N(55,10)|_{30}^{80}$ \\
+Leaf distribution function & Type-LIDF & -- & 2 & 2 & 2 & 2 & 2 \\[3pt]
+\midrule
+\multicolumn{8}{l}{\textbf{Observation / Illumination conditions: 4SAIL}} \\[2pt]
+\midrule
+Linear combination of dark and bright soil spectra & psoil & -- & $U(0.0,1.0)$ & $N(0.25,0.6)|_{0.0}^{1.0}$ & $U(0.0,1.0)$ & $U(0.0,1.0)$ & $U(0.0,1.0)$ \\
+Sun zenith angle & tts & ° & GEE S2 metadata & GEE S2 metadata & GEE S2 metadata & GEE S2 metadata & $U(15,80)$ \\
+View zenith angle & tto & ° & GEE S2 metadata & GEE S2 metadata & C(0) & $U(-10,10)$ & $U(0,12)$ \\
+Relative azimuth angle & psi & ° & GEE S2 metadata & GEE S2 metadata & C(0) & C(180) & $U(0,180)$ \\
+\hline
+\end{tabular}
+\label{tab:prosail_parameters}
+\end{table}
+
+
+\end{landscape}
+\end{document}
+
+
+

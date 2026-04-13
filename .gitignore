@@ -27,3 +27,7 @@ analysis/domain_representativeness_experiment/ood-merged-epsg4326/
 analysis/domain_representativeness_experiment/ood-results-100m
 analysis/domain_representativeness_experiment/results/
 analysis/domain_representativeness_experiment/DEPRECATED/
+posthoc-calibration/
+OLD_FIGURES/
+test_groundedeo/
+test_sl2p/
