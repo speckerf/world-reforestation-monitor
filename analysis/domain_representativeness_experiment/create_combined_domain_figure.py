@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import rasterio
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from analysis.domain_representativeness_experiment.run_phase2_pca import (
@@ -260,30 +261,73 @@ def plot_uncertainty_panel(ax, df_all) -> None:
     ax.legend(fontsize=9, loc="upper right")
 
 
-def plot_global_map_placeholder_panel(ax) -> None:
-    """Plot global map placeholder panel (bottom right)."""
-    ax.text(
-        0.5,
-        0.5,
-        "Global Map\n\n(Average distance to LUT\nat 100m resolution)",
-        ha="center",
-        va="center",
-        transform=ax.transAxes,
-        fontsize=12,
-        style="italic",
-        color="gray",
+def plot_global_map_panel(ax) -> None:
+    """Plot global map panel (bottom)."""
+
+    # Instead of placeholder text, we will plot the actual global map in the final version.
+    path_knn_distance_cog = (
+        Path("data", "misc") / "knn-distance_all-traits_global_epsg4326_cog.tif"
     )
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    assert path_knn_distance_cog.exists(), (
+        f"Missing global distance COG: {path_knn_distance_cog}"
+    )
+
+    # color scale - custom with jump at 3.5
+    # Use viridis colormap for distance 0-5+
+    # Viridis: purple -> blue -> green -> yellow (perceptually uniform)
+
+    # | Distance | Color        | Description      |
+    # | -------- | ------------ | ---------------- |
+    # | 0-5+     | Viridis      | Continuous scale |
+
+    # Use viridis colormap
+    cmap = plt.cm.viridis
+
+    # Load raster data using rasterio with overview level
+    with rasterio.open(path_knn_distance_cog) as src:
+        # Get available overviews for band 1: [2, 4, 8, 16, 32, 64, 128, 256, 512]
+        overview_levels = src.overviews(1)
+        if len(overview_levels) < 3:
+            raise ValueError("Not enough overviews found in the provided COG file.")
+        overview_idx = -4
+        ovr_factor = overview_levels[overview_idx]
+
+        img = src.read(
+            out_shape=(
+                src.count,
+                src.height // ovr_factor,
+                src.width // ovr_factor,
+            ),
+        )
+
+        # mask nodata values (255) to white (nan) for plotting
+        img = np.where(img == 255, np.nan, img)
+
+        # Apply scaling if present
+        if hasattr(src, "scales") and src.scales[0] != 1.0:
+            scaling_factor = src.scales[0]
+            img = img * scaling_factor
+
+    # remove first dimension if single band
+    if img.shape[0] == 1:
+        img = img[0]
+
+    # Display with continuous colormap
+    im = ax.imshow(img, cmap=cmap, vmin=0, vmax=5)
+
+    # Add clean colorbar for continuous scale
+    cbar = plt.colorbar(im, ax=ax, shrink=0.6, aspect=30)
+    cbar.set_label("Distance to PROSAIL LUT", fontsize=9)
+
+    # Simple, clean tick marks
+    ticks = [0, 1, 2, 3, 4, 5]
+    cbar.set_ticks(ticks)
+    cbar.ax.tick_params(labelsize=8)
+
+    # Optional: subtle marking of 3.5 threshold (less prominent)
+    cbar.ax.axhline(y=3.5, color="gray", linewidth=1, alpha=0.4, linestyle="--")
     ax.set_xticks([])
     ax.set_yticks([])
-    # ax.set_title("Global Distance to LUT", fontsize=11, fontweight="bold")
-
-    # Add border
-    for spine in ax.spines.values():
-        spine.set_edgecolor("lightgray")
-        spine.set_linestyle("--")
-        spine.set_linewidth(1)
 
 
 def plot_distance_cdf_comparison(ax) -> None:
@@ -613,7 +657,7 @@ def main() -> None:
     plot_distance_statistics_table(ax_d_inset)
 
     # Bottom row: Global map spanning both columns
-    plot_global_map_placeholder_panel(ax5)
+    plot_global_map_panel(ax5)
     add_panel_label(ax5, "E")
 
     plt.tight_layout()
