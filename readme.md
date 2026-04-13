@@ -1,8 +1,5 @@
 # S2BIOPHYS: Global High-Resolution Vegetation Maps
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19366930.svg)](https://doi.org/10.5281/zenodo.19366930)
-[![PyPI](https://img.shields.io/pypi/v/gee-biophys)](https://pypi.org/project/gee-biophys/)
-
 **Global 20m resolution maps of vegetation biophysical properties (LAIe, FAPAR, FCOVER) from Sentinel-2 data (2019-2025)**
 
 **Quick Links:** [View Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps) | [Download Data](https://doi.org/10.5281/zenodo.19366930) | [Python Package](https://pypi.org/project/gee-biophys/) | [GEE Code Examples](https://code.earthengine.google.com/?scriptPath=users%2Fspeckerf%2Fopen-earth-public%3As2biophys-analysis-v3)
