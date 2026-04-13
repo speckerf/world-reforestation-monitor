@@ -23,8 +23,6 @@ from train_pipeline.utilsCalibration import (
 from train_pipeline.utilsLoading import load_grounded_eo_validation_data
 from train_pipeline.utilsTraining import uncertainty_agreement_ratio
 
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
-
 
 def rerun_and_save_best_optuna(config: dict, study=None) -> None:
     if study is None:
@@ -71,10 +69,12 @@ def rerun_and_save_best_optuna_wrapper(trait: str, config: dict):
     logger.info(f"Final uncertainty re-calibration for variable {trait}:")
 
 
-def calibrate_smooth_tau(trait: str):
+def calibrate_smooth_tau(trait: str, config: dict) -> None:
     # ---- Load data ----
     df_insitu = load_grounded_eo_validation_data()
-    df_s2biophys = predict_s2biophys(df=df_insitu, recalibrate_uncertainty=False)
+    df_s2biophys = predict_s2biophys(
+        df=df_insitu, config=config, recalibrate_uncertainty=False
+    )
 
     # rename insitu columns
     cols = [
@@ -146,7 +146,7 @@ def calibrate_smooth_tau(trait: str):
     with open(
         os.path.join(
             dir_path,
-            f"recalibration_uncertainty_model_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.pkl",
+            f"recalibration_uncertainty_model_{trait}_s2biophys_{config['model_version']}.pkl",
         ),
         "wb",
     ) as f:
@@ -155,20 +155,25 @@ def calibrate_smooth_tau(trait: str):
     with open(
         os.path.join(
             dir_path,
-            f"recalibration_uncertainty_table_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.csv",
+            f"recalibration_uncertainty_table_{trait}_s2biophys_{config['model_version']}.csv",
         ),
         "w",
     ) as f:
         recalibration_table.to_csv(f, index=False)
 
 
-def evaluate_model_ensemble(trait: str) -> tuple:
+def evaluate_model_ensemble(trait: str, config: dict) -> tuple:
     """
     Evaluate the model ensemble for the given trait
     :param trait: str, trait name
+    :param config: dict, configuration dictionary
     :return: tuple, predictions_ensemble, y_val
     """
-    models, _ = load_model_ensemble(trait)
+    models, _ = load_model_ensemble(
+        trait,
+        ensemble_size=config["ensemble_size"],
+        model_version=config["model_version"],
+    )
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     angles = ["tts", "tto", "psi"]
     features = bands + angles
@@ -289,8 +294,10 @@ def evaluate_model_ensemble(trait: str) -> tuple:
     return predictions_ensemble, y_val
 
 
-def load_model_ensemble(trait: str) -> Tuple[dict, tuple]:
-    testsets = list(range(CONFIG_GEE_PIPELINE["PIPELINE_PARAMS"]["ENSEMBLE_SIZE"]))
+def load_model_ensemble(
+    trait: str, ensemble_size: int, model_version: str
+) -> Tuple[dict, tuple]:
+    testsets = list(range(ensemble_size))
     study_version = get_config("train_pipeline")["optuna_study_name"].split("-")[1]
     model_names = [
         f"optuna-{study_version}-{trait}-mlp-split-{testset}" for testset in testsets
@@ -359,7 +366,7 @@ def load_model_ensemble(trait: str) -> Tuple[dict, tuple]:
         "output",
         "uncertainty_recalibration",
         trait,
-        f"recalibration_uncertainty_model_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.pkl",
+        f"recalibration_uncertainty_model_{trait}_s2biophys_{model_version}.pkl",
     )
     uncertainty_table_path = os.path.join(
         "data",
@@ -367,7 +374,7 @@ def load_model_ensemble(trait: str) -> Tuple[dict, tuple]:
         "output",
         "uncertainty_recalibration",
         trait,
-        f"recalibration_uncertainty_table_{trait}_s2biophys_{CONFIG_GEE_PIPELINE['PIPELINE_PARAMS']['MODEL_VERSION']}.csv",
+        f"recalibration_uncertainty_table_{trait}_s2biophys_{model_version}.csv",
     )
     with open(uncertainty_model_path, "rb") as f:
         uncertainty_model = pickle_load(f)
@@ -378,9 +385,12 @@ def load_model_ensemble(trait: str) -> Tuple[dict, tuple]:
 
 
 def predict_s2biophys(
-    df: pd.DataFrame, recalibrate_uncertainty: bool = False
+    df: pd.DataFrame,
+    config: dict,
+    recalibrate_uncertainty: bool = False,
+    clip_predictions: bool = True,
 ) -> pd.DataFrame:
-    """Predict LAI with S2BIOPHYS ensemble; returns columns: s2biophys_lai_mean, s2biophys_lai_std."""
+    """Predict S2BIOPHYS ensemble; returns columns: s2biophys_{trait}_mean, s2biophys_{trait}_std, and uuid for joining with insitu data. If recalibrate_uncertainty is True, applies the smooth tau recalibration to the std predictions."""
 
     # Band order as used by your main()
     band_order = [
@@ -421,18 +431,23 @@ def predict_s2biophys(
         return pd.DataFrame(index=df.index)
     for trait in ["laie", "fapar", "fcover"]:
         models, (uncertainty_recalibration_model, uncertainty_recalibration_table) = (
-            load_model_ensemble(trait=trait)
+            load_model_ensemble(
+                trait=trait,
+                ensemble_size=config["ensemble_size"],
+                model_version=config["model_version"],
+            )
         )
         preds = np.column_stack([m["pipeline"].predict(X) for m in models.values()])
 
         # clip before calculating mean and std
         # clip to 0-8 for LAI, and 0-1 for fAPAR and fCOVER
-        if trait.lower() == "laie":
-            preds = np.clip(preds, 0, 8)
-        elif trait.lower() in ["fapar", "fcover"]:
-            preds = np.clip(preds, 0, 1)
-        else:
-            raise ValueError(f"Unknown trait: {trait}")
+        if clip_predictions:
+            if trait.lower() == "laie":
+                preds = np.clip(preds, 0, 8)
+            elif trait.lower() in ["fapar", "fcover"]:
+                preds = np.clip(preds, 0, 1)
+            else:
+                raise ValueError(f"Unknown trait: {trait}")
 
         mean = preds.mean(axis=1)
         std = preds.std(axis=1)
@@ -457,13 +472,17 @@ def main():
     # rerun_and_save_best_optuna_wrapper("laie", config)
     # rerun_and_save_best_optuna_wrapper("fapar", config)
     # rerun_and_save_best_optuna_wrapper("fcover", config)
-    # calibrate_smooth_tau("laie")
-    calibrate_smooth_tau("fapar")
-    calibrate_smooth_tau("fcover")
-    # load_model_ensemble("lai")
-    # evaluate_model_ensemble("laie")
-    # evaluate_model_ensemble("fapar")
-    # evaluate_model_ensemble("fcover")
+    calibrate_smooth_tau("laie", config)
+    calibrate_smooth_tau("fapar", config)
+    calibrate_smooth_tau("fcover", config)
+    # load_model_ensemble(
+    #     "laie",
+    #     ensemble_size=config["ensemble_size"],
+    #     model_version=config["model_version"],
+    # )
+    # evaluate_model_ensemble("laie", config)
+    # evaluate_model_ensemble("fapar", config)
+    # evaluate_model_ensemble("fcover", config)
     # compare_local_gee_rf_predictions("lai")
     # test_gee_pipeline_predict("lai")
 

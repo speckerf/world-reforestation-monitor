@@ -19,3 +19,11 @@
 /DEPRECATED
 analysis/domain_representativeness_experiment/ood_results
 data-local/
+analysis/domain_representativeness_experiment/knn-distance_all-traits_global_epsg4326.tif
+analysis/domain_representativeness_experiment/knn-distance_all-traits_global_epsg4326.vrt
+analysis/domain_representativeness_experiment/knn-distance_all-traits_global_epsg4326_cog.tif
+analysis/domain_representativeness_experiment/ood-merged-100m/
+analysis/domain_representativeness_experiment/ood-merged-epsg4326/
+analysis/domain_representativeness_experiment/ood-results-100m
+analysis/domain_representativeness_experiment/results/
+analysis/domain_representativeness_experiment/DEPRECATED/

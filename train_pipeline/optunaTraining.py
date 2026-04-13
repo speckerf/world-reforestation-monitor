@@ -30,8 +30,6 @@ from train_pipeline.utilsTraining import (
     r2_score_oos,
 )
 
-CONFIG_GEE_PIPELINE = get_config("gee_pipeline")
-
 
 def save_lut_and_ranges(
     df, trait, save_folder, model_domain, study_name, bands
@@ -197,7 +195,7 @@ def initialize_pipeline(config):
 
 
 def optimize_hyperparams(pipeline, X_train, y_train, config):
-    logger.debug(f"Hyperparameter optimization using HalvingGridSearchCV...")
+    logger.debug("Hyperparameter optimization using HalvingGridSearchCV...")
     param_grid = config["mlp_grid"].copy()
 
     hidden_layers_dict = {
@@ -370,7 +368,7 @@ def objective(trial, save_model=False):
     # Model training
     pipeline = initialize_pipeline(config)
     best_model = optimize_hyperparams(pipeline, X_train, y_train, config)
-    logger.debug(f"Refit model with all simulated training data...")
+    logger.debug("Refit model with all simulated training data...")
     model_train = best_model.fit(X_train, y_train)
     model_all = best_model.fit(X, y)
 

@@ -7,7 +7,6 @@ import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 
-from config import config
 from config.config import get_config
 from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
 from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
@@ -26,7 +25,7 @@ credentials = ee.ServiceAccountCredentials(
     service_account, "auth/gem-eth-analysis-24fe4261f029.json"
 )
 ee.Initialize(credentials, project="ee-speckerfelix")
-# ee.Initialize()
+# ee.Initialize(project="ee-speckerfelix")
 
 
 def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
@@ -259,7 +258,7 @@ def export_mgrs_tile(mgrs_tile: str, config: dict) -> None:
     # Export the image
     imgc_folder = (
         config["GEE_FOLDERS"]["ASSET_FOLDER"]
-        + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}-debug/"
+        + f"/{variable}_predictions-mlp_{output_resolution}m_{export_version}/"
     )
 
     task = ee.batch.Export.image.toAsset(
@@ -327,6 +326,9 @@ def global_export_mgrs_tiles(config: dict):
 
 
 def global_export_mgrs_tiles_agent(config: dict):
+    raise NotImplementedError(
+        "global_export_mgrs_tiles_agent is not implemented yet. Please use global_export_mgrs_tiles instead"
+    )
     mgrs_tiles = pd.read_csv(
         os.path.join(
             "data",
@@ -358,7 +360,6 @@ def main():
     config = get_config("gee_pipeline")
     # wait 1 hour
     # time.sleep(3 * 3600)
-    # global_export_mgrs_tiles_agent(config)
     global_export_mgrs_tiles(config)
 
 
