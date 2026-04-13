@@ -3,21 +3,15 @@ outs:
   path: data
   files:
   - relpath: .DS_Store
-    md5: 844747f0e3267b98cebe462727d64947
-    size: 10244
-  - relpath: analysis/.DS_Store
-    md5: ed495ca830a2dc679c0afe47bd4f15d2
-    size: 6148
-  - relpath: analysis/domain_representativeness_experiment/.DS_Store
-    md5: 2eab53ef24bce64d846a9c1b63615515
-    size: 6148
+    md5: 4aa06030e32cbffa6238105dd82ace61
+    size: 8196
   - relpath: gee_pipeline/.DS_Store
-    md5: e0b6aa7ac9b394a707d3ac3df0f9f7ea
+    md5: 87817f721d5e3cf3537d237b7f16fbe5
     size: 6148
   - relpath: gee_pipeline/inputs/.DS_Store
     md5: 7223d31c42c9d1a147195a7011702fb1
   - relpath: gee_pipeline/outputs/.DS_Store
-    md5: 63a4cd9c81e9343960cd08080e14e102
+    md5: 313b917b45b89868c7f71283bcdb98fd
     size: 8196
   - relpath: gee_pipeline/outputs/mgrs_tiles/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
@@ -38913,10 +38907,13 @@ outs:
     size: 6148
   - relpath: misc/ecoregion_biome_table.csv
     md5: 630ef63bb1d84591cbf2d874a963a5bc
+  - relpath: misc/knn-distance_all-traits_global_epsg4326_cog.tif
+    md5: dce250ff96ea933ca29eaab96753d439
+    size: 13098937755
   - relpath: readme.md
     md5: d41d8cd98f00b204e9800998ecf8427e
   - relpath: rtm_pipeline/.DS_Store
-    md5: b033a03c3a8e187d95144f1ecf4293a7
+    md5: 389844430057f939a6623c1cbbf8ae13
     size: 6148
   - relpath: rtm_pipeline/input/.DS_Store
     md5: 7f51e4813e03244af8054635df7e8f5f
@@ -46132,14 +46129,14 @@ outs:
   - relpath: rtm_pipeline/output/s2_reflectances/s2_reflectances_water.csv
     md5: 80c6fd8ab141b34a6818f0b20b6ae796
   - relpath: train_pipeline/.DS_Store
-    md5: 9f214153dbfec7108d177c0b2c344ab4
+    md5: 67ab52152c7bda2bf215ddffb91f17a8
     size: 6148
   - relpath: train_pipeline/output/.DS_Store
     md5: ee7faf79e32300f02d8367b4f7369e84
     size: 10244
   - relpath: train_pipeline/output/models/.DS_Store
-    md5: 6fb3001a69ea967991b37f11d0df1c5d
-    size: 8196
+    md5: bc08ccd91988c4ee930f946e9bf510b1
+    size: 6148
   - relpath: train_pipeline/output/models/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: 
@@ -46464,8 +46461,6 @@ outs:
       train_pipeline/output/models/fcover/model_optuna-v2-fcover-mlp-split-4_split.json
     md5: baa2cd28a2441e37a57086efc5255147
     size: 259
-  - relpath: train_pipeline/output/models/lai/.DS_Store
-    md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/models/laie/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
     size: 6148
@@ -46639,7 +46634,7 @@ outs:
     md5: 34732c851ec6b605a1c606e818d13965
     size: 447
   - relpath: train_pipeline/output/plots/.DS_Store
-    md5: 4832177838c3918fa83db2f6dff06f3e
+    md5: 79edb4ae3529d28ab2f24bcd740959b6
     size: 6148
   - relpath: train_pipeline/output/plots/fapar/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
@@ -46805,8 +46800,6 @@ outs:
       train_pipeline/output/plots/fcover/predicted_vs_true_val_train_model_optuna-v2-fcover-mlp-split-4.png
     md5: b6a8996ec49a49dc0e8a574061e564c8
     size: 3399924
-  - relpath: train_pipeline/output/plots/lai/.DS_Store
-    md5: 194577a7e20bdcc7afbb718f502c134c
   - relpath: train_pipeline/output/plots/laie/.DS_Store
     md5: 194577a7e20bdcc7afbb718f502c134c
     size: 6148
@@ -46898,30 +46891,30 @@ outs:
     size: 6148
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/fapar/recalibration_uncertainty_model_fapar_s2biophys_v02.pkl
-    md5: 0a22800639acf63059eed832fd9e8fa0
-    size: 426
+    md5: c918796b2b2af13590d0a7b55a9cd60f
+    size: 496
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/fapar/recalibration_uncertainty_table_fapar_s2biophys_v02.csv
-    md5: 69a411c49a03e54bd63f7c4ce5c82f2d
-    size: 3770
+    md5: 0bd8fb6997564e4b254288cf7ecf13fd
+    size: 3769
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/fcover/recalibration_uncertainty_model_fcover_s2biophys_v02.pkl
-    md5: ea9c8bb72bfcf5c6f102e5df67b85ea6
-    size: 426
+    md5: 2c0c098eea64387cb89b35977ec6e7b7
+    size: 496
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/fcover/recalibration_uncertainty_table_fcover_s2biophys_v02.csv
-    md5: d1b6a07434872217c5f936e0009f605b
+    md5: d9b31850a560937cec0c4c2837e4d98d
     size: 3742
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/laie/recalibration_uncertainty_model_laie_s2biophys_v02.pkl
-    md5: 1a35d6b58d4b47e6f578d6126be28157
-    size: 426
+    md5: 87ee75c474e549777f1e3aa82961513d
+    size: 496
   - relpath: 
       train_pipeline/output/uncertainty_recalibration/laie/recalibration_uncertainty_table_laie_s2biophys_v02.csv
-    md5: fdd2dd981eda41e76b380410b41243ec
-    size: 3638
+    md5: 3e4e1f2bda3334aeb5938f9f7664fb6a
+    size: 3641
   - relpath: validation_pipeline/.DS_Store
-    md5: 7ef58fd444228f31c7adfacd28b1eef9
+    md5: ecd6e72baa8f0d922ed704dc6ad6ae54
     size: 6148
   - relpath: validation_pipeline/input/.DS_Store
     md5: 77ffd279b14d91c9ffe8eacd4fc49799
