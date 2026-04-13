@@ -1,3 +1,0 @@
-TODO: Update Tutorials;
-
-Currently Tutorials are deprecated...

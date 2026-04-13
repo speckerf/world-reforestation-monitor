@@ -31,3 +31,6 @@ posthoc-calibration/
 OLD_FIGURES/
 test_groundedeo/
 test_sl2p/
+SL2P_PYTHON/
+zenodo-upload/code/test_zen_multi_bucket.py
+tutorials/
