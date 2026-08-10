@@ -140,9 +140,14 @@ devtools::install_github("speckerf/prosail")
 
 **Setup OPTUNA Database:**
 ```bash
-# Install MySQL
+# Install MySQL (tested with version: MySQL 8.4)
+brew install mysql@8.4
+
+# Start MySQL
+brew services start mysql@8.4
+
 # Create database
-mysql -u root -p -e "CREATE DATABASE oemc;"
+mysql -u root -e "CREATE DATABASE oemc;"
 ```
 
 Update `config/train_pipeline.yaml` with database connection details.

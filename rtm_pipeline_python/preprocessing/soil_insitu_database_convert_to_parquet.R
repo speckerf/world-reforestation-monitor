@@ -4,7 +4,7 @@
 # path to R installation: "/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources"
 
 # Load required packages
-library(qs)
+library(qs2)
 library(arrow)
 library(tidyverse)
 
@@ -22,8 +22,8 @@ convert_qs_to_parquet <- function(data_dir) {
     parquet_file <- file.path(data_dir, paste0(base_name, ".parquet"))
     
     # Read the .qs file and write to .parquet
-    data <- qread(qs_file)
-    write_parquet(data, parquet_file)
+    data <- qs2::qs_read(qs_file)
+    arrow::write_parquet(data, parquet_file)
     
     cat("Converted:", qs_file, "to", parquet_file, "\n")
   }
