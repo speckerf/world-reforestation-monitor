@@ -1,0 +1,30 @@
+# Vegetation-specific model training config
+# Based on config/train_pipeline.yaml with reduced trial budgets
+
+# trait: ['laie', 'fapar', 'fcover']
+trait: 'fapar'
+
+# Study name template — (GROUP) and (FOLD) are additional placeholders
+optuna_study_name: "veg-v1-(TRAIT)-group(GROUP)-fold(FOLD)-(MODEL)"
+optuna_storage: "mysql://root@localhost/oemc_test"
+
+# RMSE reporting thresholds for optuna dashboard visibility
+optuna_report_thresh:
+  fcover: 2.0
+  fapar: 2.0
+  laie: 5
+
+mlp_grid:
+  hidden_layer_sizes: ['5', '10', '5_5', '10_5']
+  activation: ['tanh', 'relu']
+  learning_rate: ['constant', 'adaptive']
+  alpha: [0.0001, 0.001, 0.01, 0.1]
+  max_iter: [5000]
+
+model_version: 'v02'
+# ensemble_size: 5
+model: 'mlp'
+
+# Half the budget of the global training
+optuna_n_trials: 20
+optuna_n_startup_trials: 10

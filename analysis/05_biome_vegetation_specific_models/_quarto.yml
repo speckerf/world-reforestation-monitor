@@ -1,0 +1,21 @@
+project:
+  type: default
+  output-dir: _output
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  freeze: auto
+
+format:
+  pdf:
+    documentclass: article
+    toc: true
+    number-sections: true
+    fig-pos: H
+    tbl-cap-location: top
+
+bibliography: references.bib
+
+metadata-files: []

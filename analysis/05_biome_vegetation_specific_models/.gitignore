@@ -1,0 +1,44 @@
+/.quarto/
+**/*.quarto_ipynb
+depreeated/
+
+
+# Quarto-generated
+_output/
+_freeze/
+.quarto/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+~$*
+.DS_Store
+
+# Raw / large data
+data/*
+!data/recode_table.csv
+
+# Model outputs / intermediate results
+results/*
+!results/figures/
+!results/tables/
+results/figures/*
+results/tables/*
+
+# Python
+__pycache__/
+*.pyc
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Excel scratch files
+*.xlsx

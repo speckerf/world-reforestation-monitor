@@ -1,0 +1,55 @@
+BIOME_NAME,NLCD_RECODED,RECODED_GROUP,RECODED_NAME
+Tundra,Cropland,,
+Boreal Forests/Taiga,Cropland,,
+Deserts & Xeric Shrublands,Cropland,,
+"Mediterranean Forests, Woodlands & Scrub",Cropland,,
+Temperate Broadleaf & Mixed Forests,Cropland,4,Temperate non-forest vegetation
+Temperate Conifer Forests,Cropland,4,Temperate non-forest vegetation
+"Temperate Grasslands, Savannas & Shrublands",Cropland,4,Temperate non-forest vegetation
+Tropical & Subtropical Dry Broadleaf Forests,Cropland,,
+Tropical & Subtropical Moist Broadleaf Forests,Cropland,,
+Tundra,"Deciduous/Mixed Forest",-1,
+Boreal Forests/Taiga,"Deciduous/Mixed Forest",,
+Deserts & Xeric Shrublands,"Deciduous/Mixed Forest",,
+"Mediterranean Forests, Woodlands & Scrub","Deciduous/Mixed Forest",8,Mediterranean forests & woodlands
+Temperate Broadleaf & Mixed Forests,"Deciduous/Mixed Forest",5,Temperate broadleaf & mixed forests
+Temperate Conifer Forests,"Deciduous/Mixed Forest",5,Temperate broadleaf & mixed forests
+"Temperate Grasslands, Savannas & Shrublands","Deciduous/Mixed Forest",5,Temperate broadleaf & mixed forests
+Tropical & Subtropical Dry Broadleaf Forests,"Deciduous/Mixed Forest",,
+Tropical & Subtropical Moist Broadleaf Forests,"Deciduous/Mixed Forest",,
+Tundra,Evergreen Forest,1,Cold-climate evergreen forests
+Boreal Forests/Taiga,Evergreen Forest,1,Cold-climate evergreen forests
+Deserts & Xeric Shrublands,Evergreen Forest,-1,
+"Mediterranean Forests, Woodlands & Scrub",Evergreen Forest,8,Mediterranean forests & woodlands
+Temperate Broadleaf & Mixed Forests,Evergreen Forest,6,Temperate evergreen forests
+Temperate Conifer Forests,Evergreen Forest,6,Temperate evergreen forests
+"Temperate Grasslands, Savannas & Shrublands",Evergreen Forest,6,Temperate evergreen forests
+Tropical & Subtropical Dry Broadleaf Forests,Evergreen Forest,7,Tropical evergreen forests
+Tropical & Subtropical Moist Broadleaf Forests,Evergreen Forest,7,Tropical evergreen forests
+Tundra,Grassland,2,Open tundra vegetation
+Boreal Forests/Taiga,Grassland,,
+Deserts & Xeric Shrublands,Grassland,,
+"Mediterranean Forests, Woodlands & Scrub",Grassland,-1,
+Temperate Broadleaf & Mixed Forests,Grassland,4,Temperate non-forest vegetation
+Temperate Conifer Forests,Grassland,4,Temperate non-forest vegetation
+"Temperate Grasslands, Savannas & Shrublands",Grassland,4,Temperate non-forest vegetation
+Tropical & Subtropical Dry Broadleaf Forests,Grassland,-1,
+Tropical & Subtropical Moist Broadleaf Forests,Grassland,,
+Tundra,Shrubland,2,Open tundra vegetation
+Boreal Forests/Taiga,Shrubland,,
+Deserts & Xeric Shrublands,Shrubland,3,Arid shrublands
+"Mediterranean Forests, Woodlands & Scrub",Shrubland,-1,
+Temperate Broadleaf & Mixed Forests,Shrubland,4,Temperate non-forest vegetation
+Temperate Conifer Forests,Shrubland,4,Temperate non-forest vegetation
+"Temperate Grasslands, Savannas & Shrublands",Shrubland,4,Temperate non-forest vegetation
+Tropical & Subtropical Dry Broadleaf Forests,Shrubland,,
+Tropical & Subtropical Moist Broadleaf Forests,Shrubland,,
+Tundra,Wetlands,2,Open tundra vegetation
+Boreal Forests/Taiga,Wetlands,,
+Deserts & Xeric Shrublands,Wetlands,,
+"Mediterranean Forests, Woodlands & Scrub",Wetlands,,
+Temperate Broadleaf & Mixed Forests,Wetlands,4,Temperate non-forest vegetation
+Temperate Conifer Forests,Wetlands,4,Temperate non-forest vegetation
+"Temperate Grasslands, Savannas & Shrublands",Wetlands,4,Temperate non-forest vegetation
+Tropical & Subtropical Dry Broadleaf Forests,Wetlands,,
+Tropical & Subtropical Moist Broadleaf Forests,Wetlands,,
