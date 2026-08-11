@@ -19,7 +19,7 @@ from optuna.samplers import TPESampler
 from optuna.storages import RDBStorage
 from optuna.study import MaxTrialsCallback
 from optuna.trial import TrialState
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupKFold, train_test_split
 
 BASE_DIR_ALL = Path(__file__).resolve().parents[3]
 sys.path.append(str(BASE_DIR_ALL))
@@ -39,6 +39,49 @@ from train_pipeline.utils_training import merge_dicts_safe
 
 VEG_CONFIG_PATH = BASE_DIR_ANALYSIS / "config" / "train_pipeline_veg.yaml"
 CV_SPLITS_PATH = BASE_DIR_ANALYSIS / "data" / "cv_splits.csv"
+
+
+def add_global_group9_splits(
+    cv_splits: pd.DataFrame,
+    df_val: pd.DataFrame,
+    n_splits: int = 3,
+) -> pd.DataFrame:
+    """Add synthetic group 9 with ecoregion-based folds across groups 1..8 samples."""
+    cv = cv_splits.copy()
+    cv["RECODED_GROUP"] = cv["RECODED_GROUP"].astype(int)
+    cv = cv[cv["test_fold"] >= 0]
+
+    # Ensure idempotency if script is rerun with an already-augmented CSV.
+    cv = cv[cv["RECODED_GROUP"] != 9]
+
+    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][["uuid", "ECO_ID"]].drop_duplicates()
+    if base.empty:
+        raise RuntimeError("No base samples found in groups 1..8 for creating group 9 splits")
+
+    available = df_val[["uuid", "ECO_ID"]].drop_duplicates()
+    base = base.merge(available, on=["uuid", "ECO_ID"], how="inner")
+    if base.empty:
+        raise RuntimeError("No overlap between cv_splits groups 1..8 and validation data")
+
+    gkf = GroupKFold(n_splits=n_splits)
+    fold_by_uuid: dict[str, int] = {}
+    X_dummy = base[["uuid"]]
+    y_dummy = pd.Series([0] * len(base))
+
+    for fold_id, (_, test_idx) in enumerate(gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])):
+        uuids_fold = base.iloc[test_idx]["uuid"].tolist()
+        for u in uuids_fold:
+            fold_by_uuid[u] = fold_id
+
+    group9 = base.copy()
+    group9["RECODED_GROUP"] = 9
+    group9["test_fold"] = group9["uuid"].map(fold_by_uuid)
+
+    cv_aug = pd.concat(
+        [cv, group9[["uuid", "ECO_ID", "RECODED_GROUP", "test_fold"]]],
+        ignore_index=True,
+    )
+    return cv_aug
 
 
 def load_veg_config() -> dict:
@@ -133,6 +176,9 @@ def prepare_validation_data_for_group(
     angles = ["tts", "tto", "psi"]
 
     splits_group = cv_splits[cv_splits["RECODED_GROUP"] == group_id]
+    if splits_group.empty:
+        raise ValueError(f"No cv_splits rows found for group_id={group_id}")
+
     test_uuids = set(splits_group[splits_group["test_fold"] == fold_id]["uuid"])
 
     df_group = df_val[df_val["uuid"].isin(splits_group["uuid"])]
@@ -280,13 +326,12 @@ def main() -> None:
 
     logger.info(f"Vegetation-specific model training | trait='{trait}'")
 
-    cv_splits = pd.read_csv(CV_SPLITS_PATH)
-    cv_splits["RECODED_GROUP"] = cv_splits["RECODED_GROUP"].astype(int)
-    cv_splits = cv_splits[cv_splits["test_fold"] >= 0]
-
     df_val = load_grounded_eo_validation_data().rename(
         columns={"phi": "psi", "sza": "tts", "vza": "tto"}
     )
+
+    cv_splits = pd.read_csv(CV_SPLITS_PATH)
+    cv_splits = add_global_group9_splits(cv_splits=cv_splits, df_val=df_val, n_splits=3)
 
     storage = RDBStorage(url=base_config["optuna_storage"])
 

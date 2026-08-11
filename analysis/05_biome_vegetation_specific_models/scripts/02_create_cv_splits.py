@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Create reproducible cross-validation splits."""
 
 from __future__ import annotations
@@ -7,7 +6,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import yaml
 from sklearn.model_selection import GroupKFold
 
 # add base directory to sys.path to import train_pipeline.utilsLoading

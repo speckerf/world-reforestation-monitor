@@ -29,7 +29,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RUNNER_SCRIPT = Path(__file__).resolve().parent / "03a_train_models.py"
 
 VALID_TRAITS = ("fapar", "fcover", "laie")
-DEFAULT_GROUPS = (6, 5, 4, 3, 8, 7, 1, 2)
+DEFAULT_GROUPS = (6, 5, 4, 3, 8, 7, 1, 2, 9)
 DEFAULT_FOLDS = (0, 1, 2)
 
 
@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         type=int,
         default=list(DEFAULT_GROUPS),
-        help="Recoded group IDs to run (default: 1..8).",
+        help="Recoded group IDs to run (default includes synthetic global group 9).",
     )
     parser.add_argument(
         "--folds",

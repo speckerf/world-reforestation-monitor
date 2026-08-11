@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.model_selection import GroupKFold
 
 BASE_DIR_ALL = Path(__file__).resolve().parents[3]
 sys.path.append(str(BASE_DIR_ALL))
@@ -36,6 +37,46 @@ from train_pipeline.utils_loading import load_grounded_eo_validation_data
 BANDS = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
 ANGLES = ["tts", "tto", "psi"]
 FEATURES = BANDS + ANGLES
+
+
+def add_global_group9_splits(
+    cv_splits: pd.DataFrame,
+    df_val: pd.DataFrame,
+    n_splits: int = 3,
+) -> pd.DataFrame:
+    """Add synthetic group 9 with ecoregion-based folds across groups 1..8 samples."""
+    cv = cv_splits.copy()
+    cv["RECODED_GROUP"] = cv["RECODED_GROUP"].astype(int)
+    cv = cv[cv["test_fold"] >= 0]
+    cv = cv[cv["RECODED_GROUP"] != 9]
+
+    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][["uuid", "ECO_ID"]].drop_duplicates()
+    if base.empty:
+        raise RuntimeError("No base samples found in groups 1..8 for creating group 9 splits")
+
+    available = df_val[["uuid", "ECO_ID"]].drop_duplicates()
+    base = base.merge(available, on=["uuid", "ECO_ID"], how="inner")
+    if base.empty:
+        raise RuntimeError("No overlap between cv_splits groups 1..8 and validation data")
+
+    gkf = GroupKFold(n_splits=n_splits)
+    fold_by_uuid: dict[str, int] = {}
+    X_dummy = base[["uuid"]]
+    y_dummy = pd.Series([0] * len(base))
+
+    for fold_id, (_, test_idx) in enumerate(gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])):
+        uuids_fold = base.iloc[test_idx]["uuid"].tolist()
+        for u in uuids_fold:
+            fold_by_uuid[u] = fold_id
+
+    group9 = base.copy()
+    group9["RECODED_GROUP"] = 9
+    group9["test_fold"] = group9["uuid"].map(fold_by_uuid)
+
+    return pd.concat(
+        [cv, group9[["uuid", "ECO_ID", "RECODED_GROUP", "test_fold"]]],
+        ignore_index=True,
+    )
 
 
 @dataclass
@@ -133,7 +174,7 @@ def load_model_artifacts(models_dir: Path, trait: str) -> list[ModelArtifact]:
     return artifacts
 
 
-def load_eval_dataframe(cv_splits_path: Path, trait: str) -> pd.DataFrame:
+def load_eval_dataframe(cv_splits_path: Path, trait: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     df_val = load_grounded_eo_validation_data().rename(
         columns={"phi": "psi", "sza": "tts", "vza": "tto"}
     )
@@ -144,28 +185,25 @@ def load_eval_dataframe(cv_splits_path: Path, trait: str) -> pd.DataFrame:
         raise KeyError(f"Validation data missing columns: {missing_val_cols}")
 
     cv_splits = pd.read_csv(cv_splits_path)
-    cv_splits["RECODED_GROUP"] = cv_splits["RECODED_GROUP"].astype(int)
-    cv_splits = cv_splits[cv_splits["test_fold"] >= 0]
+    cv_splits = add_global_group9_splits(cv_splits=cv_splits, df_val=df_val, n_splits=3)
 
     required_cv_cols = ["uuid", "ECO_ID", "RECODED_GROUP", "test_fold"]
     missing_cv_cols = [c for c in required_cv_cols if c not in cv_splits.columns]
     if missing_cv_cols:
         raise KeyError(f"cv_splits missing columns: {missing_cv_cols}")
 
-    df_eval = df_val.merge(
-        cv_splits[required_cv_cols],
-        on=["uuid", "ECO_ID"],
-        how="inner",
-    )
+    valid_uuids = set(cv_splits["uuid"].tolist())
+    df_eval = df_val[df_val["uuid"].isin(valid_uuids)].copy()
 
     if df_eval.empty:
         raise RuntimeError("No overlapping rows between validation data and cv_splits")
 
-    return df_eval
+    return df_eval, cv_splits[required_cv_cols].copy()
 
 
 def evaluate_models(
     df_eval: pd.DataFrame,
+    cv_splits: pd.DataFrame,
     artifacts: list[ModelArtifact],
     trait: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -189,9 +227,18 @@ def evaluate_models(
         y_pred_all = np.asarray(model.predict(X_all)).squeeze()
         ensemble_preds.append(y_pred_all)
 
-        mask_group = df_eval["RECODED_GROUP"] == artifact.group_id
-        mask_oos = mask_group & (df_eval["test_fold"] == artifact.fold_id)
-        mask_cal = mask_group & (df_eval["test_fold"] != artifact.fold_id)
+        group_rows = cv_splits[cv_splits["RECODED_GROUP"] == artifact.group_id]
+        if group_rows.empty:
+            logger.warning(
+                f"No split rows found for group={artifact.group_id}; skipping {artifact.study_name}"
+            )
+            continue
+
+        uuids_oos = set(group_rows[group_rows["test_fold"] == artifact.fold_id]["uuid"].tolist())
+        uuids_cal = set(group_rows[group_rows["test_fold"] != artifact.fold_id]["uuid"].tolist())
+
+        mask_oos = df_eval["uuid"].isin(uuids_oos)
+        mask_cal = df_eval["uuid"].isin(uuids_cal)
 
         y_true_oos = df_eval.loc[mask_oos, trait].to_numpy()
         y_pred_oos = y_pred_all[mask_oos.to_numpy()]
@@ -302,10 +349,20 @@ def evaluate_models(
             }
         )
 
-    ensemble_predictions_df = df_eval[
-        ["uuid", "ECO_ID", "RECODED_GROUP", "test_fold", trait]
-    ].copy()
+    sample_split_map = (
+        cv_splits[cv_splits["RECODED_GROUP"].isin(range(1, 9))][
+            ["uuid", "RECODED_GROUP", "test_fold"]
+        ]
+        .drop_duplicates(subset=["uuid"])
+        .copy()
+    )
+    ensemble_predictions_df = df_eval[["uuid", "ECO_ID", trait]].copy()
     ensemble_predictions_df = ensemble_predictions_df.rename(columns={trait: "y_true"})
+    ensemble_predictions_df = ensemble_predictions_df.merge(
+        sample_split_map,
+        on="uuid",
+        how="left",
+    )
     ensemble_predictions_df["y_pred_ensemble"] = y_pred_ensemble
 
     per_model_df = pd.DataFrame(per_model_rows)
@@ -323,12 +380,13 @@ def main() -> None:
     artifacts = load_model_artifacts(args.models_dir, args.trait)
     logger.info(f"Loaded {len(artifacts)} model artifacts for trait='{args.trait}'")
 
-    df_eval = load_eval_dataframe(args.cv_splits, args.trait)
+    df_eval, cv_splits = load_eval_dataframe(args.cv_splits, args.trait)
     logger.info(f"Validation rows available for evaluation: {len(df_eval)}")
 
     per_model_df, split_df, stacked_df, summary_df, ensemble_predictions_df = (
         evaluate_models(
             df_eval=df_eval,
+            cv_splits=cv_splits,
             artifacts=artifacts,
             trait=args.trait,
         )
