@@ -6,7 +6,7 @@ trait: 'fapar'
 
 # Study name template — (GROUP) and (FOLD) are additional placeholders
 optuna_study_name: "veg-v1-(TRAIT)-group(GROUP)-fold(FOLD)-(MODEL)"
-optuna_storage: "mysql://root@localhost/oemc_test"
+optuna_storage: "mysql://root@localhost/oemc_supp_05"
 
 # RMSE reporting thresholds for optuna dashboard visibility
 optuna_report_thresh:
