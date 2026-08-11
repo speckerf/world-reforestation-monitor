@@ -38,3 +38,93 @@ quarto render supplementary.qmd
 - Script defaults are relative to this folder.
 - Replace placeholder column names (for example `target`, `land_cover`) with your dataset schema.
 - Update `references.bib` with exact citations used in the manuscript.
+
+
+
+## Optuna MySQL setup
+
+Optuna studies use a private MySQL instance running on port `3307`.
+
+### Initial setup
+
+Create and initialize a user-owned MySQL data directory:
+
+```bash
+mkdir -p ~/mysql-data
+
+mysqld \
+  --initialize-insecure \
+  --datadir="$HOME/mysql-data"
+```
+
+This only needs to be done once.
+
+### Start MySQL
+
+```bash
+mysqld \
+  --datadir="$HOME/mysql-data" \
+  --port=3307 \
+  --socket="$HOME/mysql.sock" \
+  --mysqlx=OFF \
+  > "$HOME/mysql.log" 2>&1 &
+```
+
+Check that the server is running:
+
+```bash
+mysqladmin -u root --socket="$HOME/mysql.sock" ping
+```
+
+Expected output:
+
+```text
+mysqld is alive
+```
+
+### Create the Optuna database
+
+Connect:
+
+```bash
+mysql -u root --socket="$HOME/mysql.sock"
+```
+
+Create the database:
+
+```sql
+CREATE DATABASE oemc_supp_05;
+SHOW DATABASES;
+exit;
+```
+
+This only needs to be done once.
+
+### Optuna configuration
+
+Use the private MySQL instance on port `3307`:
+
+```yaml
+optuna_storage: "mysql://root@127.0.0.1:3307/oemc_supp_05"
+```
+
+### Stop MySQL
+
+```bash
+mysqladmin -u root --socket="$HOME/mysql.sock" shutdown
+```
+
+### After a restart
+
+The database persists in `~/mysql-data`. Only restart the server:
+
+```bash
+mysqld \
+  --datadir="$HOME/mysql-data" \
+  --port=3307 \
+  --socket="$HOME/mysql.sock" \
+  --mysqlx=OFF \
+  > "$HOME/mysql.log" 2>&1 &
+```
+
+Do **not** rerun `--initialize-insecure` after the initial setup.
