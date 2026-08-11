@@ -127,4 +127,6 @@ mysqld \
   > "$HOME/mysql.log" 2>&1 &
 ```
 
+optuna-dashboard 'mysql://root@127.0.0.1:3307/oemc_supp_05'
+
 Do **not** rerun `--initialize-insecure` after the initial setup.
