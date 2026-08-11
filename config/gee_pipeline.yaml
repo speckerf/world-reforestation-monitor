@@ -1,8 +1,8 @@
 PIPELINE_PARAMS:
-  YEAR: 2025
+  YEAR: 2020
   OUTPUT_RESOLUTION: 20 # in meters
   CAST_TO_INT16: TRUE
-  VARIABLE: 'fcover'
+  VARIABLE: 'laie'
   ENSEMBLE_SIZE: 5 
   # use this for 100m
   # EXPORT_BANDS: ['mean', 'stdDev', 'count', 'stdDev_within', 'stdDev_across'] # which bands to export (for 20m resolution, mean is always exported, stdDev, count, stdDev_within and stdDev_across are only exported if EXPORT_STD_FOR_20m is set to TRUE)

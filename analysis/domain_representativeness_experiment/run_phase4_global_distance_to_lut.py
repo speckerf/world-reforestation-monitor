@@ -20,7 +20,7 @@ from analysis.domain_representativeness_experiment.prepare_lut_domain import (
     load_lut_for_trait,
 )
 from ee_translator.ee_standard_scaler import eeStandardScaler
-from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
+from gee_pipeline.utils_cloudfree import apply_cloudScorePlus_mask
 
 BAND_NAMES = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
 N_NEAREST_NEIGHBORS = 5

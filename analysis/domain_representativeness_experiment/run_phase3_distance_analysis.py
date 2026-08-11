@@ -52,7 +52,7 @@ def load_domains():
             "  UUID not found in spectra file, attempting to load from validation data..."
         )
         try:
-            from train_pipeline.utilsLoading import load_grounded_eo_validation_data
+            from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
             full_val_data = load_grounded_eo_validation_data()
             rms_uuid = full_val_data["uuid"].values

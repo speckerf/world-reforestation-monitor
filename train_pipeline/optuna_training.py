@@ -2,7 +2,6 @@ import json
 import os
 from pickle import dump as pickle_dump
 
-import ee
 import numpy as np
 import optuna
 import pandas as pd
@@ -19,10 +18,10 @@ from rtm_pipeline_python.classes import (
     helper_apply_posthoc_modifications,
     rtm_simulator,
 )
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
-from train_pipeline.utilsOptuna import log_splits, optuna_init_config
-from train_pipeline.utilsPlotting import plot_predicted_vs_true
-from train_pipeline.utilsTraining import (
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
+from train_pipeline.utils_optuna import log_splits, optuna_init_config
+from train_pipeline.utils_plotting import plot_predicted_vs_true
+from train_pipeline.utils_training import (
     get_model,
     get_pipeline,
     limit_prediction_range,
@@ -79,8 +78,6 @@ def save_lut_and_ranges(
     ) as f:
         json.dump(min_max_label_values, f)
 
-    return None
-
 
 def transform_X_y(
     X: pd.DataFrame,
@@ -133,7 +130,7 @@ def prepare_validation_data(config, trait, trial):
         columns={"phi": "psi", "sza": "tts", "vza": "tto"}
     )
 
-    all_eco_ids = df_val_trait["ECO_ID"].unique()
+    # all_eco_ids = df_val_trait["ECO_ID"].unique()
 
     # GroupKFold splits
     skf = GroupKFold(n_splits=config["group_k_fold_splits"])
@@ -148,7 +145,6 @@ def prepare_validation_data(config, trait, trial):
         df_val_trait["ECO_ID"].values[df_val_test_idx].unique()
         for _, df_val_test_idx in splits
     ]
-    #
 
     # Get indices for the current train/test split
     val_eco_train_split_indices, val_eco_test_split_indices = splits[
@@ -239,6 +235,9 @@ def predict_and_evaluate(model, X_train, X_test, y_train, y_test, trait):
         y_train = y_train.drop(columns="uuid")
         y_test = y_test.drop(columns="uuid")
 
+    y_train = np.asarray(y_train).squeeze()
+    y_test = np.asarray(y_test).squeeze()
+
     predictions = {
         "y_train_pred": limit_prediction_range(model.predict(X_train), trait),
         "y_test_pred": limit_prediction_range(model.predict(X_test), trait),
@@ -283,9 +282,7 @@ def save_model_and_evaluation(model, eval_metrics, save_folder, trial, config):
 
 def report_optuna(scores, trial, trait, config):
     for key, val in scores.items():
-        if "_rmse" in key:
-            trial.set_user_attr(key, min(val, config["optuna_report_thresh"][trait]))
-        elif "_mae" in key:
+        if "_rmse" in key or "_mae" in key:
             trial.set_user_attr(key, min(val, config["optuna_report_thresh"][trait]))
         elif "_r2" in key:
             trial.set_user_attr(key, max(val, -1))
@@ -294,7 +291,6 @@ def report_optuna(scores, trial, trait, config):
 
         # other parameters to report
         trial.set_user_attr("config", config)
-    return None
 
 
 def create_model_domain_codes(df):

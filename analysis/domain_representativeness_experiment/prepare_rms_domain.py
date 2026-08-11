@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
 # Band mapping for Sentinel-2
 BAND_NAMES = [

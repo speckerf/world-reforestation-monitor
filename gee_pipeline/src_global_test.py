@@ -1,7 +1,7 @@
 import ee
 
 from config.config import get_config
-from gee_pipeline.srcGlobal import export_mgrs_tile
+from gee_pipeline.src_global import export_mgrs_tile
 
 service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
 credentials = ee.ServiceAccountCredentials(

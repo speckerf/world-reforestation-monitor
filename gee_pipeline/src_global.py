@@ -8,16 +8,16 @@ from loguru import logger
 from tqdm import tqdm
 
 from config.config import get_config
-from gee_pipeline.utilsAngles import add_angles_from_metadata_to_bands
-from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
-from gee_pipeline.utilsExportAgent import MGRSExportAgent
-from gee_pipeline.utilsPredict import eeEnsemblePredictSingleImg, scale_and_cast_to_int
-from gee_pipeline.utilsTiles import (
+from gee_pipeline.utils_angles import add_angles_from_metadata_to_bands
+from gee_pipeline.utils_cloudfree import apply_cloudScorePlus_mask
+from gee_pipeline.utils_export_agent import MGRSExportAgent
+from gee_pipeline.utils_predict import eeEnsemblePredictSingleImg, scale_and_cast_to_int
+from gee_pipeline.utils_tiles import (
     add_group,
     get_epsg_code_from_mgrs,
     get_s2_indices_filtered,
 )
-from train_pipeline.finalTraining import load_model_ensemble
+from train_pipeline.final_training import load_model_ensemble
 
 # Comment out the following lines to use the default GEE credentials
 service_account = "crowther-gee@gem-eth-analysis.iam.gserviceaccount.com"
@@ -364,6 +364,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # wait 1 hour
-    # time.sleep(3 * 3600)
+    # wait 2 mins
+    time.sleep(2 * 60)
     main()

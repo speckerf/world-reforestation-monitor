@@ -50,13 +50,7 @@ def optuna_init_config(trial):
     config_training = get_config("train_pipeline")
     trait = config_training["trait"]
 
-    if trait == "fapar":
-        config_transform_target = {
-            "transform_target": trial.suggest_categorical(
-                "transform_target", ["logit", "log1p", "None"]
-            ),
-        }
-    elif trait == "fcover":
+    if trait == "fapar" or trait == "fcover":
         config_transform_target = {
             "transform_target": trial.suggest_categorical(
                 "transform_target", ["logit", "log1p", "None"]

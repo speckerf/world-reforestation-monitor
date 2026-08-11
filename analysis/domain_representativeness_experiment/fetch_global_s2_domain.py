@@ -17,7 +17,7 @@ from pathlib import Path
 import ee
 import pandas as pd
 
-from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
+from gee_pipeline.utils_cloudfree import apply_cloudScorePlus_mask
 
 # Band mapping for Sentinel-2
 BAND_NAMES = [

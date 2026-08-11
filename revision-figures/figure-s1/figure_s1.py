@@ -13,7 +13,7 @@ from train_pipeline.predict_insitu_comparison import (
     predict_sl2p,
     predict_specker,
 )
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
 SMOOTH_KNOTS_ATTACHEMENT = {
     "laie": {"min": -0.5, "max": 5.5},

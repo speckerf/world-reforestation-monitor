@@ -8,11 +8,11 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 
 from SL2P_PYTHON.felix_model import load_SL2P_model
 from test_groundedeo.predict_grounded_eo import load_model as load_grounded_eo_model
-from train_pipeline.finalTraining import (
+from train_pipeline.final_training import (
     load_model_ensemble as load_specker_model_ensemble,
 )
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
-from train_pipeline.utilsTraining import r2_score_oos, uncertainty_agreement_ratio
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
+from train_pipeline.utils_training import r2_score_oos, uncertainty_agreement_ratio
 
 
 def calculate_metrics(y_true, y_pred, model_name):

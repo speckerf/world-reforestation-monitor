@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.colors import LogNorm
-from sklearn.metrics import (mean_absolute_error, r2_score,
-                             root_mean_squared_error)
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 
 
 def plot_predicted_vs_true(

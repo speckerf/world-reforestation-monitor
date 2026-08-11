@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -46,12 +44,11 @@ def uncertainty_agreement_ratio(y_true, y_pred, variable_name: str):
 
 # Custom transformer that converts specified columns (angles) to their cosines
 class AngleTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self._is_fitted = True
-
     def fit(self, X, y=None):
-        # No fitting necessary for cosine transformation
         return self
+
+    def __sklearn_is_fitted__(self):
+        return True
 
     def transform(self, X):
         # X is a numpy array here, not a DataFrame
@@ -59,12 +56,11 @@ class AngleTransformer(BaseEstimator, TransformerMixin):
 
 
 class NIRvTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self._is_fitted = True
-
     def fit(self, X, y=None):
-        # No fitting necessary for cosine transformation
         return self
+
+    def __sklearn_is_fitted__(self):
+        return True
 
     def transform(self, X):
         assert X.shape[1] == 10, f"Expected 10 bands, got {X.shape[1]}"
@@ -186,8 +182,8 @@ def pairwise_nan_remove(X, y):
 
 
 def limit_prediction_range(
-    y_pred: Union[np.array, pd.DataFrame], trait: str
-) -> Union[np.array, pd.DataFrame]:
+    y_pred: np.ndarray | pd.DataFrame, trait: str
+) -> np.ndarray | pd.DataFrame:
     min_values = {
         "lai": 0.000,
         "laie": 0.000,

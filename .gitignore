@@ -10,7 +10,8 @@
 # Ignore all .pytest_cache directories
 **/.pytest_cache/
 .Rproj.user
-
+.RData
+.Rhistory
 
 **/auth
 /data
@@ -34,3 +35,7 @@ test_sl2p/
 SL2P_PYTHON/
 zenodo-upload/code/test_zen_multi_bucket.py
 tutorials/
+world-reforestation-monitor-0*.zip
+data-v20250328.tar.gz
+data.tar.gz
+

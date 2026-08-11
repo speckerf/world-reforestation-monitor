@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from train_pipeline.finalTraining import predict_s2biophys
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
+from train_pipeline.final_training import predict_s2biophys
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
 warnings.filterwarnings("ignore")
 

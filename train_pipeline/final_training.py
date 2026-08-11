@@ -15,13 +15,13 @@ from loguru import logger
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 
 from config.config import get_config
-from train_pipeline.optunaTraining import objective
-from train_pipeline.utilsCalibration import (
+from train_pipeline.optuna_training import objective
+from train_pipeline.utils_calibration import (
     compute_calibration_metrics,
     smooth_tau_calibration,
 )
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
-from train_pipeline.utilsTraining import uncertainty_agreement_ratio
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
+from train_pipeline.utils_training import uncertainty_agreement_ratio
 
 
 def rerun_and_save_best_optuna(config: dict, study=None) -> None:

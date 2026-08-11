@@ -7,7 +7,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from train_pipeline.utilsLoading import load_grounded_eo_validation_data
+from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
 BACKGROUND = "land_ocean"  # options: "stock", "land_ocean", "plain"
 POINT_SIZE = 26

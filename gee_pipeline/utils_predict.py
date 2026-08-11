@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Tuple
+from typing import Any, Literal
 
 import ee
 import numpy as np
@@ -7,8 +7,8 @@ from sklearn.pipeline import Pipeline
 
 from ee_translator.ee_mlp_regressor import eeMLPRegressor
 from ee_translator.ee_standard_scaler import eeStandardScaler
-from gee_pipeline.utilsOOD import MinMaxRangeMasker
-from gee_pipeline.utilsTiles import add_group
+from gee_pipeline.utils_ood import MinMaxRangeMasker
+from gee_pipeline.utils_tiles import add_group
 
 
 def ee_calibrate_std(
@@ -101,7 +101,7 @@ def collapse_to_mean_and_stddev(
     imgc: ee.ImageCollection,
     return_count: bool,
     variable: Literal["laie", "fcover", "fapar"],
-    clamp_range: Optional[Tuple[int, int]] = None,
+    clamp_range: tuple[int, int] | None = None,
 ) -> ee.Image:
     raise DeprecationWarning(
         "This function is deprecated and should not be used anymore."
@@ -203,8 +203,8 @@ def eePipelinePredictMap(
     imgc: ee.ImageCollection,
     trait: str,
     model_config: dict,
-    min_max_bands: Optional[dict] = None,
-    min_max_label: Optional[dict] = None,
+    min_max_bands: dict | None = None,
+    min_max_label: dict | None = None,
 ):
     raise DeprecationWarning(
         "This function is deprecated and should not be used anymore. Use eeEnsemblePredictSingleImg instead."
@@ -271,7 +271,7 @@ def eePipelinePredictMap(
             ).copyProperties(image)
         )
     elif model_config["transform_target"] == "None":
-        imgc = imgc
+        pass
     else:
         raise ValueError(
             f"Unknown target transformation: {model_config['transform_target']}"
@@ -319,7 +319,7 @@ def _predict_regressor(x: ee.Image, pipeline, trait_name: str) -> ee.Image:
 def _inverse_target_transform(
     img_pred: ee.Image,
     pipeline,
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     trait_name: str,
 ) -> ee.Image:
     t = cfg.get("transform_target")
@@ -343,7 +343,7 @@ def _inverse_target_transform(
 
 
 def _predict_one_member(
-    img_base: ee.Image, model: Dict[str, Any], trait_name: str
+    img_base: ee.Image, model: dict[str, Any], trait_name: str
 ) -> ee.Image:
     pipeline = model["pipeline"]
     cfg = model.get("config", {})
@@ -373,10 +373,10 @@ def eeEnsemblePredictSingleImg(
     img: ee.Image,
     variable: Literal["laie", "fcover", "fapar"],
     mask_and_clamp: bool = True,
-    mask_range: Optional[Tuple[float, float]] = None,
-    clamp_range: Optional[Tuple[float, float]] = None,
-    calibrate_uncertainty: Optional[bool] = False,
-    uncertainty_calibration_table: Optional[pd.DataFrame] = None,
+    mask_range: tuple[float, float] | None = None,
+    clamp_range: tuple[float, float] | None = None,
+    calibrate_uncertainty: bool | None = False,
+    uncertainty_calibration_table: pd.DataFrame | None = None,
 ) -> ee.Image:
     """
     Predicts using an ensemble of models on a single image (ee.ImageCollection with one image)

@@ -10,7 +10,6 @@ from scipy.stats import truncnorm
 
 from rtm_pipeline_python.utils import (
     bool_to_r_str,
-    int_or_null_to_r_str,
     load_insitu_foliar_generated,
     load_s2_angles,
     predefined_prosail_params,
@@ -24,9 +23,9 @@ class rtm_simulator:
         self.config = config
         self.prosail_config = predefined_prosail_params(config["parameter_setup"])
         self.r_script_path = r_script_path
-        assert os.path.exists(
-            self.r_script_path
-        ), f"{self.r_script_path} does not exist"
+        assert os.path.exists(self.r_script_path), (
+            f"{self.r_script_path} does not exist"
+        )
         self.distributions = None
         self.insitu_foliar = None
         self.s2_angles = None
@@ -206,9 +205,9 @@ class rtm_simulator:
                 )
 
         if "EWT" not in InputPROSAIL.columns:
-            assert (
-                "Cw_rel" in InputPROSAIL.columns
-            ), f"Cw_rel not in InputPROSAIL.columns"
+            assert "Cw_rel" in InputPROSAIL.columns, (
+                "Cw_rel not in InputPROSAIL.columns"
+            )
             # InputPROSAIL$EWT <- ((InputPROSAIL$LMA)/(1-InputPROSAIL$Cw_rel))-InputPROSAIL$LMA
             InputPROSAIL["EWT"] = (
                 InputPROSAIL["LMA"] / (1 - InputPROSAIL["Cw_rel"])
@@ -240,18 +239,15 @@ class rtm_simulator:
 
             # Prepare rsoil arguments
             modify_rsoil = True
-            rsoil_insitu = (
-                True if self.config.get("rsoil_emit_insitu", "") == "insitu" else False
-            )
-            rsoil_emit = (
-                True if self.config.get("rsoil_emit_insitu", "") == "emit" else False
-            )
+            rsoil_insitu = bool(self.config.get("rsoil_emit_insitu", "") == "insitu")
+            rsoil_emit = bool(self.config.get("rsoil_emit_insitu", "") == "emit")
             rsoil_insitu_fraction = self.config["rsoil_fraction"] if rsoil_insitu else 0
             rsoil_emit_fraction = self.config["rsoil_fraction"] if rsoil_emit else 0
 
+            # use local Rscript to ensure R env is managed by renv and not the system R installation
             process = subprocess.Popen(
                 [
-                    "/usr/local/bin/Rscript",
+                    "Rscript",
                     self.r_script_path,
                     "--input",
                     input_path,
@@ -311,7 +307,7 @@ class rtm_simulator:
         return df_return
 
     def generate_lut(self):
-        logger.info(f"Generating LUT using PROSAIL...")
+        logger.info("Generating LUT using PROSAIL...")
 
         self.s2_angles = load_s2_angles(resync=False)
         # Generate input reflectances
@@ -326,7 +322,6 @@ class rtm_simulator:
 def prepare_dataset(df: pd.DataFrame):
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B11", "B12"]
     if "solar_azimuth" in df.columns:
-
         df["relative_azimuth"] = np.abs(df["solar_azimuth"] - df["view_azimuth"])
 
         # rename columns to match the expected names
@@ -343,12 +338,12 @@ def prepare_dataset(df: pd.DataFrame):
         df = df.drop(columns=["solar_azimuth", "view_azimuth"])
     else:
         angles = ["tts", "tto", "psi"]
-        assert all(
-            [angle in df.columns for angle in angles]
-        ), f"Missing angle columns: {angles}"
+        assert all(angle in df.columns for angle in angles), (
+            f"Missing angle columns: {angles}"
+        )
 
     # if bands are integers and larger than 1, divide by 10000
-    if all([df[band].dtype == int and df[band].max() > 1 for band in bands]):
+    if all(df[band].dtype == int and df[band].max() > 1 for band in bands):
         logger.debug("Dividing bands by 10000")
         df[bands] = df[bands] / 10000
 

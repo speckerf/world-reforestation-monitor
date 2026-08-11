@@ -9,7 +9,7 @@ import pandas as pd
 from loguru import logger
 from pyproj import CRS
 
-from gee_pipeline.utilsCloudfree import apply_cloudScorePlus_mask
+from gee_pipeline.utils_cloudfree import apply_cloudScorePlus_mask
 
 
 def return_mgrs_bounding_box(mgrs_tiles: list) -> ee.Geometry.BBox:
