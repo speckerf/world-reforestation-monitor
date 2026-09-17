@@ -1,0 +1,16 @@
+name: oemc-supp
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.13
+  - exactextract=0.3.0
+  - geopandas
+  - pandas
+  - numpy
+  - rasterio
+  - pyogrio
+  - matplotlib
+  - seaborn
+  - jupyterlab

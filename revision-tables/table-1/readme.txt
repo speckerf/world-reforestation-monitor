@@ -1,3 +1,9 @@
+CHANGELOG September 2026: 
+Table 1 only shows R2 and RMSE for S2BIOPHYS and SL2P. The full table is now shown in Table S4, which also shows GROUNDED-EO GPR model performance for FAPAR.  
+
+
+--------------
+
 Please see the following function for how to obtain the metrics:
 
 
