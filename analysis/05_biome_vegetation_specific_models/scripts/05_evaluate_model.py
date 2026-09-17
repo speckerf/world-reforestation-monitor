@@ -50,21 +50,29 @@ def add_global_group9_splits(
     cv = cv[cv["test_fold"] >= 0]
     cv = cv[cv["RECODED_GROUP"] != 9]
 
-    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][["uuid", "ECO_ID"]].drop_duplicates()
+    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][
+        ["uuid", "ECO_ID"]
+    ].drop_duplicates()
     if base.empty:
-        raise RuntimeError("No base samples found in groups 1..8 for creating group 9 splits")
+        raise RuntimeError(
+            "No base samples found in groups 1..8 for creating group 9 splits"
+        )
 
     available = df_val[["uuid", "ECO_ID"]].drop_duplicates()
     base = base.merge(available, on=["uuid", "ECO_ID"], how="inner")
     if base.empty:
-        raise RuntimeError("No overlap between cv_splits groups 1..8 and validation data")
+        raise RuntimeError(
+            "No overlap between cv_splits groups 1..8 and validation data"
+        )
 
     gkf = GroupKFold(n_splits=n_splits)
     fold_by_uuid: dict[str, int] = {}
     X_dummy = base[["uuid"]]
     y_dummy = pd.Series([0] * len(base))
 
-    for fold_id, (_, test_idx) in enumerate(gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])):
+    for fold_id, (_, test_idx) in enumerate(
+        gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])
+    ):
         uuids_fold = base.iloc[test_idx]["uuid"].tolist()
         for u in uuids_fold:
             fold_by_uuid[u] = fold_id
@@ -174,7 +182,9 @@ def load_model_artifacts(models_dir: Path, trait: str) -> list[ModelArtifact]:
     return artifacts
 
 
-def load_eval_dataframe(cv_splits_path: Path, trait: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_eval_dataframe(
+    cv_splits_path: Path, trait: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     df_val = load_grounded_eo_validation_data().rename(
         columns={"phi": "psi", "sza": "tts", "vza": "tto"}
     )
@@ -206,84 +216,137 @@ def evaluate_models(
     cv_splits: pd.DataFrame,
     artifacts: list[ModelArtifact],
     trait: str,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Evaluate biome-land-cover-specific models (groups 1–8)
+    against the generic model (group 9).
+
+    Each RM receives:
+      - one OOS prediction from its specific group model
+      - one OOS prediction from the generic model
+
+    Returns
+    -------
+    per_model_df
+        Fold-level calibration and OOS metrics.
+
+    split_df
+        Fold composition diagnostics.
+
+    oos_predictions_df
+        Sample-level OOS predictions for all models.
+
+    comparison_df
+        Specific-versus-generic OOS performance by validation group
+        and pooled across groups.
+    """
+
+    if df_eval["uuid"].duplicated().any():
+        raise ValueError("df_eval must contain exactly one row per uuid")
+
     X_all = df_eval[FEATURES]
-    y_all = df_eval[trait].to_numpy()
 
-    per_model_rows: list[dict] = []
-    split_rows: list[dict] = []
+    per_model_rows = []
+    split_rows = []
+    oos_rows = []
 
-    stacked_y_true: list[np.ndarray] = []
-    stacked_y_pred: list[np.ndarray] = []
-    stacked_uuid: list[str] = []
-    stacked_study: list[str] = []
+    # Map each RM to its ecological validation group.
+    specific_group_map = (
+        cv_splits.loc[
+            cv_splits["RECODED_GROUP"].between(1, 8),
+            ["uuid", "RECODED_GROUP"],
+        ]
+        .drop_duplicates()
+        .rename(columns={"RECODED_GROUP": "validation_group"})
+    )
 
-    ensemble_preds: list[np.ndarray] = []
+    if specific_group_map["uuid"].duplicated().any():
+        raise ValueError("A uuid is assigned to more than one specific group")
 
     for artifact in artifacts:
         with open(artifact.path_model, "rb") as f:
             model = pickle.load(f)
 
-        y_pred_all = np.asarray(model.predict(X_all)).squeeze()
-        ensemble_preds.append(y_pred_all)
+        y_pred_all = np.asarray(model.predict(X_all)).ravel()
 
-        group_rows = cv_splits[cv_splits["RECODED_GROUP"] == artifact.group_id]
+        group_rows = cv_splits.loc[cv_splits["RECODED_GROUP"] == artifact.group_id]
+
         if group_rows.empty:
             logger.warning(
-                f"No split rows found for group={artifact.group_id}; skipping {artifact.study_name}"
+                f"No split rows for group={artifact.group_id}; "
+                f"skipping {artifact.study_name}"
             )
             continue
 
-        uuids_oos = set(group_rows[group_rows["test_fold"] == artifact.fold_id]["uuid"].tolist())
-        uuids_cal = set(group_rows[group_rows["test_fold"] != artifact.fold_id]["uuid"].tolist())
+        fold_rows = group_rows.loc[group_rows["test_fold"] == artifact.fold_id]
+
+        cal_rows = group_rows.loc[group_rows["test_fold"] != artifact.fold_id]
+
+        uuids_oos = set(fold_rows["uuid"])
+        uuids_cal = set(cal_rows["uuid"])
 
         mask_oos = df_eval["uuid"].isin(uuids_oos)
         mask_cal = df_eval["uuid"].isin(uuids_cal)
 
+        # --------------------------------------------------------------
+        # OOS predictions
+        # --------------------------------------------------------------
+
         y_true_oos = df_eval.loc[mask_oos, trait].to_numpy()
         y_pred_oos = y_pred_all[mask_oos.to_numpy()]
 
-        y_true_cal = df_eval.loc[mask_cal, trait].to_numpy()
-        y_pred_cal = y_pred_all[mask_cal.to_numpy()]
-
-        if len(y_true_oos) == 0:
-            logger.warning(
-                f"No OOS samples for study={artifact.study_name} "
-                f"group={artifact.group_id} fold={artifact.fold_id}. Skipping OOS row."
+        if len(y_true_oos) > 0:
+            per_model_rows.append(
+                {
+                    "trait": trait,
+                    "study_name": artifact.study_name,
+                    "group_id": artifact.group_id,
+                    "fold_id": artifact.fold_id,
+                    "split": "validation_oos",
+                    **compute_metrics(y_true_oos, y_pred_oos),
+                }
             )
-        else:
-            row_oos = {
-                "trait": trait,
-                "study_name": artifact.study_name,
-                "group_id": artifact.group_id,
-                "fold_id": artifact.fold_id,
-                "split": "validation_oos",
-                **compute_metrics(y_true_oos, y_pred_oos),
-            }
-            per_model_rows.append(row_oos)
 
-            stacked_y_true.append(y_true_oos)
-            stacked_y_pred.append(y_pred_oos)
-            stacked_uuid.extend(df_eval.loc[mask_oos, "uuid"].tolist())
-            stacked_study.extend([artifact.study_name] * len(y_true_oos))
+            tmp = df_eval.loc[
+                mask_oos,
+                ["uuid", "ECO_ID", trait],
+            ].copy()
 
-        if len(y_true_cal) > 0:
-            row_cal = {
-                "trait": trait,
-                "study_name": artifact.study_name,
-                "group_id": artifact.group_id,
-                "fold_id": artifact.fold_id,
-                "split": "calibration_in_group",
-                **compute_metrics(y_true_cal, y_pred_cal),
-            }
-            per_model_rows.append(row_cal)
+            tmp = tmp.rename(columns={trait: "y_true"})
+            tmp["y_pred"] = y_pred_oos
+            tmp["model_group"] = artifact.group_id
+            tmp["fold_id"] = artifact.fold_id
+            tmp["study_name"] = artifact.study_name
 
-        ecos_val = sorted(
-            df_eval.loc[mask_oos, "ECO_ID"].dropna().astype(int).unique().tolist()
-        )
-        ecos_cal = sorted(
-            df_eval.loc[mask_cal, "ECO_ID"].dropna().astype(int).unique().tolist()
-        )
+            oos_rows.append(tmp)
+
+        # --------------------------------------------------------------
+        # Calibration metrics
+        # --------------------------------------------------------------
+
+        if mask_cal.any():
+            y_true_cal = df_eval.loc[mask_cal, trait].to_numpy()
+            y_pred_cal = y_pred_all[mask_cal.to_numpy()]
+
+            per_model_rows.append(
+                {
+                    "trait": trait,
+                    "study_name": artifact.study_name,
+                    "group_id": artifact.group_id,
+                    "fold_id": artifact.fold_id,
+                    "split": "calibration",
+                    **compute_metrics(y_true_cal, y_pred_cal),
+                }
+            )
+
+        # --------------------------------------------------------------
+        # Split diagnostics
+        # --------------------------------------------------------------
+
+        ecos_val = sorted(df_eval.loc[mask_oos, "ECO_ID"].dropna().astype(int).unique())
+
+        ecos_cal = sorted(df_eval.loc[mask_cal, "ECO_ID"].dropna().astype(int).unique())
+
         split_rows.append(
             {
                 "trait": trait,
@@ -299,76 +362,317 @@ def evaluate_models(
             }
         )
 
-    if not ensemble_preds:
-        raise RuntimeError("No models were loaded for ensemble evaluation")
+    per_model_df = pd.DataFrame(per_model_rows)
+    split_df = pd.DataFrame(split_rows)
 
-    ensemble_matrix = np.column_stack(ensemble_preds)
-    y_pred_ensemble = ensemble_matrix.mean(axis=1)
+    if not oos_rows:
+        raise RuntimeError("No OOS predictions were generated")
 
-    stacked_df = pd.DataFrame(
-        {
-            "uuid": stacked_uuid,
-            "study_name": stacked_study,
-            "y_true": np.concatenate(stacked_y_true)
-            if stacked_y_true
-            else np.array([]),
-            "y_pred": np.concatenate(stacked_y_pred)
-            if stacked_y_pred
-            else np.array([]),
+    oos_predictions_df = pd.concat(
+        oos_rows,
+        ignore_index=True,
+    )
+
+    # Each model family should provide exactly one OOS prediction per RM.
+    duplicates = oos_predictions_df.duplicated(["uuid", "model_group"])
+
+    if duplicates.any():
+        raise ValueError("Multiple OOS predictions found for the same uuid/model_group")
+
+    # ------------------------------------------------------------------
+    # Pair specific and generic OOS predictions
+    # ------------------------------------------------------------------
+
+    specific = oos_predictions_df.loc[
+        oos_predictions_df["model_group"].between(1, 8)
+    ].merge(
+        specific_group_map,
+        on="uuid",
+        how="inner",
+        validate="one_to_one",
+    )
+
+    # Sanity check: the OOS prediction must come from the RM's own group.
+    if not (specific["model_group"] == specific["validation_group"]).all():
+        raise ValueError("Specific prediction does not match RM validation group")
+
+    generic = oos_predictions_df.loc[
+        oos_predictions_df["model_group"] == 9,
+        ["uuid", "y_true", "y_pred", "fold_id"],
+    ].rename(
+        columns={
+            "y_true": "y_true_generic",
+            "y_pred": "y_pred_generic",
+            "fold_id": "fold_generic",
         }
     )
 
-    ensemble_metrics = compute_metrics(y_all, y_pred_ensemble)
-    summary_row: dict[str, float | str] = {
-        "trait": trait,
-        "n_models": float(ensemble_matrix.shape[1]),
-        "rmse_ensemble": ensemble_metrics["rmse"],
-        "mae_ensemble": ensemble_metrics["mae"],
-        "r2_ensemble": ensemble_metrics["r2"],
-        "bias_ensemble": ensemble_metrics["bias"],
-        "n_ensemble": ensemble_metrics["n"],
-        "rmse_stacked_oos": np.nan,
-        "mae_stacked_oos": np.nan,
-        "r2_stacked_oos": np.nan,
-        "bias_stacked_oos": np.nan,
-        "n_stacked_oos": np.nan,
-    }
+    paired = specific.merge(
+        generic,
+        on="uuid",
+        how="inner",
+        validate="one_to_one",
+    )
 
-    if not stacked_df.empty:
-        stacked_metrics = compute_metrics(
-            stacked_df["y_true"].to_numpy(),
-            stacked_df["y_pred"].to_numpy(),
+    if not np.allclose(
+        paired["y_true"],
+        paired["y_true_generic"],
+        equal_nan=True,
+    ):
+        raise ValueError(
+            "Observed values differ between specific and generic predictions"
         )
-        summary_row.update(
+
+    paired = paired.rename(
+        columns={
+            "y_pred": "y_pred_specific",
+            "fold_id": "fold_specific",
+        }
+    )
+
+    # ------------------------------------------------------------------
+    # Group-level comparison
+    # ------------------------------------------------------------------
+
+    comparison_rows = []
+
+    for group_id, group_df in paired.groupby("validation_group"):
+        y_true = group_df["y_true"].to_numpy()
+
+        specific_metrics = compute_metrics(
+            y_true,
+            group_df["y_pred_specific"].to_numpy(),
+        )
+
+        generic_metrics = compute_metrics(
+            y_true,
+            group_df["y_pred_generic"].to_numpy(),
+        )
+
+        comparison_rows.append(
             {
-                "rmse_stacked_oos": stacked_metrics["rmse"],
-                "mae_stacked_oos": stacked_metrics["mae"],
-                "r2_stacked_oos": stacked_metrics["r2"],
-                "bias_stacked_oos": stacked_metrics["bias"],
-                "n_stacked_oos": stacked_metrics["n"],
+                "trait": trait,
+                "validation_group": group_id,
+                "n": len(group_df),
+                "rmse_specific": specific_metrics["rmse"],
+                "rmse_generic": generic_metrics["rmse"],
+                "delta_rmse": (specific_metrics["rmse"] - generic_metrics["rmse"]),
+                "r2_specific": specific_metrics["r2"],
+                "r2_generic": generic_metrics["r2"],
             }
         )
 
-    sample_split_map = (
-        cv_splits[cv_splits["RECODED_GROUP"].isin(range(1, 9))][
-            ["uuid", "RECODED_GROUP", "test_fold"]
-        ]
-        .drop_duplicates(subset=["uuid"])
-        .copy()
-    )
-    ensemble_predictions_df = df_eval[["uuid", "ECO_ID", trait]].copy()
-    ensemble_predictions_df = ensemble_predictions_df.rename(columns={trait: "y_true"})
-    ensemble_predictions_df = ensemble_predictions_df.merge(
-        sample_split_map,
-        on="uuid",
-        how="left",
-    )
-    ensemble_predictions_df["y_pred_ensemble"] = y_pred_ensemble
+    # ------------------------------------------------------------------
+    # Pooled comparison
+    # ------------------------------------------------------------------
 
-    per_model_df = pd.DataFrame(per_model_rows)
-    split_df = pd.DataFrame(split_rows)
-    summary_df = pd.DataFrame([summary_row])
-    return per_model_df, split_df, stacked_df, summary_df, ensemble_predictions_df
+    y_true = paired["y_true"].to_numpy()
+
+    specific_metrics = compute_metrics(
+        y_true,
+        paired["y_pred_specific"].to_numpy(),
+    )
+
+    generic_metrics = compute_metrics(
+        y_true,
+        paired["y_pred_generic"].to_numpy(),
+    )
+
+    comparison_rows.append(
+        {
+            "trait": trait,
+            "validation_group": "pooled",
+            "n": len(paired),
+            "rmse_specific": specific_metrics["rmse"],
+            "rmse_generic": generic_metrics["rmse"],
+            "delta_rmse": (specific_metrics["rmse"] - generic_metrics["rmse"]),
+            "r2_specific": specific_metrics["r2"],
+            "r2_generic": generic_metrics["r2"],
+        }
+    )
+
+    comparison_df = pd.DataFrame(comparison_rows)
+
+    return (
+        per_model_df,
+        split_df,
+        oos_predictions_df,
+        comparison_df,
+    )
+
+
+# def evaluate_models(
+#     df_eval: pd.DataFrame,
+#     cv_splits: pd.DataFrame,
+#     artifacts: list[ModelArtifact],
+#     trait: str,
+# ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+#     X_all = df_eval[FEATURES]
+#     y_all = df_eval[trait].to_numpy()
+
+#     per_model_rows: list[dict] = []
+#     split_rows: list[dict] = []
+
+#     stacked_y_true: list[np.ndarray] = []
+#     stacked_y_pred: list[np.ndarray] = []
+#     stacked_uuid: list[str] = []
+#     stacked_study: list[str] = []
+
+#     # ensemble_preds: list[np.ndarray] = []
+
+#     for artifact in artifacts:
+#         with open(artifact.path_model, "rb") as f:
+#             model = pickle.load(f)
+
+#         y_pred_all = np.asarray(model.predict(X_all)).squeeze()
+#         # ensemble_preds.append(y_pred_all)
+
+#         group_rows = cv_splits[cv_splits["RECODED_GROUP"] == artifact.group_id]
+#         if group_rows.empty:
+#             logger.warning(
+#                 f"No split rows found for group={artifact.group_id}; skipping {artifact.study_name}"
+#             )
+#             continue
+
+#         uuids_oos = set(
+#             group_rows[group_rows["test_fold"] == artifact.fold_id]["uuid"].tolist()
+#         )
+#         uuids_cal = set(
+#             group_rows[group_rows["test_fold"] != artifact.fold_id]["uuid"].tolist()
+#         )
+
+#         mask_oos = df_eval["uuid"].isin(uuids_oos)
+#         mask_cal = df_eval["uuid"].isin(uuids_cal)
+
+#         y_true_oos = df_eval.loc[mask_oos, trait].to_numpy()
+#         y_pred_oos = y_pred_all[mask_oos.to_numpy()]
+
+#         y_true_cal = df_eval.loc[mask_cal, trait].to_numpy()
+#         y_pred_cal = y_pred_all[mask_cal.to_numpy()]
+
+#         if len(y_true_oos) == 0:
+#             logger.warning(
+#                 f"No OOS samples for study={artifact.study_name} "
+#                 f"group={artifact.group_id} fold={artifact.fold_id}. Skipping OOS row."
+#             )
+#         else:
+#             row_oos = {
+#                 "trait": trait,
+#                 "study_name": artifact.study_name,
+#                 "group_id": artifact.group_id,
+#                 "fold_id": artifact.fold_id,
+#                 "split": "validation_oos",
+#                 **compute_metrics(y_true_oos, y_pred_oos),
+#             }
+#             per_model_rows.append(row_oos)
+
+#             stacked_y_true.append(y_true_oos)
+#             stacked_y_pred.append(y_pred_oos)
+#             stacked_uuid.extend(df_eval.loc[mask_oos, "uuid"].tolist())
+#             stacked_study.extend([artifact.study_name] * len(y_true_oos))
+
+#         if len(y_true_cal) > 0:
+#             row_cal = {
+#                 "trait": trait,
+#                 "study_name": artifact.study_name,
+#                 "group_id": artifact.group_id,
+#                 "fold_id": artifact.fold_id,
+#                 "split": "calibration_in_group",
+#                 **compute_metrics(y_true_cal, y_pred_cal),
+#             }
+#             per_model_rows.append(row_cal)
+
+#         ecos_val = sorted(
+#             df_eval.loc[mask_oos, "ECO_ID"].dropna().astype(int).unique().tolist()
+#         )
+#         ecos_cal = sorted(
+#             df_eval.loc[mask_cal, "ECO_ID"].dropna().astype(int).unique().tolist()
+#         )
+#         split_rows.append(
+#             {
+#                 "trait": trait,
+#                 "study_name": artifact.study_name,
+#                 "group_id": artifact.group_id,
+#                 "fold_id": artifact.fold_id,
+#                 "n_validation_samples": int(mask_oos.sum()),
+#                 "n_calibration_samples": int(mask_cal.sum()),
+#                 "n_validation_ecoregions": len(ecos_val),
+#                 "n_calibration_ecoregions": len(ecos_cal),
+#                 "validation_ecoregions": ";".join(map(str, ecos_val)),
+#                 "calibration_ecoregions": ";".join(map(str, ecos_cal)),
+#             }
+#         )
+
+#     # if not ensemble_preds:
+#     #     raise RuntimeError("No models were loaded for ensemble evaluation")
+
+#     # ensemble_matrix = np.column_stack(ensemble_preds)
+#     # y_pred_ensemble = ensemble_matrix.mean(axis=1)
+
+#     stacked_df = pd.DataFrame(
+#         {
+#             "uuid": stacked_uuid,
+#             "study_name": stacked_study,
+#             "y_true": np.concatenate(stacked_y_true)
+#             if stacked_y_true
+#             else np.array([]),
+#             "y_pred": np.concatenate(stacked_y_pred)
+#             if stacked_y_pred
+#             else np.array([]),
+#         }
+#     )
+
+#     # ensemble_metrics = compute_metrics(y_all, y_pred_ensemble)
+#     summary_row: dict[str, float | str] = {
+#         "trait": trait,
+#         # "n_models": float(ensemble_matrix.shape[1]),
+#         # "rmse_ensemble": ensemble_metrics["rmse"],
+#         # "mae_ensemble": ensemble_metrics["mae"],
+#         # "r2_ensemble": ensemble_metrics["r2"],
+#         # "bias_ensemble": ensemble_metrics["bias"],
+#         # "n_ensemble": ensemble_metrics["n"],
+#         "rmse_stacked_oos": np.nan,
+#         "mae_stacked_oos": np.nan,
+#         "r2_stacked_oos": np.nan,
+#         "bias_stacked_oos": np.nan,
+#         "n_stacked_oos": np.nan,
+#     }
+
+#     if not stacked_df.empty:
+#         stacked_metrics = compute_metrics(
+#             stacked_df["y_true"].to_numpy(),
+#             stacked_df["y_pred"].to_numpy(),
+#         )
+#         summary_row.update(
+#             {
+#                 "rmse_stacked_oos": stacked_metrics["rmse"],
+#                 "mae_stacked_oos": stacked_metrics["mae"],
+#                 "r2_stacked_oos": stacked_metrics["r2"],
+#                 "bias_stacked_oos": stacked_metrics["bias"],
+#                 "n_stacked_oos": stacked_metrics["n"],
+#             }
+#         )
+
+#     sample_split_map = (
+#         cv_splits[cv_splits["RECODED_GROUP"].isin(range(1, 9))][
+#             ["uuid", "RECODED_GROUP", "test_fold"]
+#         ]
+#         .drop_duplicates(subset=["uuid"])
+#         .copy()
+#     )
+#     ensemble_predictions_df = df_eval[["uuid", "ECO_ID", trait]].copy()
+#     ensemble_predictions_df = ensemble_predictions_df.rename(columns={trait: "y_true"})
+#     ensemble_predictions_df = ensemble_predictions_df.merge(
+#         sample_split_map,
+#         on="uuid",
+#         how="left",
+#     )
+#     # ensemble_predictions_df["y_pred_ensemble"] = y_pred_ensemble
+
+#     per_model_df = pd.DataFrame(per_model_rows)
+#     split_df = pd.DataFrame(split_rows)
+#     summary_df = pd.DataFrame([summary_row])
+#     return per_model_df, split_df, stacked_df, summary_df  # , ensemble_predictions_df
 
 
 def main() -> None:

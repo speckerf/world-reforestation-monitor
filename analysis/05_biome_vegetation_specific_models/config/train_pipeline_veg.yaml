@@ -2,11 +2,11 @@
 # Based on config/train_pipeline.yaml with reduced trial budgets
 
 # trait: ['laie', 'fapar', 'fcover']
-trait: 'fapar' # overridden by command line argument
+# trait: 'fapar' # overridden by command line argument
 
 # Study name template — (GROUP) and (FOLD) are additional placeholders
 optuna_study_name: "veg-v1-(TRAIT)-group(GROUP)-fold(FOLD)-(MODEL)"
-optuna_storage: "mysql://root@127.0.0.1:3307/oemc_supp_05" # remote
+optuna_storage: "mysql://root@127.0.0.1:3308/oemc_supp_05" # remote
 # optuna_storage: "mysql://root@localhost/oemc_test" # local
 
 # RMSE reporting thresholds for optuna dashboard visibility

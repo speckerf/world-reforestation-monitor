@@ -54,21 +54,29 @@ def add_global_group9_splits(
     cv = cv[cv["test_fold"] >= 0]
     cv = cv[cv["RECODED_GROUP"] != 9]
 
-    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][["uuid", "ECO_ID"]].drop_duplicates()
+    base = cv[cv["RECODED_GROUP"].isin(range(1, 9))][
+        ["uuid", "ECO_ID"]
+    ].drop_duplicates()
     if base.empty:
-        raise RuntimeError("No base samples found in groups 1..8 for creating group 9 splits")
+        raise RuntimeError(
+            "No base samples found in groups 1..8 for creating group 9 splits"
+        )
 
     available = df_val[["uuid", "ECO_ID"]].drop_duplicates()
     base = base.merge(available, on=["uuid", "ECO_ID"], how="inner")
     if base.empty:
-        raise RuntimeError("No overlap between cv_splits groups 1..8 and validation data")
+        raise RuntimeError(
+            "No overlap between cv_splits groups 1..8 and validation data"
+        )
 
     gkf = GroupKFold(n_splits=n_splits)
     fold_by_uuid: dict[str, int] = {}
     X_dummy = base[["uuid"]]
     y_dummy = pd.Series([0] * len(base))
 
-    for fold_id, (_, test_idx) in enumerate(gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])):
+    for fold_id, (_, test_idx) in enumerate(
+        gkf.split(X_dummy, y_dummy, groups=base["ECO_ID"])
+    ):
         uuids_fold = base.iloc[test_idx]["uuid"].tolist()
         for u in uuids_fold:
             fold_by_uuid[u] = fold_id
@@ -139,7 +147,7 @@ def parse_args() -> argparse.Namespace:
         "--groups",
         nargs="+",
         type=int,
-        default=None,
+        default=[6, 5, 4, 9],
         help="Optional subset of RECODED_GROUP IDs to process.",
     )
     parser.add_argument(

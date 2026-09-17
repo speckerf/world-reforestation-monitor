@@ -3,19 +3,15 @@ project:
   output-dir: _output
 
 execute:
-  echo: true
+  echo: false
   warning: false
   message: false
-  freeze: auto
+  freeze: false
 
 format:
   pdf:
     documentclass: article
-    toc: true
-    number-sections: true
+    toc: false
+    number-sections: false
     fig-pos: H
     tbl-cap-location: top
-
-bibliography: references.bib
-
-metadata-files: []
