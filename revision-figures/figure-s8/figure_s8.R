@@ -72,8 +72,8 @@ p %>% show()
 
 
 # save plot
-ggsave(file = 'figure_s6.png', plot = p, width = 10, height = 8, device = 'png')
-ggsave(file = 'figure_s6.pdf', plot = p, width = 10, height = 8, device = 'pdf')
+ggsave(file = 'figure_s8.png', plot = p, width = 10, height = 8, device = 'png')
+ggsave(file = 'figure_s8.pdf', plot = p, width = 10, height = 8, device = 'pdf')
 # ggsave(file = 'output/foliar_traits_neon_pairwise.svg', plot = p, width = 10, height = 8, device = 'svg')
 
 

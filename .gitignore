@@ -13,6 +13,10 @@
 .RData
 .Rhistory
 
+
+**/backup
+**/deprecated
+**/cache
 **/auth
 /data
 /miscellaneous
@@ -38,4 +42,4 @@ tutorials/
 world-reforestation-monitor-0*.zip
 data-v20250328.tar.gz
 data.tar.gz
-
+figure-4-deprecated/

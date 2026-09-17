@@ -1,738 +1,194 @@
-import os
-from typing import Literal, Optional
+import json
 
-import numpy as np
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import ee
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib import pyplot as plt
-from scipy.interpolate import BSpline
-from scipy.optimize import minimize
 
-from train_pipeline.predict_insitu_comparison import (
-    build_combined_trait_df,
-    predict_grounded_eo,
-    predict_sl2p,
-    predict_specker,
-)
 from train_pipeline.utils_loading import load_grounded_eo_validation_data
 
-SMOOTH_KNOTS_ATTACHEMENT = {
-    "laie": {"min": -0.5, "max": 5.5},
-    "fapar": {"min": -0.1, "max": 1.1},
-    "fcover": {"min": -0.1, "max": 1.1},
-}
+BACKGROUND = "land_ocean"  # options: "stock", "land_ocean", "plain"
+POINT_SIZE = 26
+POINT_EDGEWIDTH = 0.6
+SAVE_PATH = "revision-figures/figure-s1/figure_s1.png"
+FIG_DPI = 300
 
 
-def compute_calibration_metrics(y_true, y_pred, sigma_pred):
+def make_background(ax, style: str = "land_ocean"):
     """
-    Computes:
-    - MACE: Mean Absolute Calibration Error
-    - RMCE: Root Mean Calibration Error
+    Apply a background to the given Cartopy axes.
     """
-
-    residuals = y_true - y_pred
-    abs_errors = np.abs(residuals)
-
-    mace = np.mean(np.abs(abs_errors - sigma_pred))
-    rmce = np.sqrt(np.mean((abs_errors - sigma_pred) ** 2))
-
-    return mace, rmce
-
-
-def calibrate_sigma_mace(y_true, y_pred, sigma_pred):
-    """Find optimal tau to scale sigma_pred by minimizing MACE."""
-
-    residuals = y_true - y_pred
-    abs_errors = np.abs(residuals)
-
-    def mace_tau(tau):
-        return np.mean(np.abs(abs_errors - tau * sigma_pred))
-
-    opt = minimize(
-        lambda t: mace_tau(t[0]),
-        x0=np.array([1.0]),
-        bounds=[(1e-6, 100)],
-        method="L-BFGS-B",
-    )
-    return opt.x[0]
+    style = style.lower().strip()
+    if style == "stock":
+        # Low-res Blue Marble-like image
+        ax.stock_img()
+        # Add thin coastlines on top to keep borders crisp
+        ax.coastlines(linewidth=0.6, color="black")
+    elif style == "land_ocean":
+        # Simple, clean land/ocean + coastlines
+        ax.add_feature(cfeature.OCEAN, facecolor="#dde7f0")
+        ax.add_feature(cfeature.LAND, facecolor="#efefe7")
+        ax.add_feature(cfeature.BORDERS, linewidth=0.4, edgecolor="#666666")
+        ax.coastlines(linewidth=0.6, color="#333333")
+    elif style == "plain":
+        # Just coastlines; let the facecolor show through
+        ax.set_facecolor("white")
+        ax.coastlines(linewidth=0.6, color="black")
+    else:
+        raise ValueError(f"Unknown BACKGROUND style: {style!r}")
 
 
-def smooth_tau_calibration(
-    y_true,
-    y_pred,
-    sigma_pred,
-    n_knots,
-    spline_degree,
-    trait=Literal["laie", "fapar", "fcover"],
-):
+def get_ecoregion_model_ensemble_splits():
     """
-    Learn a smooth tau(y_pred) via a cubic spline.
-
-    Parameters
-    ----------
-    y_true : array-like
-        Ground truth targets.
-    y_pred : array-like
-        Predicted means.
-    sigma_pred : array-like
-        Predicted stds (uncalibrated).
-    n_knots : int
-        Number of internal knots for spline (controls smoothness).
-        Typical: 6 (recommended).
-    spline_degree : int
-        Degree of spline (3 recommended)
-
-    trait: str
+    Load the ecoregion model ensemble splits.
 
     Returns
     -------
-    tau_func : callable
-        Function tau(y_pred) returning the scaling factor.
-    sigma_cal : array
-        Calibrated stds = tau(y_pred) * sigma_pred.
+    pd.DataFrame
+        DataFrame containing the ecoregion model ensemble splits.
     """
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
-    sigma_pred = np.asarray(sigma_pred)
+    filename_regex = "data/train_pipeline/output/models/laie/model_optuna-v2-laie-mlp-split-*_split.json"
+    # this is json looking like: {"val_ecos_train": [352, 338, 664, 331, 416, 205, 689, 390, 402, 396, 386, 654, 375, 717, 648, 799, 543, 206, 339, 405, 795, 428, 392, 429, 353, 389, 430, 636, 150, 679, 393, 423, 366, 435, 344, 388, 179, 367], "val_ecos_test": [407, 686, 399, 647, 623, 411]}
+    splits = {}
+    for split in range(5):
+        filename = filename_regex.replace("*", str(split))
+        json_data = json.load(open(filename, "r"))
+        splits[split] = json_data["val_ecos_test"]
 
-    abs_err = np.abs(y_true - y_pred)
-
-    # Sort by prediction for stable spline fitting
-    idx = np.argsort(y_pred)
-    yp = y_pred[idx]
-    abs_err_sorted = abs_err[idx]
-    sigma_sorted = sigma_pred[idx]
-
-    # Fix the spline to tau = 1 outside the domain:
-    knots = np.linspace(
-        SMOOTH_KNOTS_ATTACHEMENT[trait]["min"],
-        SMOOTH_KNOTS_ATTACHEMENT[trait]["max"],
-        n_knots,
-    )
-
-    # Need to add boundary knots repeated degree times
-    t = np.concatenate(
-        (np.repeat(knots[0], spline_degree), knots, np.repeat(knots[-1], spline_degree))
-    )
-
-    # Initialize spline coefficients (all 1 => initial tau=1)
-    c0 = np.ones(len(t) - spline_degree - 1)
-
-    # Build basis matrix for speed
-    basis = np.vstack(
-        [
-            BSpline(t, (np.arange(len(c0)) == j).astype(float), spline_degree)(yp)
-            for j in range(len(c0))
-        ]
-    ).T
-
-    # Objective: MACE with smooth tau
-    def objective(c):
-        tau_vals = basis.dot(c)
-        tau_vals = np.clip(tau_vals, 1e-6, 100)  # keep τ positive and sane
-        sigma_cal = tau_vals * sigma_sorted
-        return np.mean(np.abs(abs_err_sorted - sigma_cal))
-
-    # Optimize spline coefficients
-    res = minimize(objective, c0, method="L-BFGS-B", bounds=[(1e-6, 100)] * len(c0))
-    c_opt = res.x
-
-    # Build final spline
-    tau_spline = BSpline(t, c_opt, spline_degree)
-
-    # Calibrated sigma
-    sigma_cal = tau_spline(y_pred) * sigma_pred
-
-    return tau_spline, sigma_cal
+    return splits
 
 
-def plot_uncertainty_intervals(
-    y_true,
-    y_pred,
-    std_unc,
-    std_cal,
-    N=100,
-    ylab="Value",
-    title="Uncertainty Calibration",
-    save_path: Optional[str] = None,
-):
-    """
-    Plot sorted predictions with uncalibrated and calibrated 95% intervals.
+def main():
+    # --------------------------------
+    # Load + prepare sites
+    # --------------------------------
+    df = load_grounded_eo_validation_data()
 
-    Parameters
-    ----------
-    y_true : array-like
-        Ground truth values.
-    y_pred : array-like
-        Predicted mean values.
-    std_unc : array-like
-        Uncalibrated predictive standard deviations.
-    std_cal : array-like
-        Calibrated predictive standard deviations.
-    N : int
-        Number of samples to subsample for plotting.
-    ylab : str
-        Y-axis label.
-    title : str
-        Plot title.
-    """
-
-    # ---- Convert to arrays ----
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
-    std_unc = np.asarray(std_unc)
-    std_cal = np.asarray(std_cal)
-
-    # ---- Sort by predicted values ----
-    idx = np.argsort(y_pred)
-    y_true_s = y_true[idx]
-    y_pred_s = y_pred[idx]
-    std_unc_s = std_unc[idx]
-    std_cal_s = std_cal[idx]
-
-    # ---- Subsample evenly ----
-    if len(y_pred_s) > N:
-        sel = np.linspace(0, len(y_pred_s) - 1, N).astype(int)
-        y_true_s = y_true_s[sel]
-        y_pred_s = y_pred_s[sel]
-        std_unc_s = std_unc_s[sel]
-        std_cal_s = std_cal_s[sel]
-
-    # ---- 95% intervals ----
-    uncal_lower = y_pred_s - 1.96 * std_unc_s
-    uncal_upper = y_pred_s + 1.96 * std_unc_s
-
-    cal_lower = y_pred_s - 1.96 * std_cal_s
-    cal_upper = y_pred_s + 1.96 * std_cal_s
-
-    # ---- Plot ----
-    plt.figure(figsize=(12, 6))
-
-    # Uncalibrated band
-    plt.fill_between(
-        range(len(y_pred_s)),
-        uncal_lower,
-        uncal_upper,
-        color="blue",
-        alpha=0.20,
-        label="Uncalibrated 95% interval",
-    )
-
-    # Calibrated band
-    plt.fill_between(
-        range(len(y_pred_s)),
-        cal_lower,
-        cal_upper,
-        color="orange",
-        alpha=0.20,
-        label="Calibrated 95% interval",
-    )
-
-    # Prediction line
-    plt.plot(y_pred_s, color="black", lw=2, label="Predicted")
-
-    # True values
-    plt.scatter(
-        range(len(y_true_s)), y_true_s, color="red", s=18, label="True", alpha=0.85
-    )
-
-    plt.xlabel("Sorted samples")
-    plt.ylabel(ylab)
-    plt.title(title)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path)
-        plt.close()
-    else:
-        plt.show()
-
-
-def calibrate_constant_tau():
-    for trait in ["fcover", "fapar", "laie"]:
-        # ---- Load data ----
-        validation_data = load_grounded_eo_validation_data()
-        df_specker = predict_specker(df=validation_data)
-        df_sl2p = predict_sl2p(df=validation_data)
-        df_grounded = predict_grounded_eo(df=validation_data)
-
-        df_all = build_combined_trait_df(
-            validation_data, df_sl2p, df_specker, df_grounded=df_grounded
-        )
-
-        cols = [
-            trait,
-            f"{trait}_std",
-            f"specker_{trait}_mean",
-            f"specker_{trait}_std",
-            f"sl2p_{trait}_mean",
-            f"sl2p_{trait}_std",
-        ]
-        if trait == "fapar":
-            cols += [
-                f"grounded_{trait}_mean",
-                f"grounded_{trait}_std",
-            ]
-
-        # rename insitu columns
-        df = df_all[cols].rename(
-            columns={
-                trait: f"insitu_{trait}_mean",
-                f"{trait}_std": f"insitu_{trait}_std",
+    # Select columns, deduplicate (if needed), then aggregate to 1 row per Site
+    sites = (
+        df[["Site", "Latitude", "Longitude", "ECO_ID"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .groupby("Site", as_index=False)
+        .agg(
+            {
+                "Latitude": "mean",
+                "Longitude": "mean",
+                "ECO_ID": "first",
             }
         )
+    )
 
-        # ===============================================================
-        # Compare SPECKER vs SL2P uncertainty
-        # ===============================================================
+    splits = get_ecoregion_model_ensemble_splits()
 
-        results = []
+    def assign_split(eco_id):
+        for split, eco_ids in splits.items():
+            if eco_id in eco_ids:
+                return split
+        return -1  # not found
 
-        for model in ["sl2p", "specker"]:
-            y_pred = df[f"{model}_{trait}_mean"].values
-            sigma_pred = df[f"{model}_{trait}_std"].values
+    sites["split"] = sites["ECO_ID"].apply(assign_split)
 
-            # ---- Compute MACE & RMCE ----
-            mace, rmce = compute_calibration_metrics(
-                df[f"insitu_{trait}_mean"].values, y_pred, sigma_pred
-            )
-
-            # ---- Calibrate τ via MACE minimization ----
-            tau_opt = calibrate_sigma_mace(
-                df[f"insitu_{trait}_mean"].values, y_pred, sigma_pred
-            )
-
-            results.append(dict(model=model.upper(), MACE=mace, RMCE=rmce, tau=tau_opt))
-
-            df[f"{model}_{trait}_calibrated_std"] = tau_opt * sigma_pred
-
-            # add calibrated calibration scores
-            mace_calibrated, rmce_calibrated = compute_calibration_metrics(
-                df[f"insitu_{trait}_mean"].values,
-                y_pred,
-                df[f"{model}_{trait}_calibrated_std"].values,
-            )
-
-            results.append(
-                dict(
-                    model=f"{model.upper()}_calibrated",
-                    MACE=mace_calibrated,
-                    RMCE=rmce_calibrated,
-                    tau=tau_opt,
-                )
-            )
-
-        # display table
-        df_results = pd.DataFrame(results)
-        print("\n=== Uncertainty Comparison (SPECKER vs SL2P) ===")
-        print(df_results)
-        print()
-
-        # ===============================================================
-        # Visualize calibrated vs uncalibrated intervals for SL2P
-        # ===============================================================
-
-        model = "specker"
-        plot_uncertainty_intervals(
-            y_true=df[f"insitu_{trait}_mean"].values,
-            y_pred=df[f"{model}_{trait}_mean"].values,
-            std_unc=df[f"{model}_{trait}_std"].values,
-            std_cal=df[f"{model}_{trait}_calibrated_std"].values,
-            N=100,
-            ylab=trait,
-            title=f"{model.upper()} - Uncertainty Calibration Comparison",
-            save_path=f"revision-figures/figure-s1/{model}_{trait}_linear_tau",
+    # load biome ecoregion mapping
+    path_biome_eco = "data/misc/ecoregion_biome_table.csv"
+    df_biome_eco = pd.read_csv(path_biome_eco)
+    eco_to_biome = dict(
+        zip(
+            df_biome_eco["ECO_ID"].astype("Int32"),
+            df_biome_eco["BIOME_NAME"].astype("string"),
         )
+    )
+    sites["BIOME"] = sites["ECO_ID"].map(eco_to_biome)
 
-        model = "sl2p"
-        plot_uncertainty_intervals(
-            y_true=df[f"insitu_{trait}_mean"].values,
-            y_pred=df[f"{model}_{trait}_mean"].values,
-            std_unc=df[f"{model}_{trait}_std"].values,
-            std_cal=df[f"{model}_{trait}_calibrated_std"].values,
-            N=100,
-            ylab=trait,
-            title=f"{model.upper()} - Uncertainty Calibration Comparison",
-            save_path=f"revision-figures/figure-s1/{model}_{trait}_linear_tau",
-        )
+    # --------------------------------
+    biome_colors = {
+        "Tropical & Subtropical Moist Broadleaf Forests": "#1b9e77",  # deep green – tropical forests
+        "Tropical & Subtropical Dry Broadleaf Forests": "#d95f02",  # orange – dry forests
+        "Temperate Broadleaf & Mixed Forests": "#66a61e",  # green – temperate forests
+        "Temperate Conifer Forests": "#1f78b4",  # blue – conifers
+        "Boreal Forests/Taiga": "#7570b3",  # violet – boreal
+        "Mediterranean Forests, Woodlands & Scrub": "#e6ab02",  # gold – Mediterranean
+        "Temperate Grasslands, Savannas & Shrublands": "#a6761d",  # brown – temperate grasslands
+        "Deserts & Xeric Shrublands": "#e7298a",  # magenta – deserts
+        "Tundra": "#66c2a5",  # light cyan – tundra
+    }
 
-    # plot coefficients /
+    sites["BIOME_COLOR"] = sites["BIOME"].map(biome_colors)
 
+    # --------------------------------
+    # Build the plot (Robinson)
+    # --------------------------------
+    proj = ccrs.Robinson()
+    data_crs = ccrs.PlateCarree()  # the CRS of our lat/lon points
 
-def calibrate_smooth_tau(return_df: bool = False):
-    if return_df:
-        dfs = {}
+    fig = plt.figure(figsize=(12, 6.6))
+    ax = plt.subplot(1, 1, 1, projection=proj)
+    ax.set_global()
 
-    for trait in ["fcover", "fapar", "laie"]:
-        # ---- Load data ----
-        validation_data = load_grounded_eo_validation_data()
-        df_specker = predict_specker(df=validation_data)
-        df_sl2p = predict_sl2p(df=validation_data)
-        df_grounded = predict_grounded_eo(df=validation_data)
+    # Background
+    make_background(ax, BACKGROUND)
 
-        df_all = build_combined_trait_df(
-            validation_data, df_sl2p, df_specker, df_grounded=df_grounded
-        )
+    # Optional: nice graticules
+    gl = ax.gridlines(
+        draw_labels=False,
+        linewidth=0.3,
+        color="#888888",
+        alpha=0.4,
+        linestyle="--",
+    )
+    # Plot sites, colored by ECO_ID (categorical)
+    # Scatter plot of site locations
+    n_splits = sites["split"].nunique()
+    cmap = plt.get_cmap("tab10")
 
-        # rename insitu columns
-        cols = [
-            trait,
-            f"{trait}_std",
-            f"specker_{trait}_mean",
-            f"specker_{trait}_std",
-            f"sl2p_{trait}_mean",
-            f"sl2p_{trait}_std",
-        ]
-        if trait == "fapar":
-            cols += [
-                f"grounded_{trait}_mean",
-                f"grounded_{trait}_std",
-            ]
+    color_map = {i: cmap(i) for i in range(n_splits)}
 
-        # rename insitu columns
-        df = df_all[cols].rename(
-            columns={
-                trait: f"insitu_{trait}_mean",
-                f"{trait}_std": f"insitu_{trait}_std",
-            }
-        )
+    point_colors = sites["split"].astype("category").cat.codes.map(color_map).tolist()
 
-        # ===============================================================
-        # Compare SPECKER vs SL2P uncertainty
-        # ===============================================================
+    sc = ax.scatter(
+        sites["Longitude"],
+        sites["Latitude"],
+        c=sites["BIOME_COLOR"],
+        s=60,
+        edgecolor="black",
+        linewidth=0.4,
+        transform=data_crs,
+        zorder=3,
+    )
 
-        results = []
+    from matplotlib.lines import Line2D
 
-        for model in ["sl2p", "specker", "grounded"]:
-            if trait != "fapar" and model == "grounded":
-                continue
-            y_pred = df[f"{model}_{trait}_mean"].values
-            sigma_pred = df[f"{model}_{trait}_std"].values
-
-            # ---- Compute MACE & RMCE ----
-            mace, rmce = compute_calibration_metrics(
-                df[f"insitu_{trait}_mean"].values, y_pred, sigma_pred
-            )
-
-            # ---- Calibrate τ via MACE minimization ----
-            tau_opt, sigma_cal_smooth = smooth_tau_calibration(
-                y_true=df[f"insitu_{trait}_mean"].values,
-                y_pred=df[f"{model}_{trait}_mean"].values,
-                sigma_pred=df[f"{model}_{trait}_std"].values,
-                n_knots=6,
-                spline_degree=3,
-                trait=trait,
-            )
-
-            results.append(dict(model=model.upper(), MACE=mace, RMCE=rmce, tau=tau_opt))
-
-            df[f"{model}_{trait}_calibrated_std"] = sigma_cal_smooth
-
-            # add calibrated calibration scores
-            mace_calibrated, rmce_calibrated = compute_calibration_metrics(
-                df[f"insitu_{trait}_mean"].values,
-                y_pred,
-                df[f"{model}_{trait}_calibrated_std"].values,
-            )
-
-            results.append(
-                dict(
-                    model=f"{model.upper()}_calibrated",
-                    MACE=mace_calibrated,
-                    RMCE=rmce_calibrated,
-                )
-            )
-
-        # display table
-        df_results = pd.DataFrame(results)
-        print("\n=== Uncertainty Comparison (SPECKER vs SL2P) ===")
-        print(df_results)
-        print()
-
-        # save results as csv
-        os.makedirs("posthoc-calibration/results", exist_ok=True)
-        df_results.to_csv(
-            f"posthoc-calibration/results/{model}_{trait}_smooth_tau_calibration_results.csv",
-            index=False,
-        )
-
-        # ===============================================================
-        # Visualize calibrated vs uncalibrated intervals for SL2P
-        # ===============================================================
-
-        model = "specker"
-        plot_uncertainty_intervals(
-            y_true=df[f"insitu_{trait}_mean"].values,
-            y_pred=df[f"{model}_{trait}_mean"].values,
-            std_unc=df[f"{model}_{trait}_std"].values,
-            std_cal=df[f"{model}_{trait}_calibrated_std"].values,
-            N=100,
-            ylab=trait,
-            title=f"{model.upper()} - Uncertainty Calibration Comparison",
-            save_path=f"revision-figures/figure-s1/subplots/{model}_{trait}_smooth_tau",
-        )
-
-        model = "sl2p"
-        plot_uncertainty_intervals(
-            y_true=df[f"insitu_{trait}_mean"].values,
-            y_pred=df[f"{model}_{trait}_mean"].values,
-            std_unc=df[f"{model}_{trait}_std"].values,
-            std_cal=df[f"{model}_{trait}_calibrated_std"].values,
-            N=100,
-            ylab=trait,
-            title=f"{model.upper()} - Uncertainty Calibration Comparison",
-            save_path=f"revision-figures/figure-s1/subplots/{model}_{trait}_smooth_tau",
-        )
-
-        if trait == "fapar":
-            model = "grounded"
-            plot_uncertainty_intervals(
-                y_true=df[f"insitu_{trait}_mean"].values,
-                y_pred=df[f"{model}_{trait}_mean"].values,
-                std_unc=df[f"{model}_{trait}_std"].values,
-                std_cal=df[f"{model}_{trait}_calibrated_std"].values,
-                N=100,
-                ylab=trait,
-                title=f"{model.upper()} - Uncertainty Calibration Comparison",
-                save_path=f"revision-figures/figure-s1/subplots/{model}_{trait}_smooth_tau",
-            )
-
-        if return_df:
-            dfs[trait] = df
-
-    if return_df:
-        return dfs
-    else:
-        return None
-
-
-def figure_smooth_tau(dfs: dict):
-    # Supplementary figure S5:
-    # dfs contains the dataframes returned by calibrate_smooth_tau(return_df=True): dfs[trait] --> dataframe
-
-    # 2 columns (model s2biophys and sl2p), 3 rows (traits): plot_uncertainty_intervals for each
-    #   - joint y axis limits per trait
-    #   - add legend only to first plot
-    #   - title of first row contains model name
-    #   - one join legend: predicted, in-situ RM, uncalibrated 95% interval, calibrated 95% interval
-
-    traits = ["laie", "fcover", "fapar"]
-    # models = ["specker", "sl2p", "grounded"]
-    models = ["specker", "sl2p"]
-
-    N = 100  # number of points to plot
-
-    # Create multi-panel figure
-    if "grounded" in models:
-        fig, axes = plt.subplots(
-            nrows=3, ncols=3, figsize=(14, 14), sharex=False, sharey="row"
-        )
-    else:
-        fig, axes = plt.subplots(
-            nrows=3, ncols=2, figsize=(14, 12), sharex=False, sharey="row"
-        )
-
-    col_unc = "blue"
-    col_cal = "orange"
-    col_pred = "black"
-    col_true = "red"
-    col_tau = "darkgreen"
-
-    for i, trait in enumerate(traits):
-        df = dfs[trait]
-        y_true_full = df[f"insitu_{trait}_mean"].values
-
-        for j, model in enumerate(models):
-            if trait != "fapar" and model == "grounded":
-                continue
-            row_label = i + 1
-            if j == 0:
-                sublabel = f"A{row_label}"
-            else:
-                sublabel = f"B{row_label}"
-
-            ax = axes[i, j]
-            ax.text(
-                0.015,
-                0.97,
-                sublabel,
-                transform=ax.transAxes,
-                fontsize=13,
-                fontweight="bold",
-                va="top",
-                ha="left",
-            )
-
-            # --- Extract relevant arrays ---
-            y_pred = df[f"{model}_{trait}_mean"].values
-            std_unc = df[f"{model}_{trait}_std"].values
-            std_cal = df[f"{model}_{trait}_calibrated_std"].values
-
-            # --- Sort by prediction ---
-            idx = np.argsort(y_pred)
-            y_true = y_true_full[idx]
-            y_pred_s = y_pred[idx]
-            std_unc_s = std_unc[idx]
-            std_cal_s = std_cal[idx]
-
-            # --- Subsample evenly ---
-            if len(y_pred_s) > N:
-                sel = np.linspace(0, len(y_pred_s) - 1, N + 2).astype(int)[1:-1]
-                y_true = y_true[sel]
-                y_pred_s = y_pred_s[sel]
-                std_unc_s = std_unc_s[sel]
-                std_cal_s = std_cal_s[sel]
-
-            # ---- 95% intervals ----
-            uncal_lower = y_pred_s - 1.96 * std_unc_s
-            uncal_upper = y_pred_s + 1.96 * std_unc_s
-            cal_lower = y_pred_s - 1.96 * std_cal_s
-            cal_upper = y_pred_s + 1.96 * std_cal_s
-
-            x = np.arange(len(y_pred_s))
-
-            # ---- Plot intervals ----
-            ax.fill_between(x, uncal_lower, uncal_upper, color=col_unc, alpha=0.20)
-            ax.fill_between(x, cal_lower, cal_upper, color=col_cal, alpha=0.20)
-
-            # Prediction line
-            ax.plot(x, y_pred_s, color=col_pred, lw=2)
-
-            # True values
-            ax.scatter(x, y_true, s=18, color=col_true, alpha=0.85)
-
-            # Row titles (y-axis labels)
-            y_labels = {
-                "fcover": "FCOVER",
-                "fapar": "FAPAR",
-                "laie": "LAIe [m²/m²]",
-            }
-            if j == 0:
-                ax.set_ylabel(y_labels[trait], fontsize=12)
-
-            # Column titles only for top row
-            if i == 0:
-                model_names = {"specker": "S2BIOPHYS", "sl2p": "SL2P"}
-                ax.set_title(model_names[model], fontsize=14)
-
-            if i == 2:
-                ax.set_xlabel("Sorted samples", fontsize=12)
-
-            if trait == "fapar" or trait == "fcover":
-                ax.set_ylim(-0.1, 1.1)
-                # add dashed line at y=0 and y=1
-                ax.axhline(0, color="gray", linestyle="--", lw=0.8)
-                ax.axhline(1, color="gray", linestyle="--", lw=0.8)
-            elif trait == "laie":
-                ax.set_ylim(-0.5, 5.5)
-                # add dashed line at y=0
-                ax.axhline(0, color="gray", linestyle="--", lw=0.8)
-            else:
-                raise ValueError(f"Unknown trait: {trait}")
-
-                # τ curve
-            tau_s = std_cal_s / std_unc_s
-            ax2 = ax.twinx()
-            ax2.plot(x, tau_s, color=col_tau, lw=1.5)
-            ax2.set_ylabel("τ", color=col_tau)
-            ax2.tick_params(axis="y", colors=col_tau)
-            ax2.set_zorder(1)  # keep tau-axis behind main axis
-            ax.patch.set_visible(False)
-
-            # --- Compute MACE ---
-            mace_unc, _ = compute_calibration_metrics(y_true_full, y_pred, std_unc)
-            mace_cal, _ = compute_calibration_metrics(y_true_full, y_pred, std_cal)
-
-            # # --- Add MACE text inside each subplot ---
-            # ax.text(
-            #     0.02,
-            #     0.92,
-            #     f"MACE uncalibrated: \n{mace_unc:.3f}\nMACE calibrated: \n{mace_cal:.3f}",
-            #     transform=ax.transAxes,
-            #     ha="left",
-            #     va="top",
-            #     fontsize=10,
-            #     bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=2),
-            # )
-
-            # ax.text(
-            #     0.02,
-            #     0.96,
-            #     f"MACE unc/cal: {mace_unc:.3f} / {mace_cal:.3f}",
-            #     transform=ax.transAxes,
-            #     ha="left",
-            #     va="top",
-            #     fontsize=11,
-            # )
-
-            ax.text(
-                0.02,
-                0.88,
-                "MACE:",
-                transform=ax.transAxes,
-                ha="left",
-                va="top",
-                fontsize=12,
-            )
-            ax.text(
-                0.02,
-                0.81,
-                f"- unc: {mace_unc:.3f}",
-                color=col_unc,
-                transform=ax.transAxes,
-                ha="left",
-                va="top",
-                fontsize=12,
-            )
-            ax.text(
-                0.02,
-                0.74,
-                f"- cal:  {mace_cal:.3f}",
-                color=col_cal,
-                transform=ax.transAxes,
-                ha="left",
-                va="top",
-                fontsize=12,
-            )
-
-    # ---- Shared Legend ----
-    handles = [
-        plt.Line2D([], [], color=col_pred, lw=2, label="Predicted"),
-        plt.Line2D(
-            [],
-            [],
-            color=col_true,
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
             marker="o",
-            linestyle="None",
-            markersize=6,
-            label="In-situ RM",
-        ),
-        plt.Rectangle(
-            (0, 0), 1, 1, color=col_unc, alpha=0.2, label="Uncalibrated 95% interval"
-        ),
-        plt.Rectangle(
-            (0, 0), 1, 1, color=col_cal, alpha=0.2, label="Calibrated 95% interval"
-        ),
-        # plt.Line2D([], [], color=col_tau, lw=2, label="τ(ŷ)"),  # <-- NEW
+            color="w",
+            label=biome,
+            markerfacecolor=color,
+            markeredgecolor="black",
+            markersize=8,
+        )
+        for biome, color in biome_colors.items()
     ]
 
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        ncol=5,
-        frameon=False,
-        fontsize=13,
-        bbox_to_anchor=(0.5, 0.0),
+    ax.legend(
+        handles=legend_elements,
+        title="Terrestrial Biomes",
+        loc="lower left",
+        frameon=True,
+        fontsize=10,
+        title_fontsize=12,
+        ncol=1,
     )
 
-    plt.tight_layout(rect=[0, 0.04, 1, 1])
-
-    print("Saving figure_smooth_tau...")
-    plt.savefig("revision-figures/figure-s1/figure_s1.png", dpi=300)
+    # save figure
+    plt.savefig(SAVE_PATH, dpi=FIG_DPI, bbox_inches="tight")
 
 
 if __name__ == "__main__":
-    # calibrate_constant_tau()
-    dfs = calibrate_smooth_tau(return_df=True)
-
-    figure_smooth_tau(dfs)
+    ee.Initialize(project="ee-speckerfelix")
+    main()
+    # main()
