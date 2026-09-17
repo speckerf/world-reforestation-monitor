@@ -1,0 +1,22 @@
+---
+format:
+  docx:
+    toc: false
+  pdf:
+    toc: false
+    pdf-engine: pdflatex
+    geometry:
+      - margin=25mm
+fontsize: 10pt
+linkcolor: blue
+---
+
+# Note S2. Landscape heterogeneity of LAI~e~ in matched forests and tree plantations
+
+**Methods.** We assessed spatial heterogeneity in annual 20 m LAI~e~ retrievals within geographically matched plantation and forest windows across Tasmania, Australia. Forest type was defined using the JRC Global Map of Forest Types 2020 (cite): plantations were class 20, while the comparison group pooled naturally regenerating forest (class 1) and primary forest (class 10). Candidate windows were restricted to locations where every pixel in a $500 \times 500$ m window ($25 \times 25$ pixels) belonged to the same JRC class and was classified as tree cover in ESA WorldCover 2021 (cite). Windows intersecting roads or buildings mapped by OpenStreetMap were excluded (cite). All layers were aligned to the 20 m LAI~e~ grid in `EPSG:32755`.
+
+Plantation centres were matched to forest centres within 5 km using 100 randomized greedy searches, retaining the solution with the most pairs and then the shortest total matching distance. No centre from a different selected pair could occur within 1 km of either centre in an accepted pair. This produced 464 matched pairs, comprising 459 naturally regenerating and five primary-forest controls.
+
+For each window, we calculated mean LAI~e~, the sample standard deviation of LAI~e~, and adjacent-pixel contrast, defined as the mean absolute difference between horizontally and vertically adjacent valid pixels. Pairwise effects were calculated as plantation minus forest. Uncertainty in mean effects was estimated using 20,000 percentile-bootstrap resamples of complete matched pairs (seed 42). Figure 4A shows a representative pair selected as the pair closest to the median standard-deviation difference, its LAI~e~ distributions, and the effects across all matched pairs.
+
+**Results.** Mean LAI~e~ was higher in plantations than in matched forests (paired difference: $0.479$; 95% bootstrap interval: $0.447$--$0.512$). In contrast, plantations had less variation in LAI~e~ within windows, both in terms of standard deviation (paired difference: $-0.046$; $-0.058$ to $-0.033$) and differences between adjacent pixels ($-0.043$; $-0.048$ to $-0.039$). Plantations therefore had higher overall LAI~e~ but less spatial variation than nearby non-plantation forests.
