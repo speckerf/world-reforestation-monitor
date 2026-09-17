@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
+from matplotlib.colors import to_rgb
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from analysis.domain_representativeness_experiment.run_phase2_pca import (
@@ -97,44 +98,60 @@ def add_panel_label(ax, label: str) -> None:
     )
 
 
+from matplotlib.lines import Line2D
+
+
 def plot_pca_panel(ax) -> None:
-    """Plot PCA domain panel for LAIe (bottom left)."""
+    """Plot the PCA representation of the retrieval domains."""
     data = load_phase1_data(DATA_DIR)
     pca_results = perform_2d_pca(data)
     pca_results_sub = subsample_points(pca_results, n_samples=3000)
 
-    lut_pca = pca_results_sub[TRAIT]["lut_pca"]
-    rms_pca = pca_results_sub[TRAIT]["rms_pca"]
-    s2_pca = pca_results_sub[TRAIT]["s2_pca"]
-    pca = pca_results_sub[TRAIT]["pca"]
+    results = pca_results_sub[TRAIT]
+    lut_pca = results["lut_pca"]
+    rms_pca = results["rms_pca"]
+    s2_pca = results["s2_pca"]
+    pca = results["pca"]
+
+    colors = {
+        "prosail": "#0072B2",  # blue
+        "grounded": "#D55E00",  # vermillion
+        "global_s2": "#009E73",  # teal
+    }
+
+    from matplotlib.colors import to_rgba
+
+    point_sets = [
+        (lut_pca, colors["prosail"], 0.30, 5),
+        (rms_pca, colors["grounded"], 0.25, 5),
+        (s2_pca, colors["global_s2"], 0.22, 6),
+    ]
+
+    coordinates = np.concatenate([item[0] for item in point_sets])
+
+    facecolors = np.concatenate(
+        [
+            np.tile(to_rgba(color, alpha), (len(points), 1))
+            for points, color, alpha, _ in point_sets
+        ]
+    )
+
+    sizes = np.concatenate(
+        [np.full(len(points), size) for points, _, _, size in point_sets]
+    )
+
+    # Randomize drawing order reproducibly.
+    rng = np.random.default_rng(42)
+    order = rng.permutation(len(coordinates))
 
     ax.scatter(
-        lut_pca[:, 0],
-        lut_pca[:, 1],
-        alpha=0.2,
-        s=3,
-        c="blue",
-        label="PROSAIL LUT",
-    )
-    ax.scatter(
-        rms_pca[:, 0],
-        rms_pca[:, 1],
-        alpha=0.2,
-        s=3,
-        c="red",
-        label="Grounded-EO RMs",
-        edgecolors="darkred",
-        linewidth=0.3,
-    )
-    ax.scatter(
-        s2_pca[:, 0],
-        s2_pca[:, 1],
-        alpha=0.2,
-        s=3,
-        c="green",
-        label="Global S2",
-        edgecolors="darkgreen",
-        linewidth=0.3,
+        coordinates[order, 0],
+        coordinates[order, 1],
+        s=sizes[order],
+        facecolors=facecolors[order],
+        edgecolors="none",
+        rasterized=True,
+        zorder=2,
     )
 
     ax.set_xlabel(
@@ -145,11 +162,65 @@ def plot_pca_panel(ax) -> None:
         f"PC2 ({pca.explained_variance_ratio_[1]:.1%})",
         fontsize=10,
     )
-    # ax.set_title(
-    #     f"Domain Representation - {TRAIT.upper()}", fontsize=11, fontweight="bold"
-    # )
-    ax.grid(True, alpha=0.3)
-    ax.legend(loc="best", fontsize=9)
+
+    ax.grid(
+        True,
+        color="#D9D9D9",
+        linewidth=0.7,
+        alpha=0.55,
+    )
+    ax.tick_params(axis="both", labelsize=9, width=0.8)
+
+    for spine in ax.spines.values():
+        spine.set_color("#333333")
+        spine.set_linewidth(0.8)
+
+    # Use opaque, consistently sized legend markers.
+    legend_handles = [
+        Line2D(
+            [],
+            [],
+            marker="o",
+            linestyle="none",
+            markersize=5,
+            markerfacecolor=colors["prosail"],
+            markeredgecolor="none",
+            label="PROSAIL LUT",
+        ),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            linestyle="none",
+            markersize=5,
+            markerfacecolor=colors["grounded"],
+            markeredgecolor="none",
+            label="GROUNDED-EO RMs",
+        ),
+        Line2D(
+            [],
+            [],
+            marker="o",
+            linestyle="none",
+            markersize=5,
+            markerfacecolor=colors["global_s2"],
+            markeredgecolor="none",
+            label="Global S2",
+        ),
+    ]
+
+    ax.legend(
+        handles=legend_handles,
+        loc="upper right",
+        fontsize=9,
+        frameon=True,
+        facecolor="white",
+        edgecolor="#BFBFBF",
+        framealpha=0.95,
+        borderpad=0.6,
+        handletextpad=0.5,
+        labelspacing=0.4,
+    )
 
 
 def plot_performance_panel(ax, df_all) -> None:
@@ -191,7 +262,7 @@ def plot_performance_panel(ax, df_all) -> None:
     # Add recommended cutoff line at distance = 3.5
     ax.axvline(
         3.5,
-        color="red",
+        color="#4D4D4D",
         linestyle="--",
         linewidth=2,
         alpha=0.8,
@@ -244,7 +315,7 @@ def plot_uncertainty_panel(ax, df_all) -> None:
     cutoff_position = len(binned) - 1.5  # Between third-to-last and second-to-last bin
     ax.axvline(
         cutoff_position,
-        color="red",
+        color="#4D4D4D",
         linestyle="--",
         linewidth=2,
         alpha=0.8,
@@ -335,6 +406,14 @@ def plot_distance_cdf_comparison(ax) -> None:
     # Load Global S2 distance data (to LUT)
     global_dist_file = RESULTS_DIR / "phase3_globalS2_with_distances.csv"
 
+    comparison_colors = {
+        "s2_lut": "#0072B2",  # blue
+        "s2_rms": "#D55E00",  # vermillion
+        "rms_lut": "#CC79A7",  # purple
+    }
+
+    cutoff_color = "#4D4D4D"
+
     if not global_dist_file.exists():
         ax.text(
             0.5,
@@ -404,18 +483,30 @@ def plot_distance_cdf_comparison(ax) -> None:
         x_rms_to_lut = np.sort(rms_to_lut_subset)
         y_rms_to_lut = np.arange(1, len(x_rms_to_lut) + 1) / len(x_rms_to_lut)
 
-        ax.plot(x_lut, y_lut, color="blue", linewidth=2.5, label="S2 → PROSAIL LUT")
-        ax.plot(x_rms, y_rms, color="red", linewidth=2.5, label="S2 → GROUNDED-EO RMs")
+        ax.plot(
+            x_lut,
+            y_lut,
+            color=comparison_colors["s2_lut"],
+            linewidth=2.5,
+            label="S2 → PROSAIL LUT",
+        )
+        ax.plot(
+            x_rms,
+            y_rms,
+            color=comparison_colors["s2_rms"],
+            linewidth=2.5,
+            label="S2 → GROUNDED-EO RMs",
+        )
         ax.plot(
             x_rms_to_lut,
             y_rms_to_lut,
-            color="orange",
+            color=comparison_colors["rms_lut"],
             linewidth=2.5,
             label="GROUNDED-EO RMs → PROSAIL LUT",
         )
         ax.axvline(
             3.5,
-            color="red",
+            color="#4D4D4D",
             linestyle="--",
             linewidth=2,
             alpha=0.8,
@@ -472,6 +563,22 @@ def plot_distance_statistics_table(ax) -> None:
             load_phase1_data,
             perform_2d_pca,
         )
+
+        def _tint(color: str, strength: float = 0.5) -> tuple:
+            """Blend a color with white for a pale table background."""
+            rgb = np.asarray(to_rgb(color))
+            return tuple((1 - strength) + strength * rgb)
+
+        comparison_colors = {
+            "s2_lut": "#0072B2",  # blue
+            "s2_rms": "#D55E00",  # vermillion
+            "rms_lut": "#CC79A7",  # purple
+        }
+        table_colors = [
+            _tint(comparison_colors["s2_lut"]),
+            _tint(comparison_colors["s2_rms"]),
+            _tint(comparison_colors["rms_lut"]),
+        ]
 
         # Load Global S2 distances to LUT
         global_data = pd.read_csv(global_dist_file)
@@ -579,11 +686,10 @@ def plot_distance_statistics_table(ax) -> None:
             table[(i, 2)].set_width(0.3)  # % > 3.5 column
 
         # Color code rows
-        colors = ["blue", "red", "orange"]
         for i in range(len(table_data)):
             for j in range(len(columns)):
-                table[(i + 1, j)].set_facecolor(colors[i])
-                table[(i + 1, j)].set_alpha(0.7)
+                table[(i + 1, j)].set_facecolor(table_colors[i])
+                table[(i + 1, j)].get_text().set_color("black")
 
         # No title for inset table
 
