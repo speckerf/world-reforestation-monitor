@@ -2,7 +2,7 @@
 
 **Global 20m resolution maps of vegetation biophysical properties (LAIe, FAPAR, FCOVER) from Sentinel-2 data (2019-2025)**
 
-**Quick Links:** [View Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps) | [Download Data](https://doi.org/10.5281/zenodo.19366930) | [Python Package](https://pypi.org/project/gee-biophys/) | [GEE Code Examples](https://code.earthengine.google.com/?scriptPath=users%2Fspeckerf%2Fopen-earth-public%3As2biophys-analysis-v3)
+**Quick Links:** [View Maps](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps) | [Download Data](https://doi.org/10.5281/zenodo.19366930) | [Python Package](https://pypi.org/project/gee-biophys/) | [GEE JavaScript API Examples](https://code.earthengine.google.com/?scriptPath=users%2Fspeckerf%2Fopen-earth-public%3As2biophys-analysis-v3) | [GEE Python API Examples](https://github.com/speckerf/world-reforestation-monitor/blob/main/notebooks/s2biophys_analysis_gee_python_api.ipynb)
 
 > **Status:** Under review - preprint available soon
 
@@ -20,7 +20,9 @@
 ### For Data Users
 - **Interactive viewer:** [Global High-resolution Maps App](https://ee-speckerfelix.projects.earthengine.app/view/global-trait-maps)
 - **Download ready-to-use data:** [Zenodo Repository](https://doi.org/10.5281/zenodo.19366930) (100m, 1000m resolution)
-- **Use in Google Earth Engine:** [Code Examples](https://code.earthengine.google.com/?scriptPath=users%2Fspeckerf%2Fopen-earth-public%3As2biophys-analysis-v3)
+- **Code Examples - Google Earth Engine:** 
+   - [Code Editor – JavaScript API](https://code.earthengine.google.com/?scriptPath=users%2Fspeckerf%2Fopen-earth-public%3As2biophys-analysis-v3)
+   - [Jupyter Notebook – Python API](https://github.com/speckerf/world-reforestation-monitor/blob/main/notebooks/s2biophys_analysis_gee_python_api.ipynb)
 
 ### For Python Users
 ```bash
@@ -93,6 +95,8 @@ var laie_2019 = get_yearly_image('laie', 2019);
 
 ## Python Package
 
+The annual precomputed S2BIOPHYS maps should represent near-peak greeness vegetation conditions for _natural_ vegetation (determined at S2 tile level). Consequently, they should not be used to analyze areas with cultivated crops or harvests during this period: Use the below package for user-defined temporal periods or intervals. 
+
 ### gee-biophys
 The [`gee-biophys`](https://pypi.org/project/gee-biophys/) Python package enables users to generate custom spatiotemporal composites of vegetation biophysical properties. It implements both S2BIOPHYS and SL2P algorithms, allowing users to define time intervals, spatial extents, and resolution through a simple configuration file.
 
@@ -117,10 +121,41 @@ pip install gee-biophys
    ```
 
 2. **Create environment**
+   
+   - **Python environment**: 
+   
+   Create the Conda environment from `environment.yml`:
+
    ```bash
    conda env create -f environment.yml
    conda activate world-reforestation-monitor
    ```
+
+   > **Important:** Use `scikit-learn==1.7.2`. The trained models are serialized as pickle files and should be loaded using the same scikit-learn version used during training.
+
+   Verify the installation:
+
+   ```bash
+   python -c "import sklearn; print(sklearn.__version__)"
+   ```
+
+   - **R environment** (only required for model training with PROSPECT/PROSAIL):
+   - The code was executed using **R 4.5.2**.
+   - In addition to standard R packages (e.g. `tidyverse`), model training requires specific versions of `prospect` and `prosail`. Install the required packages with:
+      ```r
+      install.packages(c("tidyverse", "argparse", "remotes"))
+
+      remotes::install_github(
+         "jbferet/prospect",
+         ref = "8b6ed385fb612185bce5faf03b662973e0645cf3"
+      )
+
+      remotes::install_github(
+         "speckerf/prosail",
+         ref = "07e7a8fa7658dac80adf68890463c66718f4cf6a"
+      )
+      ```
+
 
 3. **Download data**
    - Download `data.tar.gz` from [Zenodo](https://doi.org/10.5281/zenodo.15052996)
@@ -140,7 +175,7 @@ devtools::install_github("speckerf/prosail")
 
 **Setup OPTUNA Database:**
 ```bash
-# Install MySQL (tested with version: MySQL 8.4)
+# Install MySQL (trained with version: MySQL 8.4)
 brew install mysql@8.4
 
 # Start MySQL
@@ -190,8 +225,8 @@ python -m train_pipeline.optunaTraining
 | Module | Purpose | Key Scripts |
 |--------|---------|-------------|
 | **validation_pipeline** | Process GROUNDED-EO validation data, export Sentinel-2 reflectances | Data processing and validation |
-| **train_pipeline** | Model training with Optuna hyperparameter optimization | `optunaTraining.py`, `finalTraining.py` |
-| **gee_pipeline** | Google Earth Engine server-side computations and exports | `srcGlobal.py`, `srcOrbits.py` |
+| **train_pipeline** | Model training with Optuna hyperparameter optimization | `optuna_training.py`, `final_training.py` |
+| **gee_pipeline** | Google Earth Engine server-side computations and exports | `src_global.py`, `src_orbits.py` |
 | **ee_translator** | Helper classes for sklearn to GEE translation | Model conversion utilities |
 
 ### Supporting Directories
@@ -209,12 +244,16 @@ python -m train_pipeline.optunaTraining
 
 > **Note:** This work is currently under peer review. Please check for updates and cite the published version when available.
 
+If you use this dataset or code now, please cite the current preprint:
+
+> Specker, F., Schweiger, A. K., Féret, J.-B., et al. (2026). *Advancing Ecosystem Monitoring with Global High-Resolution Maps of Vegetation Biophysical Properties*. Research Square, Version 2. https://doi.org/10.21203/rs.3.rs-6343364/v2
+
 ## License
 
-This project uses a dual licensing approach:
+Different components of this project are licensed as follows:
 
-- **Source Code**: Licensed under the terms specified in [LICENSE.txt](LICENSE.txt)
-- **Data Products**: All produced vegetation maps are distributed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Source Code**: Licensed under the [Apache License 2.0](LICENSE.txt).
+- **Data Products**: All produced vegetation maps are distributed under the [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/) license.
   
 
 ## Acknowledgments

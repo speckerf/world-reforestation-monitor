@@ -13,7 +13,8 @@
 .RData
 .Rhistory
 
-
+**/analysis_old
+**/old
 **/backup
 **/deprecated
 **/cache
